@@ -1,5 +1,10 @@
 # iiMultimodalAgent
 
+Native evidence-based failure reports are available through
+`iiMultimodalAgent::FailureDiagnostics` without Qt in the reporting code.
+See [Failure diagnostics](docs/FailureDiagnostics.md) for evidence limits and
+integration with the agent engine and local model explanations.
+
 C++23 multimodal agent orchestration, extracted from iiLocalLLM 0.55.1.
 The initial package version is **0.1.0**. It owns the agent harness, session
 persistence, tools, permissions, hooks, memory, background work, subagents, teams,
@@ -26,6 +31,9 @@ starting a text agent does not load the image/tensor backend. It uses the same
 C++23 tool API and adds no interpreter. Install the complete package, including
 `iiMultimodalAgentImages`, rather than copying the main library alone. Hosts that
 call iiLocalDiffusion functions directly additionally link that SDK's target.
+The installed `iiMultimodalAgent::NativeImages` imported target exposes the
+adapter's runtime file to native bundle deployers. Applications link the main
+`iiMultimodalAgent::iiMultimodalAgent` target; the adapter remains loaded on demand.
 
 The inherited harness uses Qt 6.8.3 Core/Network; this extraction is not a Qt-free
 rewrite. The adapters add no QtGui dependency. iiAudioGen's existing Diffusers
@@ -51,6 +59,8 @@ the package and its six SDK dependencies automatically. Optional real-model
 qualification uses `IIMULTIMODALAGENT_TEST_*` paths. Set
 `IIMULTIMODALAGENT_TEST_BUNDLED_VOICE=ON` for native Hello World synthesis through
 the new `Speak` tool; an absent fixture is not counted as successful inference.
+The installed consumer also links iiLocalLLM's host memory/offload options, so an
+older inference binary cannot silently satisfy the agent installation check.
 
 ```cmake
 find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)

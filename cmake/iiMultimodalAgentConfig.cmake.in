@@ -1,4 +1,10 @@
 @PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/iiMultimodalAgentFailureDiagnosticsTargets.cmake")
+set(iiMultimodalAgent_FailureDiagnostics_FOUND TRUE)
+if(iiMultimodalAgent_FIND_COMPONENTS STREQUAL "FailureDiagnostics")
+    check_required_components(iiMultimodalAgent)
+    return()
+endif()
 set(_iimultimodalagent_package_prefix "${PACKAGE_PREFIX_DIR}")
 include(CMakeFindDependencyMacro)
 find_dependency(iiLocalLLM 0.56 CONFIG)

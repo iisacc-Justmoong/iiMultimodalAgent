@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.24)
+project(NativeFailureConsumer LANGUAGES CXX)
+find_package(iiMultimodalAgent CONFIG REQUIRED COMPONENTS FailureDiagnostics)
+add_executable(NativeFailureConsumer ../failure_report_tests.cpp)
+target_link_libraries(NativeFailureConsumer PRIVATE iiMultimodalAgent::FailureDiagnostics)
+enable_testing()
+add_test(NAME FailureDiagnostics.installed COMMAND NativeFailureConsumer)

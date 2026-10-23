@@ -107,3 +107,7 @@ Windows and Linux metadata/branches are carried into the new module, but their
 binaries were not executed in this macOS qualification. Existing optional model
 quality sweeps are not implied by the focused results. Source changes are local;
 no remote repository or publication is fabricated.
+
+## 설치본의 외장 스토리지 검사
+
+MemoryDream 고정 모델 검사는 자식 프로세스 시작과 파일 게시·비동기 완료를 최대 30초 기다린다. 전체 검사 상한은 240초이다. 모델 실행 예산과 의도한 시간 초과 입력은 변경하지 않으며, 실제 잠금·죽은 보유자 복구·저장 내용·상태 검증을 그대로 수행한다. 설치본 초기 로드와 외장 스토리지 I/O가 3초·5초의 기존 하네스 대기를 넘긴 사례를 재현한 뒤 적용했다.

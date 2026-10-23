@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiMultimodalAgentConsumer LANGUAGES CXX)
 find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)
+if(NOT TARGET iiMultimodalAgent::NativeImages)
+    message(FATAL_ERROR "The installed agent package must expose its native image runtime to bundle deployers")
+endif()
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
 enable_testing()
 include(../RuntimeBindings.cmake)
@@ -30,3 +33,5 @@ if(APPLE)
         "DYLD_FALLBACK_LIBRARY_PATH=unset:" "DYLD_VERSIONED_LIBRARY_PATH=unset:"
         "DYLD_VERSIONED_FRAMEWORK_PATH=unset:")
 endif()
+
+set_tests_properties(iiMultimodalAgent.installed_memory_dream PROPERTIES TIMEOUT 240)

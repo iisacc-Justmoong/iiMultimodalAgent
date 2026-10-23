@@ -1,4 +1,5 @@
 #include <iiMultimodalAgent/agent/Engine.h>
+#include <Runtime.h>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QDir>
@@ -17,6 +18,8 @@ public:
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     try {
+        const auto native = iiLocalLLM::createLlamaRuntime({false, 1, true});
+        if (!native || native->id() != QStringLiteral("llama.cpp")) return 6;
         QTemporaryDir root(QDir::current().filePath("installed-agent-XXXXXX"));
         auto registry = std::make_shared<a::ToolRegistry>();
         a::Tool tool;

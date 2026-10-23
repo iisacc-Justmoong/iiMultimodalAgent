@@ -7,6 +7,22 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 
+add_library(iiMultimodalAgentFailureDiagnostics INTERFACE)
+add_library(iiMultimodalAgent::FailureDiagnostics ALIAS iiMultimodalAgentFailureDiagnostics)
+set_target_properties(iiMultimodalAgentFailureDiagnostics PROPERTIES EXPORT_NAME FailureDiagnostics)
+target_compile_features(iiMultimodalAgentFailureDiagnostics INTERFACE cxx_std_23)
+target_include_directories(iiMultimodalAgentFailureDiagnostics INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<INSTALL_INTERFACE:include>)
+install(TARGETS iiMultimodalAgentFailureDiagnostics EXPORT iiMultimodalAgentFailureDiagnosticsTargets COMPONENT FailureDiagnostics)
+install(EXPORT iiMultimodalAgentFailureDiagnosticsTargets NAMESPACE iiMultimodalAgent::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
+install(FILES src/iiMultimodalAgent/diagnostics/FailureReport.h DESTINATION include/iiMultimodalAgent/diagnostics COMPONENT FailureDiagnostics)
+if(BUILD_TESTING)
+    add_executable(iiMultimodalAgentFailureReportTests tests/failure_report_tests.cpp)
+    target_link_libraries(iiMultimodalAgentFailureReportTests PRIVATE iiMultimodalAgent::FailureDiagnostics)
+    add_test(NAME iiMultimodalAgent.failure_report COMMAND iiMultimodalAgentFailureReportTests)
+endif()
+
 if(PROJECT_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     if(DEFINED ENV{HOME})
         set(_agent_home "$ENV{HOME}")
@@ -52,6 +68,7 @@ if(APPLE)
     endif()
 endif()
 set_target_properties(iiMultimodalAgentImages PROPERTIES
+    EXPORT_NAME NativeImages
     CXX_EXTENSIONS OFF CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES
     VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -120,7 +137,7 @@ install(TARGETS iiMultimodalAgent iiMultimodalAgentImageTypes EXPORT iiMultimoda
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(TARGETS iiMultimodalAgentImages
+install(TARGETS iiMultimodalAgentImages EXPORT iiMultimodalAgentTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -135,7 +152,7 @@ install(FILES third_party/cpp-httplib/LICENSE DESTINATION ${CMAKE_INSTALL_DATADI
 install(FILES third_party/jsoncons/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/licenses RENAME jsoncons.LICENSE)
 install(FILES third_party/jsoncons/A5HASH-LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/licenses RENAME jsoncons-A5HASH.LICENSE)
 install(EXPORT iiMultimodalAgentTargets NAMESPACE iiMultimodalAgent::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent)
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
 configure_package_config_file(cmake/iiMultimodalAgentConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent)
@@ -143,7 +160,7 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentCo
     VERSION ${PROJECT_VERSION} COMPATIBILITY SameMinorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfigVersion.cmake
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent)
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
 
 if(WIN32 AND COMMAND onnxruntime_deploy)
     get_property(_agent_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
