@@ -72,6 +72,16 @@ private slots:
         QVERIFY_THROWS_EXCEPTION(Error,history.search(f.viewer,f.other,{{"query","한글"}}));
         } catch (const std::exception& error) { QFAIL(error.what()); }
     }
+    void repeatedFreshSearchesShareThePreviewReadBoundary() {
+        try {
+            Fixture f;const auto id=f.session("initial");a::SessionHistory history(f.directory);
+            for(int index=0;index<16;++index) {
+                {auto lease=f.store.acquire(id);lease->append({{},a::MessageRole::User,QString("needle %1").arg(index)});}
+                const auto page=history.search(f.viewer,f.work,{{"query","needle"},{"session_ids",QJsonArray{id}},{"limit",50}});
+                QCOMPARE(matches(page).size(),index+1);
+            }
+        } catch(const std::exception& error) {QFAIL(error.what());}
+    }
     void paginatesLargeHistoryWithoutWriterLeaseOrDuplicateResults() {
         Fixture f;const auto id=f.session("begin needle");auto lease=f.store.acquire(id);
         for(int i=0;i<32;++i)lease->append({{},a::MessageRole::User,QString(50000,'x')+QString(" needle %1").arg(i)});
@@ -109,12 +119,14 @@ private slots:
         QCOMPARE(matches(history.search(f.viewer,f.work,{{"query","needle"}})).size(),1);
     }
     void partialTailRemainsUntouchedAndMalformedRecordsFail() {
+        try {
         Fixture f;const auto id=f.session("needle");QFile file(f.path(id));QVERIFY(file.open(QIODevice::Append));file.write("{\"type\":");file.close();
         const auto before=QFileInfo(file).size();a::SessionHistory history(f.directory);
         auto page=history.search(f.viewer,f.work,{{"query","needle"}});QCOMPARE(matches(page).size(),1);
         QCOMPARE(page["incomplete_tails"].toInt(),1);QCOMPARE(QFileInfo(file).size(),before);
         QVERIFY(file.open(QIODevice::Append));file.write("INVALID}\n");file.close();
         QVERIFY_THROWS_EXCEPTION(Error,history.search(f.viewer,f.work,{{"query","needle"}}));
+        } catch (const std::exception& error) { QFAIL(error.what()); }
     }
     void cancellationLimitsAndNativeToolValidation() {
         Fixture f;const auto id=f.session("needle");a::SessionHistory history(f.directory);CancellationToken token;token.cancel();
@@ -131,6 +143,7 @@ private slots:
         QCOMPARE(matches(limited.search(f.viewer,f.work,{{"query","needle"},{"session_ids",QJsonArray{id}}})).size(),1);
     }
     void structuredFieldsAndUnicodeExcerpts() {
+        try {
         Fixture f;const auto id=f.session("Begin");
         {auto lease=f.store.acquire(id);
             lease->append({{},a::MessageRole::Assistant,{},{{"call","Lookup",{{"query","ARGUMENT_NEEDLE"}}}}});
@@ -143,6 +156,7 @@ private slots:
         hit=matches(history.search(f.viewer,f.work,{{"query","DATA_NEEDLE"}})).first().toObject();QCOMPARE(hit["field"].toString(),"data");
         hit=matches(history.search(f.viewer,f.work,{{"query","UNICODE_NEEDLE"}})).first().toObject();const auto snippet=hit["snippet"].toString();
         QVERIFY(snippet.size()<=512);QVERIFY(snippet.contains("UNICODE_NEEDLE"));QCOMPARE(QString::fromUtf8(snippet.toUtf8()),snippet);QVERIFY(hit["truncated"].toBool());
+        } catch (const std::exception& error) { QFAIL(error.what()); }
     }
     void cursorsAreSingleUseBoundedAndExpiring() {
         Fixture f;const auto id=f.session("needle first");{auto lease=f.store.acquire(id);lease->append({{},a::MessageRole::User,"needle second"});}

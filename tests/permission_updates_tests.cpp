@@ -8,6 +8,7 @@
 #include <QtTest/QtTest>
 #include <future>
 #include <barrier>
+#include <iostream>
 #ifdef Q_OS_UNIX
 #include <sys/file.h>
 #include <fcntl.h>
@@ -196,5 +197,9 @@ private slots:
 #endif
     }
 };
-QTEST_GUILESS_MAIN(PermissionUpdatesTests)
+int main(int argc,char** argv) {
+    QCoreApplication app(argc,argv);PermissionUpdatesTests test;
+    try { return QTest::qExec(&test,argc,argv); }
+    catch(const std::exception& error) {std::cerr<<"Permission update test exception: "<<error.what()<<std::endl;return 1;}
+}
 #include "permission_updates_tests.moc"

@@ -9,6 +9,7 @@
 #include <QtCore/QJsonDocument>
 #include <QtTest/QtTest>
 #include <mutex>
+#include <iostream>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 namespace a=iiMultimodalAgent::agent;
 namespace m=iiMultimodalAgent::mcp;
@@ -177,5 +178,9 @@ private slots:
         QVERIFY(forged.contains("error")||forged["result"].toObject()["isError"].toBool());
     }
 };
-QTEST_GUILESS_MAIN(ProjectMemoryEngineTests)
+int main(int argc,char** argv) {
+    QCoreApplication app(argc,argv);ProjectMemoryEngineTests test;
+    try { return QTest::qExec(&test,argc,argv); }
+    catch(const std::exception& error) {std::cerr<<"Project memory test exception: "<<error.what()<<std::endl;return 1;}
+}
 #include "project_memory_engine_tests.moc"

@@ -125,7 +125,10 @@ public:
             &&f.isFile()&&!f.isSymLink()&&f.canonicalFilePath()==file,"Session history is unavailable",ErrorCode::NotFound);
     }
     FileSnapshot header(const QString& id,qint64& read,const CancellationToken& token)const {
-        token.throwIfCancelled();guard(id);QFile file(path(id));require(file.open(QIODevice::ReadOnly),"Cannot read session history",ErrorCode::StorageFailure);
+        token.throwIfCancelled();guard(id);
+        iiFileProvider::native::SourceAccess access(std::filesystem::path(path(id).toStdU16String()));
+        std::lock_guard sourceLock(access);
+        QFile file(path(id));require(file.open(QIODevice::ReadOnly),"Cannot read session history",ErrorCode::StorageFailure);
         FileSnapshot result;result.id=id;result.stamp=fingerprint(file);result.bytes=file.size();result.modified=QFileInfo(file).lastModified().toMSecsSinceEpoch();
         require(result.bytes<=64*1024*1024,"Session history exceeds 64 MiB",ErrorCode::ResourceLimit);
         const qint64 budget=options.maxScanBytes-read;
@@ -163,9 +166,13 @@ public:
     }
     void validateSnapshot(const Search& state,const CancellationToken& token)const {
         for(const auto& entry:state.files) {
-            token.throwIfCancelled();guard(entry.id);QFile file(path(entry.id));
+            token.throwIfCancelled();guard(entry.id);
+            iiFileProvider::native::SourceAccess access(std::filesystem::path(path(entry.id).toStdU16String()));
+            std::lock_guard sourceLock(access);
+            QFile file(path(entry.id));
             require(file.open(QIODevice::ReadOnly),"Cannot read session history",ErrorCode::StorageFailure);
-            require(fingerprint(file)==entry.stamp,"Session history changed; restart without cursor",ErrorCode::ModelInUse);
+            const auto currentStamp=fingerprint(file);
+            require(currentStamp==entry.stamp,"Session history changed; restart without cursor",ErrorCode::ModelInUse);
         }
     }
     QJsonObject search(const QString& owner,const QString& workspace,const QJsonObject& arguments,const CancellationToken& token) {
@@ -185,9 +192,13 @@ public:
         validateSnapshot(state,token);
         QJsonArray hits;int records=0,tails=0;bool budgetStop=false;
         while(state.index<state.files.size()&&hits.size()<args.limit&&records<options.maxRecordsPerPage) {
-            token.throwIfCancelled();const auto& entry=state.files[state.index];guard(entry.id);QFile file(path(entry.id));
+            token.throwIfCancelled();const auto& entry=state.files[state.index];guard(entry.id);
+            iiFileProvider::native::SourceAccess access(std::filesystem::path(path(entry.id).toStdU16String()));
+            std::lock_guard sourceLock(access);
+            QFile file(path(entry.id));
             require(file.open(QIODevice::ReadOnly),"Cannot read session history",ErrorCode::StorageFailure);
-            require(fingerprint(file)==entry.stamp,"Session history changed; restart without cursor",ErrorCode::ModelInUse);
+            const auto currentStamp=fingerprint(file);
+            require(currentStamp==entry.stamp,"Session history changed; restart without cursor",ErrorCode::ModelInUse);
             if(state.offset==0)state.offset=entry.headerBytes;
             require(file.seek(state.offset),"Cannot seek session history",ErrorCode::StorageFailure);
             while(state.offset<entry.bytes&&hits.size()<args.limit&&records<options.maxRecordsPerPage) {
