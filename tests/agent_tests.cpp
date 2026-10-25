@@ -39,6 +39,51 @@ public:
     }
 };
 #include "agent_tests.h"
+void AgentTests::exactObservationRepairUsesTheExistingTurnLimit() {
+    for(const int limit:{2,3})for(const auto& wrong:QStringList{"auxiliary-hash","The contents are: observed\n\"한글\""}) {
+        QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();
+        a::Tool read;read.definition={"Read","Read current contents",{{"type","object"}}};
+        read.execute=[](const QJsonObject&,const a::ToolContext&){return a::ToolResult{"observed\n\"한글\"",{{"sha256","auxiliary-hash"},{"complete",true}}};};registry->add(read);
+        model->replies={{{},{{"read","Read",{}}}},{wrong,{}},{"observed\n\"한글\"",{}}};
+        a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
+        a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
+        const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Read. Return only the exact file contents."};request.maxTurns=limit;
+        const auto result=engine.run(request).result.get();QCOMPARE(result.turns,limit);
+        QCOMPARE(result.status,limit==2?a::RunStatus::TurnLimit:a::RunStatus::Completed);
+        if(limit==3)QCOMPARE(result.text,"observed\n\"한글\"");
+        QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+        bool recorded=false;for(const auto& message:engine.session(session.id).messages)recorded|=message.metadata.contains("iilocal.observation_repair");QVERIFY(recorded);
+    }
+}
+void AgentTests::exactFieldRepairRequiresAnUnambiguousObservation() {
+    for(const bool ambiguous:{false,true}) {
+        QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();
+        a::Tool lookup;lookup.definition={"Inspect","Inspect an object",{{"type","object"}}};
+        lookup.execute=[ambiguous](const QJsonObject&,const a::ToolContext&){
+            QJsonObject data{{"item",QJsonObject{{"name","auxiliary-name"},{"description","actual description 한글"}}}};
+            if(ambiguous)data.insert("another",QJsonObject{{"description","another candidate"}});
+            return a::ToolResult{QString::fromUtf8(QJsonDocument(data).toJson(QJsonDocument::Compact)),data};
+        };registry->add(lookup);
+        model->replies={{{},{{"inspect","Inspect",{}}}},{"auxiliary-name",{}},{"actual description 한글",{}}};
+        a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
+        a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
+        const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact description from its actual result."};request.maxTurns=3;
+        const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);
+        QCOMPARE(result.turns,ambiguous?2:3);QCOMPARE(result.text,ambiguous?"auxiliary-name":"actual description 한글");
+        bool repaired=false;for(const auto& message:engine.session(session.id).messages)repaired|=message.metadata.contains("iilocal.observation_repair");
+        QCOMPARE(repaired,!ambiguous);QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+    }
+}
+void AgentTests::exactValueUsesDecodedTextBeforeProtocolMetadata() {
+    QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();
+    a::Tool inspect;inspect.definition={"Inspect","Read a value",{{"type","object"}}};
+    inspect.execute=[](const QJsonObject&,const a::ToolContext&){return a::ToolResult{R"({"value":"actual value"})",{{"protocol","auxiliary"}}};};registry->add(inspect);
+    model->replies={{{},{{"inspect","Inspect",{}}}},{"auxiliary",{}},{"actual value",{}}};
+    a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
+    a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
+    const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact value."};request.maxTurns=3;
+    const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.turns,3);QCOMPARE(result.text,"actual value");
+}
 void AgentTests::singleToolLimitIsPassedToModels(){
     for(const int limit:{1,8}){
         QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();registry->add(echoTool());

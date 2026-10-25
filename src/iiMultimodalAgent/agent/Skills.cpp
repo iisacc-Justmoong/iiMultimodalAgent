@@ -255,10 +255,10 @@ Message loadSkill(const QString& workspace, const QString& input, const QString&
     require(source != SkillInvocationSource::User || found->info.userInvocable, "Skill disables user invocation");
     require(found->info.unsupportedFeatures.isEmpty(), "Unsupported skill execution features: " + found->info.unsupportedFeatures.join(", "), ErrorCode::RuntimeUnavailable);
     Message message{QUuid::createUuid().toString(QUuid::WithoutBraces), MessageRole::User,
-        "Skill: " + name + "\nBase directory for this skill's resources: " + found->info.directory
-        + "\nSession working directory: " + QFileInfo(workspace).canonicalFilePath()
-        + "\nRelative paths passed to workspace tools resolve from the session working directory."
-        + "\nThis skill is already loaded. Follow its instructions below without calling Skill again for this invocation.\n\n" + expand(*found, args, session)};
+        "Skill: " + name + "\nSession working directory: " + QFileInfo(workspace).canonicalFilePath()
+        + "\nExecute the following instructions in this working directory. Keep relative workspace file paths relative."
+        + "\nThis skill is already loaded. Follow its instructions below without calling Skill again for this invocation.\n\n" + expand(*found, args, session)
+        + "\n\nSkill resource directory (only for explicitly referenced skill resources, never the working directory): " + found->info.directory};
     auto metadata = found->info.toJson(); metadata["format_version"] = 1; metadata["args"] = args;
     metadata["invocation"] = source == SkillInvocationSource::Model ? "model" : "user";
     message.metadata = {{"iilocal.skill", metadata}}; return message;

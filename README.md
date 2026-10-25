@@ -99,3 +99,5 @@ schemas stay stable. Inference-only `iiLocalLLMD` and `iillm` remain in iiLocalL
 See [Migration](docs/Migration.md), [Multimodal services](docs/MultimodalServices.md),
 [DecisionGate](docs/DecisionGate.md), [Agent harness](docs/AgentHarness.md), and
 [Verification](docs/Verification.md).
+
+Related implementation contracts: [Native tool turns](docs/NativeToolTurns.md), [Context admission](docs/ContextAdmission.md).

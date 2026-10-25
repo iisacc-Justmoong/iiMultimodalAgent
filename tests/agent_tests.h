@@ -3,6 +3,9 @@
 class AgentTests : public QObject {
     Q_OBJECT
 private slots:
+    void exactObservationRepairUsesTheExistingTurnLimit();
+    void exactFieldRepairRequiresAnUnambiguousObservation();
+    void exactValueUsesDecodedTextBeforeProtocolMetadata();
     void singleToolLimitIsPassedToModels();
     void completionToolStopsBeforeLaterTools();
     void verifierPermissionModeDoesNotInheritBypass();

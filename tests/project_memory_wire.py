@@ -29,7 +29,9 @@ def main():
     for name in ('DYLD_LIBRARY_PATH', 'DYLD_FRAMEWORK_PATH', 'DYLD_FALLBACK_LIBRARY_PATH', 'LIBRARY_PATH'):
         env.pop(name, None)
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='memory-wire-', dir=args.report.parent) as directory:
+    # Socket scratch paths must follow the configured temporary root: a report
+    # can live in a deep build tree that exceeds macOS sockaddr_un.sun_path.
+    with tempfile.TemporaryDirectory(prefix='memory-wire-') as directory:
         root = Path(directory)
         work = root / 'work'
         work.mkdir()

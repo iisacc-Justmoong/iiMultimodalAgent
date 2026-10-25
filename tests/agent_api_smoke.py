@@ -54,7 +54,11 @@ def main():
         model = "fixture"
         if args.model:
             assert args.model.stat().st_size == 491400032
-            assert hashlib.file_digest(args.model.open("rb"), "sha256").hexdigest() == "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db"
+            digest = hashlib.sha256()
+            with args.model.open("rb") as source:
+                while block := source.read(1024 * 1024):
+                    digest.update(block)
+            assert digest.hexdigest() == "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db"
             package = catalog / "api-fixture"
             package.mkdir()
             os.link(args.model, package / "model.gguf")

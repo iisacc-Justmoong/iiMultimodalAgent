@@ -13,7 +13,7 @@ struct CompactionOptions {
 namespace detail {
 void validateCompaction(const Session&, const Compaction&);
 void addTranscriptTool(ToolRegistry&, const Session&);
-bool needsCompaction(Model&, const ModelRequest&, const CompactionOptions&, const CancellationToken&);
+bool needsCompaction(Model&, const ModelRequest&, const CompactionOptions&, const CancellationToken&, const Session* = nullptr);
 // base.messages contains only ephemeral prefix instructions, not transcript messages.
 // Returns a proposed checkpoint only. The caller commits it after successful hooks and cancellation checks.
 Compaction prepareCompaction(Model&, const Session&, const ModelRequest& base,

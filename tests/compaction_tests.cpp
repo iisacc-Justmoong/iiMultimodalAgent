@@ -54,9 +54,57 @@ public:
         return {"continued", {}};
     }
 };
+class CatalogBudgetModel final : public a::Model {
+public:
+    int turn=0;
+    std::optional<ContextBudget> measure(const a::ModelRequest& request,const CancellationToken&)override {
+        qint64 tokens=100;for(const auto& tool:request.tools)tokens+=tool.description.size();
+        for(const auto& message:request.messages)tokens+=message.text.size();
+        return ContextBudget{tokens,4096};
+    }
+    a::ModelReply generate(const a::ModelRequest& request,const CancellationToken& token,const TextCallback&)override {
+        if(measure(request,token)->inputTokens+request.generation.maxTokens>4096)
+            throw Error(ErrorCode::ContextOverflow,"Catalog did not fit");
+        ++turn;
+        if(turn==1)return {{},{{"search","ToolSearch",{{"query","select:Inspect"}}}}};
+        if(turn==2)return {{},{{"inspect","Inspect",{}}}};
+        return {"observed",{}, {100,1,0,0}};
+    }
+};
 class CompactionTests : public QObject {
     Q_OBJECT
 private slots:
+    void oversizedEagerCatalogUsesDiscoveryWithoutChangingTheNativeWindow() {
+        iiFileProvider::TemporaryDirectory root;a::EngineOptions options{.decision={.enabled=false}};
+        options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;options.taskToolsEnabled=false;
+        auto registry=std::make_shared<a::ToolRegistry>();
+        for(const auto& name:{"Inspect","Other","Third"}) {
+            a::Tool tool;tool.definition={name,QString(1700,'d'),{{"type","object"}}};
+            tool.execute=[](const QJsonObject&,const a::ToolContext&){return a::ToolResult{"observation"};};registry->add(std::move(tool));
+        }
+        auto model=std::make_shared<CatalogBudgetModel>();
+        a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
+        auto session=engine.createSession("model://test",root.path());a::RunRequest request{session.id,"Inspect the workspace"};request.generation.maxTokens=64;
+        const auto result=engine.run(request).result.get();QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
+        QCOMPARE(model->turn,3);QCOMPARE(result.usage.compactions,0);QCOMPARE(registry->definitions().size(),3);
+        for(const auto& definition:registry->definitions())QVERIFY(!definition.deferred);
+    }
+    void newRequestMayUseTheWindowAboveTheProactiveWatermark() {
+        iiFileProvider::TemporaryDirectory root;a::EngineOptions options{.decision={.enabled=false}};
+        options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;options.taskToolsEnabled=false;
+        auto model=std::make_shared<BudgetModel>();model->window=4096;
+        a::Engine engine(model,std::make_shared<a::ToolRegistry>(),std::make_shared<a::RulePolicy>(),options);
+        const auto session=engine.createSession("model://fixture",root.path()).id;
+        a::RunRequest request{session,QString(3500,'x')};request.generation.maxTokens=64;
+        const auto result=engine.run(request).result.get();
+        QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.usage.compactions,0);
+        QVERIFY(model->requests.size()==1);const auto budget=model->measure(model->requests.first(),{}).value();
+        QVERIFY(budget.inputTokens>qint64((budget.contextTokens-64)*options.compaction.triggerFraction));
+        QVERIFY(budget.inputTokens+64<=budget.contextTokens);
+        const auto other=engine.createSession("model://fixture",root.path()).id;
+        a::RunRequest overflow{other,QString(4200,'x')};overflow.generation.maxTokens=64;
+        QCOMPARE(engine.run(overflow).result.get().status,a::RunStatus::Failed);
+    }
     void automaticMicroCompactionAndRecall() {
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
         auto model = std::make_shared<BudgetModel>(); model->window = 2048; model->recall = true;

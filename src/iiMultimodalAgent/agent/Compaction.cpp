@@ -150,12 +150,16 @@ void addTranscriptTool(ToolRegistry& registry, const Session& session) {
     };
     registry.add(std::move(tool));
 }
-bool needsCompaction(Model& model, const ModelRequest& request, const CompactionOptions& options, const CancellationToken& token) {
+bool needsCompaction(Model& model, const ModelRequest& request, const CompactionOptions& options, const CancellationToken& token, const Session* session) {
     if (!options.automatic) return false;
     token.throwIfCancelled(); const auto value = model.measure(request, token); token.throwIfCancelled();
     if (!value) return false;
     require(value->inputTokens > 0 && value->contextTokens > 0, "Model returned an invalid context measurement");
-    return value->inputTokens > limit(*value, request, options.triggerFraction);
+    if(value->inputTokens <= limit(*value,request,options.triggerFraction))return false;
+    // A proactive watermark is not a second, smaller context window. A new
+    // request that fits the hard limit has no older groups to compact yet.
+    if(session && value->inputTokens<=limit(*value,request) && groupEnds(modelMessages(*session)).size()<=options.keepRecentGroups)return false;
+    return true;
 }
 Compaction prepareCompaction(Model& model, const Session& session, const ModelRequest& base,
     const CompactionOptions& options, bool manual, const QString& instructions, const CancellationToken& token,
