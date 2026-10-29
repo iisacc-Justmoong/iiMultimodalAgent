@@ -54,6 +54,24 @@ struct Fixture {
 class PlanModeTests final:public QObject {
     Q_OBJECT
 private slots:
+    void activePlanPublishesItsExactWritePathWithoutRestrictingProjectReads() {
+        QTemporaryDir root;auto registry=std::make_shared<a::ToolRegistry>();auto model=std::make_shared<Model>();
+        a::registerWorkspaceTools(*registry,root.path());const auto original=registry->get("Write").definition.inputSchema;
+        a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("state");options.planToolsEnabled=true;
+        options.skills.enabled=false;options.projectContext.enabled=false;options.compaction.automatic=false;
+        model->generateReply=[](const auto&)->a::ModelReply{return {"DONE"};};
+        a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
+        const auto id=engine.createSession("fixture",root.path()).id;QVERIFY(!engine.runPlanTool(id,"EnterPlanMode").isError);
+        const auto path=engine.planStatus(id)["plan_file_path"].toString();
+        QCOMPARE(engine.run({id,"Inspect the project and draft the plan"}).result.get().status,a::RunStatus::Completed);
+        int checked=0;
+        for(const auto& tool:model->requests.last().tools) {
+            const auto property=tool.inputSchema["properties"].toObject()["path"].toObject();
+            if(tool.name=="Write"||tool.name=="Edit"){QCOMPARE(property["enum"].toArray(),QJsonArray{path});++checked;}
+            if(tool.name=="Read")QVERIFY(!property.contains("enum"));
+        }
+        QCOMPARE(checked,2);QCOMPARE(registry->get("Write").definition.inputSchema,original);
+    }
     void verificationAgentCannotReadAnotherSessionsPlanInsideWorkspace() {
         QTemporaryDir root;auto registry=std::make_shared<a::ToolRegistry>();auto model=std::make_shared<Model>();
         a::registerWorkspaceTools(*registry,root.path());

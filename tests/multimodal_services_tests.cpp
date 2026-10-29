@@ -1,5 +1,6 @@
 #include <iiMultimodalAgent.h>
 #include <iiFileProviderNative.h>
+#include <iiFileProviderPresentation.h>
 #include <QtCore/QDir>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
@@ -55,6 +56,12 @@ a::ToolContext context(const QTemporaryDir& root) {
     a::ToolContext result; result.sessionId="services-test"; result.runId="run"; result.workingDirectory=root.path();
     return result;
 }
+a::ToolContext context(const std::filesystem::path& root) {
+    const auto utf8 = root.u8string();
+    a::ToolContext result; result.sessionId="services-test"; result.runId="run";
+    result.workingDirectory=QString::fromUtf8(reinterpret_cast<const char*>(utf8.data()), qsizetype(utf8.size()));
+    return result;
+}
 }
 
 class MultimodalServicesTests final : public QObject {
@@ -102,18 +109,24 @@ private slots:
         QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
     }
     void pcmUsesTheBoundAudioBackendAndRejectsInvalidOutput() {
-        QTemporaryDir root;
+        iiFileProvider::native::TemporaryDirectory root(IIMULTIMODAL_TEST_RESOURCES);
+        QVERIFY(root.isValid());
         auto backend=std::make_shared<Audio>(); a::MultimodalServices config;
-        config.outputDirectory=std::filesystem::path(root.path().toStdU16String());
+        config.outputDirectory=root.path();
         config.audio=std::make_shared<iiAudioGen::Generator>(backend);
         auto tools=a::multimodalTools(config); QCOMPARE(tools.size(),1);
-        auto result=tools[0].execute({{"prompt","a bell"},{"duration_seconds",0.02},{"sample_rate",16000}},context(root));
+        auto result=tools[0].execute({{"prompt","a bell"},{"duration_seconds",0.02},{"sample_rate",16000}},context(root.path()));
         QCOMPARE(result.data["provider"],"iiAudioGen"); QCOMPARE(backend->calls.load(),1);
         QCOMPARE(result.data["frames"].toInteger(),320);
         const auto bytes=QByteArray::fromBase64(result.content[0].toObject()["data"].toString().toLatin1());
         QVERIFY(bytes.startsWith("RIFF")); QCOMPARE(bytes.mid(8,4),QByteArray("WAVE"));
+        const auto path=std::filesystem::path(result.data["path"].toString().toStdU16String());
+        const auto published=iiFileProvider::native::File::read(path);
+        QCOMPARE(QByteArray(published.data(),qsizetype(published.size())),bytes);
         backend->invalid=true;
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",0.02}},context(root)));
+        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",0.02}},context(root.path())));
+        iiFileProvider::native::Presentation::cancelPending(path);
+        QVERIFY(iiFileProvider::native::File::remove(path));
     }
     void cancellationAfterAnAudioCallDoesNotPublishPartialOutput() {
         QTemporaryDir root; auto c=context(root); auto backend=std::make_shared<Audio>();

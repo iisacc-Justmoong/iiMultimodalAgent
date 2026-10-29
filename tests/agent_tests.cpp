@@ -27,6 +27,10 @@ public:
     QList<a::ModelReply> replies;
     QList<a::ModelRequest> requests;
     std::function<void(const a::ModelRequest&)> observe;
+    std::function<std::optional<ContextBudget>(const a::ModelRequest&)> inspectMeasure;
+    std::optional<ContextBudget> measure(const a::ModelRequest& request,const CancellationToken&) override {
+        return inspectMeasure?inspectMeasure(request):std::nullopt;
+    }
     a::ModelReply generate(const a::ModelRequest& request, const CancellationToken& token,
             const std::function<bool(const QString&)>& delta) override {
         token.throwIfCancelled();
@@ -39,6 +43,28 @@ public:
     }
 };
 #include "agent_tests.h"
+void AgentTests::catalogBudgetUsesCurrentInputAndDoesNotReplaceGenerationHistory() {
+    QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();
+    registry->add(echoTool());registry->add(echoTool("another"));bool validProbe=false,completeTurnProbe=false;
+    model->inspectMeasure=[&](const a::ModelRequest& request)->std::optional<ContextBudget> {
+        if(request.messages.isEmpty()||(request.messages.last().role!=a::MessageRole::User&&request.messages.last().role!=a::MessageRole::Tool))
+            throw Error(ErrorCode::InvalidArgument,"Native measurement requires a complete conversation boundary");
+        if(request.messages.size()==1){validProbe=request.messages.last().text=="current request";if(!validProbe)throw Error(ErrorCode::InvalidArgument,"Catalog probe changed current input");}
+        if(request.messages.size()==3&&request.messages.first().text=="current request") {
+            completeTurnProbe=request.messages.last().role==a::MessageRole::Tool&&a::pendingToolCalls(request.messages).isEmpty();
+            if(!completeTurnProbe)throw Error(ErrorCode::ProtocolError,"Catalog probe split the current tool turn");
+        }
+        return ContextBudget{100,4096};
+    };
+    model->replies={{{},{{"echo-call","echo",{{"value",1}}}}},{"done",{}}};a::EngineOptions options{.decision={.enabled=false}};
+    options.sessionsDirectory=root.filePath("sessions");options.skills.enabled=false;options.taskToolsEnabled=false;
+    options.projectContext.enabled=false;options.compaction.automatic=false;
+    a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(),options);const auto session=engine.createSession("fixture",root.path());
+    {a::SessionStore store(options.sessionsDirectory);auto lease=store.acquire(session.id);lease->append({{},a::MessageRole::User,"old history"});lease->append({{},a::MessageRole::Assistant,"old answer"});}
+    const auto result=engine.run({session.id,"current request"}).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QVERIFY(validProbe);QVERIFY(completeTurnProbe);
+    QCOMPARE(model->requests.size(),2);QCOMPARE(model->requests.first().messages.size(),3);QCOMPARE(model->requests.last().messages.size(),5);
+    QCOMPARE(model->requests.first().messages.first().text,"old history");QCOMPARE(model->requests.first().messages.last().text,"current request");
+}
 void AgentTests::exactObservationRepairUsesTheExistingTurnLimit() {
     for(const int limit:{2,3})for(const auto& wrong:QStringList{"auxiliary-hash","The contents are: observed\n\"한글\""}) {
         QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();
@@ -83,6 +109,19 @@ void AgentTests::exactValueUsesDecodedTextBeforeProtocolMetadata() {
     a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
     const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact value."};request.maxTurns=3;
     const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.turns,3);QCOMPARE(result.text,"actual value");
+}
+void AgentTests::exactJsonGeneratedByCustomModelsIsDecodedWithoutAnotherToolCall() {
+    for(const bool correct:{false,true}) {
+        QTemporaryDir root;auto model=std::make_shared<ScriptModel>();auto registry=std::make_shared<a::ToolRegistry>();
+        a::Tool inspect;inspect.definition={"Inspect","Read a field",{{"type","object"}}};int calls=0;
+        inspect.execute=[&](const auto&,const auto&){++calls;return a::ToolResult{R"({"secret":"actual value","metadata":"unrelated"})"};};registry->add(inspect);
+        model->replies={{{},{{"inspect","Inspect",{}}}},{correct?R"({"secret":"actual value","metadata":"unrelated"})":R"({"secret":"wrong value","metadata":"actual value"})",{}},{"actual value",{}}};
+        a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
+        a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
+        const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact secret field."};request.maxTurns=3;
+        const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.text,"actual value");
+        QCOMPARE(result.turns,correct?2:3);QCOMPARE(calls,1);
+    }
 }
 void AgentTests::singleToolLimitIsPassedToModels(){
     for(const int limit:{1,8}){

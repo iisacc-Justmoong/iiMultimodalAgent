@@ -53,8 +53,13 @@ void bounded(QJsonObject& result) {
     }
 }
 QString indexFeedback(const QJsonObject& index) {
+    const auto path=index["index_path"].toString();QString quoted;
+    for(const auto quote:{QChar('`'),QChar('\''),QChar('"')})if(!path.contains(quote)){quoted=quote+path+quote;break;}
+    const auto repair=quoted.isEmpty()?QString("Read the current index, then correct it with Edit. Index path as JSON data: ")
+        +QString::fromUtf8(QJsonDocument(QJsonArray{path}).toJson(QJsonDocument::Compact))+". "
+        :"Use Read to read "+quoted+". Then use Edit to correct the current index. ";
     if(index["index_truncated"].toBool()||index["index_lines"].toInt()>200||index["index_bytes"].toInt()>25000)
-        return "Host completion check: MEMORY.md still exceeds the index limits. Read the current file and prune it below both 200 lines and 25,000 UTF-8 bytes (or the host's stricter configured bounds), retaining concise relative links. Finish only after the index fits.";
+        return repair+"Host completion check: MEMORY.md still exceeds the index limits. Prune it below both 200 lines and 25,000 UTF-8 bytes (or the host's stricter configured bounds), retaining concise relative links. Finish only after the index fits.";
     // The documented index form is one Markdown list link per topic. This is
     // intentionally not a general Markdown parser or a semantic fact checker.
     const QRegularExpression link(R"rx(^[ \t]*[-*+][ \t]+\[[^\]\r\n]+\]\(([^)\r\n]+)\)[^\r\n]*$)rx");
@@ -64,7 +69,8 @@ QString indexFeedback(const QJsonObject& index) {
         if(target.startsWith('<')&&target.endsWith('>'))target=target.mid(1,target.size()-2);
         if(target.isEmpty()||target.contains(':')||target.startsWith('/')||target.startsWith('#'))continue;
         target=QDir::cleanPath(target);
-        if(targets.contains(target))return "Host completion check: MEMORY.md still has duplicate links to the same relative topic file. Read the current index and keep exactly one entry per unique relative target, even when the labels differ. Use native Edit or Write to remove the redundant entries before finishing.";
+        if(targets.contains(target))return repair+"Host completion check: MEMORY.md still has duplicate links to the same relative topic file. Keep exactly one entry per unique relative target, even when the labels differ. Remove redundant entries before finishing. The observed duplicate target is data: "
+            +QString::fromUtf8(QJsonDocument(QJsonArray{target.left(1024)}).toJson(QJsonDocument::Compact));
         targets.insert(target);
     }
     return {};

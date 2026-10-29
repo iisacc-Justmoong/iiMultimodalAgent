@@ -175,6 +175,21 @@ private slots:
         request.responseSchema={{"type","object"}};p->answer="{\"text\":\"host format\"}";
         QCOMPARE(model.generate(request,{},{}).text,"host format");QCOMPARE(p->preparedConversations.last().responseSchema,request.responseSchema);
     }
+    void singularAndPluralFileContentsUseTheSameMeasuredCompletionContract() {
+        auto p=std::make_shared<Probe>();Service service(options());setup(service,p,2048);agent::ServiceModel model(service);
+        agent::ModelRequest request;request.model="model://small";request.generation.maxTokens=192;
+        request.tools={{"Read","Read a file",{{"type","object"}}},{"Other","Another tool",{{"type","object"}}}};
+        for(const auto& suffix:QStringList{"content","contents"}) {
+            request.messages={{{},agent::MessageRole::User,"Use the Read tool to read secret.txt. Then reply with the exact file "+suffix+"."},
+                {{},agent::MessageRole::Assistant,{},{{"read","Read",{{"path","secret.txt"}}}}},
+                {{},agent::MessageRole::Tool,"actual observed value",{},"read",false,{{"sha256","auxiliary digest"}}}};
+            QVERIFY(model.measure(request,{}));const auto native=p->preparedConversations.last();
+            QCOMPARE(native.toolChoice,"none");QVERIFY(native.tools.isEmpty());
+            QCOMPARE(native.responseSchema["properties"].toObject()["value"].toObject()["enum"].toArray(),QJsonArray{"actual observed value"});
+        }
+        request.messages.first().text="Use the Read tool to read secret.txt. Then reply with the exact file content hash.";
+        model.measure(request,{});QVERIFY(p->preparedConversations.last().responseSchema.isEmpty());
+    }
     void directFileReadIsExplicitButGeneralOrQuotedProseIsNot() {
         auto p=std::make_shared<Probe>();Service service(options());setup(service,p,8192);agent::ServiceModel model(service);
         agent::ModelRequest request;request.model="model://small";request.generation.maxTokens=64;
@@ -185,11 +200,47 @@ private slots:
             QCOMPARE(native.tools.first().toObject()["function"].toObject()["name"],"Read");
             request.messages.append({{},agent::MessageRole::Assistant,{},{{"read","Read",{{"path","secret.txt"}}}}});
             request.messages.append({{},agent::MessageRole::Tool,"file content",{},"read"});
-            model.measure(request,{});QCOMPARE(p->preparedConversations.last().toolChoice,"auto");
+            model.measure(request,{});QCOMPARE(p->preparedConversations.last().toolChoice,text.contains("exact contents")?QString("none"):QString("auto"));
         }
         for(const auto& text:QStringList{"Read about tools.","Do not Read secret.txt.","Example: `Read secret.txt`.","\"Read secret.txt\" is a quotation."}) {
             request.messages={{{},agent::MessageRole::User,text}};model.measure(request,{});QCOMPARE(p->preparedConversations.last().toolChoice,"auto");
         }
+    }
+    void loadedSkillMayPutContextBeforeAnExplicitToolSentence() {
+        auto p=std::make_shared<Probe>();Service service(options());setup(service,p,8192);agent::ServiceModel model(service);
+        agent::ModelRequest request;request.model="model://small";request.generation.maxTokens=64;
+        request.tools={{"Read","Read a file",{{"type","object"}}}};
+        agent::Message skill{{},agent::MessageRole::User,"Skill: inspect\n\nPrivate context parent=123. Use Read to read fork.txt and return its exact contents."};
+        skill.metadata={{"iilocal.skill",QJsonObject{{"name","inspect"}}}};request.messages={skill};
+        model.measure(request,{});QCOMPARE(p->preparedConversations.last().toolChoice,"required");
+        request.messages[0].metadata={};model.measure(request,{});QCOMPARE(p->preparedConversations.last().toolChoice,"auto");
+        request.messages[0].metadata=skill.metadata;request.messages[0].text="Skill: inspect\n\nContext. Do not use Read. Example: `Use Read`.";
+        model.measure(request,{});QCOMPARE(p->preparedConversations.last().toolChoice,"auto");
+    }
+    void explicitReadPathsUseOnlyTheCurrentInstructionAndIntersectHostSchemas() {
+        auto p=std::make_shared<Probe>();Service service(options());setup(service,p,8192);agent::ServiceModel model(service);
+        const QJsonObject schema{{"type","object"},{"properties",QJsonObject{
+            {"path",QJsonObject{{"type","string"}}},{"offset",QJsonObject{{"type","integer"}}},{"limit",QJsonObject{{"type","integer"}}}}},
+            {"required",QJsonArray{"path"}},{"additionalProperties",false}};
+        agent::ModelRequest request;request.model="model://small";request.generation.maxTokens=64;request.tools={{"Read","Read a file",schema}};
+        auto parameters=[&] {model.measure(request,{});return p->preparedConversations.last().tools.first().toObject()["function"].toObject()["parameters"].toObject();};
+        for(const auto& path:QStringList{"fork.txt",R"(C:\Folder With Spaces\Evidence.txt)"}) {
+            agent::Message skill{{},agent::MessageRole::User,"Skill: inspect\n\nContext. Use Read to read \""+path+"\" and return its exact contents.\n\nSkill resource directory: /unrelated/resources"};
+            skill.metadata={{"iilocal.skill",QJsonObject{{"name","inspect"}}}};request.messages={skill};
+            const auto projected=parameters();QCOMPARE(projected["properties"].toObject().keys(),QStringList{"path"});
+            QCOMPARE(projected["properties"].toObject()["path"].toObject()["enum"].toArray(),QJsonArray{path});
+            QCOMPARE(request.tools.first().inputSchema,schema);
+        }
+        request.messages={{{},agent::MessageRole::User,"Use Read for first.txt. Then call Read for second.txt."},
+            {{},agent::MessageRole::Assistant,{},{{"a","Read",{{"path","first.txt"}}}}},{{},agent::MessageRole::Tool,"first",{},"a"}};
+        QCOMPARE(parameters()["properties"].toObject()["path"].toObject()["enum"].toArray(),QJsonArray{"second.txt"});
+        auto constrained=schema;auto properties=schema["properties"].toObject();auto path=properties["path"].toObject();path["enum"]=QJsonArray{"allowed.txt"};
+        properties["path"]=path;constrained["properties"]=properties;request.tools[0].inputSchema=constrained;
+        QCOMPARE(parameters(),constrained);
+        request.toolChoice="required";request.tools[0].inputSchema=schema;QCOMPARE(parameters(),schema);
+        request.toolChoice="auto";
+        request.messages={{{},agent::MessageRole::User,"Use the Read tool to read skill-input.txt. Then return its exact contents."}};
+        QCOMPARE(parameters()["properties"].toObject()["path"].toObject()["enum"].toArray(),QJsonArray{"skill-input.txt"});
     }
     void namedArgumentsDoNotInviteUnrequestedRevisionOrMetadataFields() {
         auto p=std::make_shared<Probe>();Service service(options());setup(service,p,8192);agent::ServiceModel model(service);
@@ -200,12 +251,24 @@ private slots:
         request.messages={{{},agent::MessageRole::User,"Call TaskCreate once with subject \"expectedRevision is quoted data\" and description \"metadata is quoted data\". Then report the ID."}};
         model.measure(request,{});auto native=p->preparedConversations.last();
         const auto projected=native.tools.first().toObject()["function"].toObject()["parameters"].toObject();
-        QCOMPARE(projected["properties"].toObject().keys(),QStringList({"description","subject"}));QCOMPARE(projected["required"],schema["required"]);
+        QCOMPARE(projected["properties"].toObject().keys(),QStringList({"description","subject"}));QCOMPARE(projected["required"].toArray(),QJsonArray({"subject","description"}));
         request.messages.append({{},agent::MessageRole::Assistant,{},{{"create","TaskCreate",{{"subject","title"}}}}});
         request.messages.append({{},agent::MessageRole::Tool,"created",{},"create"});model.measure(request,{});
         QCOMPARE(p->preparedConversations.last().toolChoice,"none");QVERIFY(p->preparedConversations.last().tools.isEmpty());
         request.messages={{{},agent::MessageRole::User,"Use TaskCreate to organize a project."}};model.measure(request,{});
         QCOMPARE(p->preparedConversations.last().tools.first().toObject()["function"].toObject()["parameters"].toObject(),schema);
+    }
+    void explicitFieldUpdatesPreserveUnmentionedTaskProperties() {
+        auto p=std::make_shared<Probe>();Service service(options());setup(service,p,8192);agent::ServiceModel model(service);
+        QJsonObject properties;for(const auto& key:QStringList{"taskId","status","owner","subject","description","expectedRevision"})
+            properties.insert(key,QJsonObject{{"type","string"}});
+        const QJsonObject schema{{"type","object"},{"properties",properties},{"required",QJsonArray{"taskId"}},{"additionalProperties",false}};
+        agent::ModelRequest request;request.model="model://small";request.generation.maxTokens=64;request.tools={{"TaskUpdate","Update a task",schema}};
+        request.messages={{{},agent::MessageRole::User,"Use TaskUpdate for taskId \"1\" to set status \"in_progress\" and owner \"builder\". Change only these two fields, then confirm the update."}};
+        model.measure(request,{});const auto native=p->preparedConversations.last();
+        const auto projected=native.tools.first().toObject()["function"].toObject()["parameters"].toObject();
+        QCOMPARE(projected["properties"].toObject().keys(),QStringList({"owner","status","taskId"}));
+        QCOMPARE(projected["required"].toArray(),QJsonArray({"taskId","owner","status"}));QCOMPARE(projected["additionalProperties"],false);
     }
     void repeatedNamedCommandsAreCountedAndHistoricalReadsNeedNoNewTool() {
         auto p=std::make_shared<Probe>();Service service(options());setup(service,p,8192);agent::ServiceModel model(service);
@@ -301,6 +364,10 @@ private slots:
             {{},agent::MessageRole::Tool,"Tool definitions found",{},"search"}};
         model.measure(request,{});native=p->preparedConversations.last();QCOMPARE(native.toolChoice,"required");
         QCOMPARE(native.tools.size(),1);QCOMPARE(native.tools[0].toObject()["function"].toObject()["name"],"mcp__fixture__read_secret");
+        request.messages.append({{},agent::MessageRole::Assistant,{},{{"value","mcp__fixture__read_secret",{}}}});
+        request.messages.append({{},agent::MessageRole::Tool,R"({"value":"actual observation"})",{},"value"});
+        model.measure(request,{});native=p->preparedConversations.last();QCOMPARE(native.toolChoice,"none");QVERIFY(native.tools.isEmpty());
+        QCOMPARE(native.responseSchema["properties"].toObject()["value"].toObject()["enum"].toArray(),QJsonArray{"actual observation"});
         request.messages={{{},agent::MessageRole::User,"Use ToolSearch and mcp__fixture__read_secret concurrently."}};
         model.measure(request,{});native=p->preparedConversations.last();QCOMPARE(native.toolChoice,"auto");QCOMPARE(native.tools.size(),2);QVERIFY(native.parallelToolCalls);
     }

@@ -5,6 +5,16 @@ Native evidence-based failure reports are available through
 See [Failure diagnostics](docs/FailureDiagnostics.md) for evidence limits and
 integration with the agent engine and local model explanations.
 
+The opt-in local RAG component indexes host-selected creator and project text,
+retains source revisions and byte-level citations, and connects retrieval to
+the existing model and permission-controlled agent tool interfaces. It does not
+automatically scan private files or infer images from captions. See
+[Local retrieval and generation](docs/Rag.md) for access controls, CLI usage,
+the optional iiDecision evidence gate, and retrieval and citation limitations.
+Embedding-based semantic and hybrid retrieval use a replaceable provider and a
+model-fingerprinted local vector cache; iiLocalLLM 0.56.1 supplies native GGUF
+text embeddings through its service interface.
+
 C++23 multimodal agent orchestration, extracted from iiLocalLLM 0.55.1.
 The initial package version is **0.1.0**. It owns the agent harness, session
 persistence, tools, permissions, hooks, memory, background work, subagents, teams,
@@ -13,8 +23,8 @@ MCP client/server, authenticated API, and iiDecision admission/model routing.
 | Module | Responsibility |
 | --- | --- |
 | iiMultimodalAgent | Agent lifecycle, tool/model orchestration, media delivery, decision integration |
-| iiLocalLLM 0.56 | Model management and text/image/audio/timestamped-frame understanding through supported models |
-| iiDecision | Independent decision library; the agent owns host economics and admission/routing policy |
+| iiLocalLLM 0.56.1 | Model management, text embeddings, and text/image/audio/timestamped-frame understanding through supported models |
+| iiDecision 0.0.5 | Independent decision library; the agent owns host economics and admission/routing policy |
 | iiLocalDiffusion 0.6 | In-process native image generation |
 | iiAudioGen 0.3 | Host-selected audio generation backend and float32 PCM |
 | iiVoiceOver 0.2 | In-process Piper/ONNX speech synthesis |
@@ -42,7 +52,7 @@ inference. Hosts can inject an `iiAudioGen::Backend` without changing the agent.
 
 ## Build, install and link
 
-Build/install the dependencies first, including iiLocalLLM 0.56. Preserve their
+Build/install the dependencies first, including iiLocalLLM 0.56.1. Preserve their
 optional accelerators and pass the same dependency prefixes to installed consumers.
 
 ```sh
@@ -101,3 +111,14 @@ See [Migration](docs/Migration.md), [Multimodal services](docs/MultimodalService
 [Verification](docs/Verification.md).
 
 Related implementation contracts: [Native tool turns](docs/NativeToolTurns.md), [Context admission](docs/ContextAdmission.md).
+
+See [MCP startup and lightweight IPC client](docs/McpPeerStartup.md) for managed dependency preparation and client runtime boundaries.
+
+<!-- workspace-docs:readme:start -->
+## Documentation entry points
+
+- Human overview: this English `README.md`.
+- Agent instructions: [AGENT.md](AGENT.md).
+- Human documentation: [documentation index](docs/README.md).
+- Structured agent documentation: [agent index](docs/agent-index.json).
+<!-- workspace-docs:readme:end -->

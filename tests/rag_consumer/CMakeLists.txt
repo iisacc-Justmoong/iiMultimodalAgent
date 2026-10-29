@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.24)
+project(RagInstalledConsumer LANGUAGES CXX)
+find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)
+add_executable(rag_consumer consumer.cpp)
+target_compile_features(rag_consumer PRIVATE cxx_std_23)
+target_link_libraries(rag_consumer PRIVATE iiMultimodalAgent::iiMultimodalAgent)

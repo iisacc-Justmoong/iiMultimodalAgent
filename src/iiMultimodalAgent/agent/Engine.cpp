@@ -44,11 +44,30 @@ void collectStringField(const QJsonValue& value, const QString& field, QStringLi
         }
     } else if(value.isArray())for(const auto& child:value.toArray())collectStringField(child,field,matches,depth+1);
 }
-struct ObservedText {QString text;bool only=false,historical=false;};
+struct ObservedText {QString text;bool only=false,historical=false;QString field;};
+// Decode only data the model actually generated. An observed value never
+// substitutes for a missing or incorrect generated answer.
+QString decodedGeneratedObservation(const QString& generated,const ObservedText& observed) {
+    const auto document=QJsonDocument::fromJson(generated.toUtf8());
+    if(!document.isObject())return generated;
+    if(!observed.field.isEmpty()) {
+        QStringList matches;collectStringField(document.object(),observed.field,matches);
+        return matches.size()==1&&matches.front()==observed.text?matches.front():generated;
+    }
+    QStringList strings;
+    std::function<void(const QJsonValue&,int)> collect=[&](const QJsonValue& value,int depth) {
+        if(depth>32||strings.size()>1)return;
+        if(value.isString())strings.append(value.toString());
+        else if(value.isObject())for(const auto& child:value.toObject())collect(child,depth+1);
+        else if(value.isArray())for(const auto& child:value.toArray())collect(child,depth+1);
+    };
+    collect(document.object(),0);
+    return strings.size()==1&&strings.front()==observed.text?strings.front():generated;
+}
 std::optional<ObservedText> verbatimObservation(const QList<Message>& messages) {
     qsizetype source=-1;for(qsizetype i=0;i<messages.size();++i)if(detail::conversationInput(messages[i]))source=i;
     if(source<0)return {};
-    static const QRegularExpression file("exact\\s+(?:file\\s+)?contents",QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression file("exact\\s+(?:(?:file|current)\\s+)*contents?\\b(?![\\s_-]*(?:hash|digest|checksum|sha256)\\b)",QRegularExpression::CaseInsensitiveOption);
     static const QRegularExpression value("exact\\s+value",QRegularExpression::CaseInsensitiveOption);
     static const QRegularExpression property("exact\\s+([A-Za-z_][A-Za-z_0-9]*)",QRegularExpression::CaseInsensitiveOption);
     const auto input=messages[source].text;
@@ -89,7 +108,7 @@ std::optional<ObservedText> verbatimObservation(const QList<Message>& messages) 
                 text=matches.front();
             }
         }
-        if(!text.isEmpty())observed=ObservedText{std::move(text),exactOnly,historical};
+        if(!text.isEmpty())observed=ObservedText{std::move(text),exactOnly,historical,fileContents||singleValue?QString():field};
     }
     return historical&&paths.size()!=1?std::nullopt:observed;
 }
@@ -595,9 +614,9 @@ public:
         };
         try {
             token.throwIfCancelled();
-            auto runContext=permissionContext({request.sessionId,runId,store.metadata(request.sessionId).workingDirectory, {},runToken});
-            runProcedure=std::make_unique<ProcedureScope>("run",runContext,QJsonObject{{"prompt",request.prompt},{"max_turns",request.maxTurns}},send);
             lease = store.acquire(request.sessionId);
+            auto runContext=permissionContext({request.sessionId,runId,lease->session().workingDirectory, {},runToken});
+            runProcedure=std::make_unique<ProcedureScope>("run",runContext,QJsonObject{{"prompt",request.prompt},{"max_turns",request.maxTurns}},send);
             lease->setExecutionDirectory(executionContext({request.sessionId,runId,lease->session().workingDirectory,{},token}).workingDirectory);
             repair();
             send({EventKind::Started, runId, request.sessionId, {}, {}, {}});
@@ -731,6 +750,19 @@ public:
                 ModelRequest base{session.model, session.systemPrompt, {}, turnRegistry->definitions(), request.generation, session.id};
                 base.parallelToolCalls=options.maxToolCallsPerTurn>1;
                 const auto directoryContext=permissionContext({session.id,runId,session.workingDirectory,{},token});
+                auto constrainPlanWrites=[&](QList<ToolDefinition>& tools) {
+                    if(!plans)return;
+                    const auto scope=plans->scope(directoryContext,*policy);
+                    if(!scope.planModeActive||scope.planFilePath.isEmpty())return;
+                    for(auto& tool:tools) {
+                        if(tool.name!="Write"&&tool.name!="Edit")continue;
+                        auto properties=tool.inputSchema.value("properties").toObject();
+                        if(!properties.contains("path"))continue;
+                        auto path=properties.value("path").toObject();path.insert("enum",QJsonArray{scope.planFilePath});
+                        properties.insert("path",path);tool.inputSchema.insert("properties",properties);
+                    }
+                };
+                constrainPlanWrites(base.tools);
                 const auto directories=policy->workingDirectories(directoryContext);
                 if(worktrees||std::any_of(directories.cbegin(),directories.cend(),[&](const auto& path){return path!=session.workingDirectory;})) {
                     Message paths;paths.role=MessageRole::User;
@@ -798,7 +830,13 @@ public:
                 // catalog alone exhausts the native context, expose the same
                 // handlers through discovery before attempting compaction.
                 if(options.toolSearch.enabled&&modelRequest.tools.size()>1) {
-                    const auto budget=model->measure(modelRequest,token);
+                    auto catalogProbe=base;
+                    // Preserve a valid native conversation boundary without
+                    // attributing old transcript tokens to the tool catalog.
+                    const auto currentMessages=modelMessages(session);qsizetype currentInput=currentMessages.size();
+                    for(qsizetype i=currentMessages.size();i-->0;)if(detail::conversationInput(currentMessages[i])){currentInput=i;break;}
+                    for(auto i=currentInput;i<currentMessages.size();++i)catalogProbe.messages.append(currentMessages[i]);
+                    const auto budget=catalogProbe.messages.isEmpty()?std::optional<ContextBudget>{}:model->measure(catalogProbe,token);
                     if(budget&&budget->contextTokens>0&&budget->inputTokens>budget->contextTokens-modelRequest.generation.maxTokens) {
                         const auto catalog=completeTurnRegistry->definitions();
                         const bool customSearch=std::any_of(catalog.begin(),catalog.end(),[](const auto& tool){return tool.name=="ToolSearch";});
@@ -809,7 +847,7 @@ public:
                                 turnRegistry->remove(definition.name);turnRegistry->add(std::move(tool));
                             }
                             detail::prepareToolDiscovery(*turnRegistry,session,options.toolSearch);filterTools();
-                            base.tools=turnRegistry->definitions();modelRequest.tools=base.tools;
+                            base.tools=turnRegistry->definitions();constrainPlanWrites(base.tools);modelRequest.tools=base.tools;
                         }
                     }
                 }
@@ -818,7 +856,7 @@ public:
                     {"tools",visibleTools},{"instruction_fingerprint",context.fingerprint}});
                 if (compactOnly || detail::needsCompaction(*model, modelRequest, options.compaction, token, &session)) {
                     ProcedureScope compactProcedure("compaction",stepContext,{{"trigger",compactOnly?"manual":"automatic"}},send);
-                    if (!hasTranscriptTool) { detail::addTranscriptTool(*turnRegistry, session); base.tools = turnRegistry->definitions(); }
+                    if (!hasTranscriptTool) { detail::addTranscriptTool(*turnRegistry, session); base.tools = turnRegistry->definitions();constrainPlanWrites(base.tools); }
                     send({EventKind::CompactionStarted, runId, session.id, {}, {}, {{"trigger", compactOnly ? "manual" : "automatic"}}});
                     auto beforeCompact = hooks(HookKind::BeforeCompact, compactInstructions);
                     if (beforeCompact.block) throw Error(ErrorCode::InvalidArgument, "Before-compact hook blocked compaction: " + beforeCompact.feedback);
@@ -864,6 +902,9 @@ public:
                     append({{}, MessageRole::User, after.feedback.isEmpty() ? QStringLiteral("The response was blocked by a hook; correct it.") : after.feedback});
                     continue;
                 }
+                if(reply.toolCalls.isEmpty()&&modelRequest.responseSchema.isEmpty())
+                    if(const auto observed=verbatimObservation(session.messages);observed&&observed->only)
+                        reply.text=decodedGeneratedObservation(reply.text,*observed);
                 append({{}, MessageRole::Assistant, reply.text, reply.toolCalls});
                 if (reply.toolCalls.isEmpty()) {
                     if(const auto observed=modelRequest.responseSchema.isEmpty()?verbatimObservation(session.messages):std::nullopt;
@@ -1877,6 +1918,7 @@ QString nextExplicitTool(const ModelRequest& request) {
     const bool directRead=directReadPattern.match(instruction).hasMatch()
         &&std::any_of(request.tools.begin(),request.tools.end(),[](const auto& tool){return tool.name=="Read";});
     instruction=instructionSyntax(std::move(instruction));
+    const bool loadedSkill=request.messages[source].metadata.contains("iilocal.skill");
     bool explicitStart=directRead;
     static const QRegularExpression parallel("\\b(?:parallel|concurrently|simultaneously)\\b|at the same time",QRegularExpression::CaseInsensitiveOption);
     if(request.parallelToolCalls&&parallel.match(instruction).hasMatch())return {};
@@ -1884,6 +1926,11 @@ QString nextExplicitTool(const ModelRequest& request) {
         const QRegularExpression start("^\\s*(?:first\\s+)?(?:please\\s+)?(?:use|call|invoke)\\s+(?:the\\s+)?"
             +QRegularExpression::escape(tool.name)+"\\b",QRegularExpression::CaseInsensitiveOption);
         explicitStart|=start.match(instruction).hasMatch();
+        if(loadedSkill) {
+            const QRegularExpression sentence("(?:^|[.!?]\\s+)(?:please\\s+)?(?:use|call|invoke)\\s+(?:the\\s+)?"
+                +QRegularExpression::escape(tool.name)+"\\b",QRegularExpression::CaseInsensitiveOption);
+            explicitStart|=sentence.match(instruction).hasMatch();
+        }
     }
     if(!explicitStart)return {};
     QHash<QString,qsizetype> attempted;
@@ -1902,19 +1949,74 @@ QString nextExplicitTool(const ModelRequest& request) {
     }
     return next;
 }
+std::optional<QString> explicitReadPath(const ModelRequest& request) {
+    const auto current=explicitInstruction(request);
+    if(current.source<0)return {};
+    const auto syntax=instructionSyntax(current.text);
+    static const QRegularExpression command(
+        "(?:^|[.!?]\\s+|\\b(?:then|first)\\s+)(?:please\\s+)?(?:(?:use|call|invoke)\\s+(?:the\\s+)?)?Read\\b",
+        QRegularExpression::CaseInsensitiveOption);
+    qsizetype attempted=0;
+    for(qsizetype i=current.source+1;i<request.messages.size();++i)
+        if(request.messages[i].role==MessageRole::Assistant)
+            for(const auto& call:request.messages[i].toolCalls)if(call.name=="Read")++attempted;
+    auto matches=command.globalMatch(syntax);
+    for(qsizetype index=0;matches.hasNext();++index) {
+        const auto match=matches.next();if(index!=attempted)continue;
+        auto tail=current.text.mid(match.capturedEnd());
+        static const QRegularExpression prefix("^\\s+(?:tool\\s+)?(?:(?:to\\s+read|for|from|the\\s+file|file)\\s+)?",QRegularExpression::CaseInsensitiveOption);
+        const auto start=prefix.match(tail);if(!start.hasMatch())return {};
+        tail.remove(0,start.capturedLength());if(tail.isEmpty())return {};
+        QString path;
+        if(tail.front()=='"'||tail.front()=='\''||tail.front()=='`') {
+            const auto end=tail.indexOf(tail.front(),1);if(end<0)return {};path=tail.mid(1,end-1);
+        } else {
+            static const QRegularExpression atom("^[^\\s,;]+");const auto value=atom.match(tail);
+            if(!value.hasMatch())return {};path=value.captured();
+            while(path.endsWith('.')||path.endsWith('!')||path.endsWith('?'))path.chop(1);
+        }
+        if(path.isEmpty()||(!path.contains('.')&&!path.contains('/')&&!path.contains('\\')))return {};
+        return path;
+    }
+    return {};
+}
 QJsonObject explicitArgumentSchema(const ModelRequest& request,const ToolDefinition& tool) {
     auto schema=tool.inputSchema;const auto properties=schema.value("properties").toObject();
     if(properties.isEmpty())return schema;
     for(const auto* key:{"allOf","anyOf","oneOf","$ref","if","dependentRequired","dependentSchemas"})if(schema.contains(key))return schema;
+    if(tool.name=="Read"&&properties.contains("path"))if(const auto literal=explicitReadPath(request)) {
+        auto path=properties.value("path").toObject();
+        // Intersect existing host restrictions; never widen a constrained path.
+        const auto permitted=path.value("enum").toArray();
+        if((!permitted.isEmpty()&&!permitted.contains(*literal))||(path.contains("const")&&path["const"]!=*literal))return schema;
+        path.insert("enum",QJsonArray{*literal});auto projected=properties;projected.insert("path",path);
+        auto required=schema.value("required").toArray();if(!required.contains("path"))required.append("path");
+        const auto syntax=instructionSyntax(explicitInstruction(request).text);
+        for(auto it=projected.begin();it!=projected.end();) {
+            if(!required.contains(it.key())&&!QRegularExpression("\\b"+QRegularExpression::escape(it.key())+"\\b",QRegularExpression::CaseInsensitiveOption).match(syntax).hasMatch())it=projected.erase(it);
+            else ++it;
+        }
+        schema.insert("properties",projected);schema.insert("required",required);return schema;
+    }
     const auto syntax=instructionSyntax(explicitInstruction(request).text);
     bool named=false;
     for(auto it=properties.begin();it!=properties.end();++it)
-        named|=QRegularExpression("\\bwith\\s+"+QRegularExpression::escape(it.key())+"\\b",QRegularExpression::CaseInsensitiveOption).match(syntax).hasMatch();
+        named|=QRegularExpression("\\b(?:with|for|set)\\s+"+QRegularExpression::escape(it.key())+"\\b",QRegularExpression::CaseInsensitiveOption).match(syntax).hasMatch();
     if(!named)return schema;
-    const auto required=schema.value("required").toArray();QJsonObject projected;
-    for(auto it=properties.begin();it!=properties.end();++it)
-        if(required.contains(it.key())||QRegularExpression("\\b"+QRegularExpression::escape(it.key())+"\\b",QRegularExpression::CaseInsensitiveOption).match(syntax).hasMatch())projected.insert(it.key(),it.value());
-    schema.insert("properties",projected);return schema;
+    auto required=schema.value("required").toArray();QJsonObject projected;
+    const auto original=explicitInstruction(request).text;
+    static const QRegularExpression literal(R"(^\s*(?::|=)?\s*(?:["'\[{0-9-]|true\b|false\b|null\b))");
+    for(auto it=properties.begin();it!=properties.end();++it) {
+        if(!required.contains(it.key())&&!QRegularExpression("\\b"+QRegularExpression::escape(it.key())+"\\b",QRegularExpression::CaseInsensitiveOption).match(syntax).hasMatch())continue;
+        projected.insert(it.key(),it.value());
+        const QRegularExpression binding("\\b(?:with|for|set|and)\\s+"+QRegularExpression::escape(it.key())+"\\b",QRegularExpression::CaseInsensitiveOption);
+        auto matches=binding.globalMatch(syntax);
+        while(matches.hasNext()) {
+            const auto match=matches.next();
+            if(literal.match(original.mid(match.capturedEnd())).hasMatch()&&!required.contains(it.key()))required.append(it.key());
+        }
+    }
+    schema.insert("properties",projected);schema.insert("required",required);return schema;
 }
 std::optional<QString> copiedObservation(const ModelRequest& request) {
     if(request.toolChoice!="auto"||!request.responseSchema.isEmpty()||request.systemPromptOnly||request.summarizing||request.messages.isEmpty())return {};
@@ -1923,7 +2025,9 @@ std::optional<QString> copiedObservation(const ModelRequest& request) {
         return last.metadata.value("iilocal.observation_value").toString();
     if(!nextExplicitTool(request).isEmpty())return {};
     const auto observed=verbatimObservation(request.messages);
-    return observed&&(observed->only||observed->historical)?std::optional<QString>(observed->text):std::nullopt;
+    static const QRegularExpression finalCopy("\\b(?:return|reply|output|answer)\\b[^.!?]*\\bexact\\b",QRegularExpression::CaseInsensitiveOption);
+    const bool final=finalCopy.match(explicitInstruction(request).text).hasMatch();
+    return observed&&(observed->only||observed->historical||final)?std::optional<QString>(observed->text):std::nullopt;
 }
 bool explicitOnceFinished(const ModelRequest& request) {
     if(request.toolChoice!="auto"||request.systemPromptOnly||request.summarizing)return false;

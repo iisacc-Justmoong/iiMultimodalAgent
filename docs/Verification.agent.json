@@ -1,0 +1,479 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:b811b1a308e1b274ba88406a79996ff7413fb2fd4f0af35235891cfa3794193e",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Verification.md",
+    "sha256": "27c8a429bcf7a771b5505b21397cd5f64f92d25fd41f8e3960fe0b7813846736",
+    "bytes": 7301,
+    "line_count": 113,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Package extraction verification (2026-10-20)",
+    "role": "evidence",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Package extraction verification (2026-10-20)\n",
+      "level": 1,
+      "title": "Package extraction verification (2026-10-20)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "This record qualifies iiMultimodalAgent 0.1.0 and iiLocalLLM 0.56.0 on macOS\narm64 with AppleClang 21, C++23, Qt 6.8.3 Core/Network and the existing native\nSDK dependency packages. Every build directory is named `build/`.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 10,
+      "raw": "The detailed evidence root is\n`/Volumes/Storage/Workspace/SDK/build/agent-extraction-20261020/`.\nInstalled-package consumers use fresh prefixes under that root's `staging/`;\nthe user's global SDK installations and shell profiles are unchanged.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "## Completed evidence\n",
+      "level": 2,
+      "title": "Completed evidence"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "table",
+      "start_line": 14,
+      "end_line": 23,
+      "raw": "| Check | Result | Evidence in the report root |\n| --- | --- | --- |\n| Module ownership, install discovery and acyclic dependency tests | 5/5 passed | `module-boundary-clean-final.log` |\n| iiLocalLLM final Release build | Passed | `inference-build-clean-final.log` |\n| iiMultimodalAgent final Release build | Passed | `agent-build-clean-final.log` |\n| Independent inference source suite, including native GGUF and MLX GPU/CPU | 21/21 passed | `inference-source-final.xml` |\n| Installed inference consumer, with Decision/Agent packages disabled | 2/2 passed | `inference-consumer-final.xml` |\n| Installed agent consumers | 10/10 passed | `agent-consumer-final.xml` |\n| Installed public header closure | 53 headers, no missing owned includes | `package-ownership-audit.json` |\n| Focused generated-media integration after host-fixture correction | 1/1 passed | `multimodal-regression.xml` |\n",
+      "columns": [
+        "Check",
+        "Result",
+        "Evidence in the report root"
+      ],
+      "rows": [
+        [
+          "Module ownership, install discovery and acyclic dependency tests",
+          "5/5 passed",
+          "`module-boundary-clean-final.log`"
+        ],
+        [
+          "iiLocalLLM final Release build",
+          "Passed",
+          "`inference-build-clean-final.log`"
+        ],
+        [
+          "iiMultimodalAgent final Release build",
+          "Passed",
+          "`agent-build-clean-final.log`"
+        ],
+        [
+          "Independent inference source suite, including native GGUF and MLX GPU/CPU",
+          "21/21 passed",
+          "`inference-source-final.xml`"
+        ],
+        [
+          "Installed inference consumer, with Decision/Agent packages disabled",
+          "2/2 passed",
+          "`inference-consumer-final.xml`"
+        ],
+        [
+          "Installed agent consumers",
+          "10/10 passed",
+          "`agent-consumer-final.xml`"
+        ],
+        [
+          "Installed public header closure",
+          "53 headers, no missing owned includes",
+          "`package-ownership-audit.json`"
+        ],
+        [
+          "Focused generated-media integration after host-fixture correction",
+          "1/1 passed",
+          "`multimodal-regression.xml`"
+        ]
+      ]
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 31,
+      "raw": "The harness qualification covers **100 unique CTest entries out of 131 registered**:\n96 base checks (including real vision/audio acceptance) and four additional native\nchecks for speech, local tools, decision admission and MCP. All 100 have passing\nfinal results. The initial base run was 94/96; the two affected entries were\nresolved through the documented host fixture correction and MCP test timing/state\ncorrections. The final complete MCP server test then passed three consecutive\nruns. The remaining 31 optional model-quality checks were not run here.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 36,
+      "raw": "`verification-report.json` records every latest result and retains the initial\nfailed runs rather than presenting a synthetic clean first run. See\n`agent-source-contracts-final.xml`, `agent-native-closure.xml`,\n`agent-mcp-native-final.xml` and `mcp-server-state-final.xml` for their boundaries.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 38,
+      "end_line": 42,
+      "raw": "Actual native input acceptance used llama.cpp/Metal: the red image returned\n`Red`, ordered frames reached the video-capable route, and speech recognition\nreturned `The sky is blue.` Media token counts, unsupported modalities and the\naggregate decoded-image budget were checked. Generated image/audio outputs use\nthe separate provider-boundary tests described below.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "## What the installed consumers execute\n",
+      "level": 2,
+      "title": "What the installed consumers execute"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 46,
+      "end_line": 51,
+      "raw": "They compare symbol-owner paths for the selected iiFileProviderNative,\niiLocalLLM, iiLocalDiffusion, iiAudioGen, iiVoiceOver and iiMultimodalAgent packages;\nverify that an ordinary agent bootstrap does not load the image backend; exercise\nhost decision admission, typed modality routing, generated media in the next model\nturn, authenticated client output isolation, session-history/fingerprint recovery,\nmemory and an application-owned tool/session ABI.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 53,
+      "end_line": 56,
+      "raw": "The native Speak tool synthesizes `Hello World` with the installed bundled\nPiper/ONNX voice and returns 17,920 PCM frames as a provider-created WAV with inline\nmedia. This is actual model inference; the test does not play sound on the user's\naudio device.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 65,
+      "raw": "Image publication is tested with a deterministic host native executor and a\nvalid RGB PNG that is decompressed and compared. The default native adapter also\ncalls the actual iiLocalDiffusion entrypoint with an unavailable model: the test\nrequires its RuntimeFailure, rejecting adapter-loader RuntimeUnavailable. This\nproves the installed native bridge, not successful trained-model image generation.\nAudio publication is tested through an injected iiAudioGen Backend with validated\nfloat32 PCM, duration/size limits, WAV delivery and cancellation. A full trained\nDiffusers image/audio generation sweep is not part of this qualification.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 67,
+      "end_line": 67,
+      "raw": "## Reproducibility and retained diagnostics\n",
+      "level": 2,
+      "title": "Reproducibility and retained diagnostics"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 69,
+      "end_line": 79,
+      "raw": "CTest and both installers clear DYLD library/framework/fallback/versioned\noverrides only inside their processes. A login-shell SDK override previously\nselected an older bundled iiFileProviderNative despite correct imported CMake\npaths. Actual runtime symbol-path checks now verify the selected prefixes.\nThe login shell also exposes image SDK headers through CPATH. Their four native\nheaders were byte-identical to the selected package; a separate installed app\nconsumer was rebuilt without compiler/library environment overrides and confirmed\nthat its dependency file used the selected installed headers. See\n`image-header-identity.json` and `consumer-isolated-header-tests.xml`.\nThe macOS link additionally marks the chosen shared Native provider as needed\nbefore indirect SDK libraries.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 81,
+      "end_line": 93,
+      "raw": "Initial generated-media Engine/API tests omitted the required host value unit.\nThe decision policy correctly rejected them; tests now supply USD consistently\nwith their trusted estimates. No admission rule was weakened. Initial failures\nand the focused rerun are retained. MCP test helpers now allow ten seconds for\nprovider-backed state requests and poll the child's actual idle state instead of\nassuming completion inside a single 1.5-second wait. Exact response cardinality,\nconnection ownership and permission assertions remain. The external official MCP\n1.26.0 oracle cold-imported in 24.94 seconds on this storage; its model acceptance\nfixture explicitly allows a 60-second initialize, including the configured-peer\npath. Production's ten-second initialize default is unchanged. The final native\nmodel/MCP acceptance passed, and the complete MCP server test passed three times.\nEarly MLX startup timeouts are likewise\nretained; the final complete inference suite passed both MLX GPU and CPU tests.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "heading",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "## Boundaries\n",
+      "level": 2,
+      "title": "Boundaries"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 97,
+      "end_line": 104,
+      "raw": "This extraction preserves the inherited Qt Core/Network harness. It adds no\nQtGui dependency and does not claim a Qt-free rewrite. iiDecision remains an\nindependent SDK and its integration/routing belongs to the agent.\nThe image adapter and Piper/ONNX speech run in native code. iiAudioGen's supplied\nDiffusers implementation uses an explicit host-selected Python worker; its\nBackend interface permits native implementations without an agent API change.\nThe current video input contract is supplied ordered timestamped frames; it does\nnot decode video containers or generate video.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 105,
+      "end_line": 105,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 106,
+      "end_line": 109,
+      "raw": "Windows and Linux metadata/branches are carried into the new module, but their\nbinaries were not executed in this macOS qualification. Existing optional model\nquality sweeps are not implied by the focused results. Source changes are local;\nno remote repository or publication is fabricated.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "heading",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "## 설치본의 외장 스토리지 검사\n",
+      "level": 2,
+      "title": "설치본의 외장 스토리지 검사"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "MemoryDream 고정 모델 검사는 자식 프로세스 시작과 파일 게시·비동기 완료를 최대 30초 기다린다. 전체 검사 상한은 240초이다. 모델 실행 예산과 의도한 시간 초과 입력은 변경하지 않으며, 실제 잠금·죽은 보유자 복구·저장 내용·상태 검증을 그대로 수행한다. 설치본 초기 로드와 외장 스토리지 I/O가 3초·5초의 기존 하네스 대기를 넘긴 사례를 재현한 뒤 적용했다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Package extraction verification (2026-10-20)",
+      "anchor": "package-extraction-verification-2026-10-20",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Completed evidence",
+      "anchor": "completed-evidence",
+      "start_line": 12
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "What the installed consumers execute",
+      "anchor": "what-the-installed-consumers-execute",
+      "start_line": 44
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Reproducibility and retained diagnostics",
+      "anchor": "reproducibility-and-retained-diagnostics",
+      "start_line": 67
+    },
+    {
+      "block_id": "b000031",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Boundaries",
+      "anchor": "boundaries",
+      "start_line": 95
+    },
+    {
+      "block_id": "b000037",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "설치본의 외장 스토리지 검사",
+      "anchor": "설치본의-외장-스토리지-검사",
+      "start_line": 111
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000029",
+        "line": 81,
+        "text": "Initial generated-media Engine/API tests omitted the required host value unit.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": [
+      {
+        "block_id": "b000009",
+        "columns": [
+          "Check",
+          "Result",
+          "Evidence in the report root"
+        ],
+        "rows": [
+          [
+            "Module ownership, install discovery and acyclic dependency tests",
+            "5/5 passed",
+            "`module-boundary-clean-final.log`"
+          ],
+          [
+            "iiLocalLLM final Release build",
+            "Passed",
+            "`inference-build-clean-final.log`"
+          ],
+          [
+            "iiMultimodalAgent final Release build",
+            "Passed",
+            "`agent-build-clean-final.log`"
+          ],
+          [
+            "Independent inference source suite, including native GGUF and MLX GPU/CPU",
+            "21/21 passed",
+            "`inference-source-final.xml`"
+          ],
+          [
+            "Installed inference consumer, with Decision/Agent packages disabled",
+            "2/2 passed",
+            "`inference-consumer-final.xml`"
+          ],
+          [
+            "Installed agent consumers",
+            "10/10 passed",
+            "`agent-consumer-final.xml`"
+          ],
+          [
+            "Installed public header closure",
+            "53 headers, no missing owned includes",
+            "`package-ownership-audit.json`"
+          ],
+          [
+            "Focused generated-media integration after host-fixture correction",
+            "1/1 passed",
+            "`multimodal-regression.xml`"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

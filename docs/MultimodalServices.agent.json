@@ -1,0 +1,454 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:49c04032925e95e8d3f51cfa10684b4ebb50d21f7ab974a64bee8b34c7c2ba3a",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/MultimodalServices.md",
+    "sha256": "0cf7ea760e02ad268e579d5c213c8b2e92b18a88acb013a1fe1048a043d94810",
+    "bytes": 6920,
+    "line_count": 123,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Multimodal providers and generated media",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Multimodal providers and generated media\n",
+      "level": 1,
+      "title": "Multimodal providers and generated media"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "`EngineOptions::multimodal` binds independent image, audio and speech providers.\nThe same Tool/ToolRegistry contracts serve embedded Engine, subagents and MCP.\nThe authenticated Api assigns each client a generated-media directory below its\nprivate state root. Model pointers/paths/runtimes remain trusted host configuration.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "table",
+      "start_line": 8,
+      "end_line": 12,
+      "raw": "| Tool | Actual provider call | Published result |\n| --- | --- | --- |\n| GenerateImage | `iiLocalDiffusion::generateNativeImageWithProgress` or host native executor | RGB PNG, dimensions and metadata |\n| GenerateAudio | Loaded `iiAudioGen::Generator::generate` | Validated float32 PCM as PCM16 WAV |\n| Speak | `iiVoiceOver::SpeechSynthesizer::synthesize` | PCM16 WAV when a supported native voice backend is available; the previous backend is retired |\n",
+      "columns": [
+        "Tool",
+        "Actual provider call",
+        "Published result"
+      ],
+      "rows": [
+        [
+          "GenerateImage",
+          "`iiLocalDiffusion::generateNativeImageWithProgress` or host native executor",
+          "RGB PNG, dimensions and metadata"
+        ],
+        [
+          "GenerateAudio",
+          "Loaded `iiAudioGen::Generator::generate`",
+          "Validated float32 PCM as PCM16 WAV"
+        ],
+        [
+          "Speak",
+          "`iiVoiceOver::SpeechSynthesizer::synthesize`",
+          "PCM16 WAV when a supported native voice backend is available; the previous backend is retired"
+        ]
+      ]
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 14,
+      "end_line": 21,
+      "raw": "The built-in image call crosses a small private native adapter loaded from beside\nthe agent DLL/shared library. It is built/installed with the package and retained\nfor the process lifetime so backend caches stay valid. Its first load happens\ninside the admitted tool call, avoiding the image/tensor library startup cost for\ntext-only agents, denied actions and host-supplied image executors. The adapter\ncannot be selected by a model, environment path or wire argument. A missing or\nincompatible adapter reports RuntimeUnavailable; backend model errors report\nRuntimeFailure. The native model-error regression distinguishes those cases.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 23,
+      "end_line": 27,
+      "raw": "Only configured providers advertise tools. Model/backend errors fail the call;\nthere is no fabricated output or implicit model download/runtime fallback.\niiAudioGen's supplied Diffusers backend runs a persistent Python worker. Injecting\na native Backend can replace it without changing the agent interface. This package\ndoes not claim to implement a new native audio model engine.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 33,
+      "raw": "Text, image, audio and increasing timestamped-frame understanding retain the\nexisting iiLocalLLM typed media/projector path. Frames do not imply video container\ndecoding or video generation. Generated media can enter the next model turn when\nthe chosen model supports it; iiDecision capability filtering and host economics\nstill select routes. Media/model output cannot invent economic assessments.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 35,
+      "end_line": 44,
+      "raw": "Generation uses ordinary tool permissions, plan edit restrictions, hooks,\nsession commits and Engine decision admission. Missing host economics defer work.\nTool arguments contain prompts and bounded settings, never a model, executable or\noutput path. Default image maximum is 2048 pixels per edge on an 8-pixel grid;\nprompts contain 1..4096 UTF-8 bytes without NUL. The host audio ceiling defaults to\n30 seconds and artifact budget to 32 MiB. RGB length, PCM format/alignment,\nfinite samples and actual output budgets are checked before publication.\nSet a nonempty host `decision.valueUnit` using the same unit as its trusted\nprofiles/input estimates. A missing unit is invalid configuration, even when\nnumeric probability/value profiles were supplied.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 45,
+      "end_line": 45,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 46,
+      "end_line": 50,
+      "raw": "Files are published exclusively via iiFileProvider and participate in its metadata\nand preview pipeline. PNG encoding uses the existing QtCore zlib utility plus a\nsmall PNG container writer, without QtGui. WAV encoding uses iiVoiceOver's\nin-memory `waveBytes()` and the agent publishes those bytes exclusively through\niiFileProvider. Existing output files are never replaced.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 55,
+      "raw": "Inline MCP-compatible content defaults to at most 512 KiB of binary media.\nLarger files return structured metadata/path and `inline_media:false`. Raising\nthat ceiling also requires suitable host/model context limits. `inlineMedia=false`\nalways returns a file and metadata.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 57,
+      "end_line": 63,
+      "raw": "Cancellation is checked before dispatch and publication. Diffusion bridges to its\nnative atomic flag and forwards progress; speech bridges to `std::stop_token`,\nallowing an in-flight ONNX chunk to return. The current audio Backend interface\nhas no cancellation input: an active call must finish, after which cancellation\ndiscards the result without publishing. This is not immediate backend interruption.\nCalls within one generated tool batch are serialized. Hosts sharing backends across\nindependent batches must supply the backend's required thread-safety policy.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 65,
+      "end_line": 69,
+      "raw": "Tests cover PNG decompression, PCM/WAV delivery, permissions, path injection,\ncancellation without publication, malformed backend output, actual native\ndiffusion model-load failure, media reaching the next model turn under iiDecision,\nand a historical bundled-voice Hello World smoke. The retired model is not\navailable in the current voice SDK.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "heading",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "## Independent voice package integration (2026-10-28)\n",
+      "level": 2,
+      "title": "Independent voice package integration (2026-10-28)"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 73,
+      "end_line": 79,
+      "raw": "On macOS arm64, the agent and its test targets were built against the separately\nstaged iiVoiceOver package. The `runtime_bindings` and `voice_pcm_boundary`\ntests passed: the former checked the loaded paths of the selected SDK binaries,\nincluding that staged voice library; the latter used a synthetic audio backend,\nchecked that the provider-published WAV matched the inline bytes, and rejected\nnon-finite output. The test-owned directory was removed. No model inference,\naudio playback, GPU work, or GUI application was run.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 81,
+      "end_line": 86,
+      "raw": "The build reported an existing runtime search-path ordering cycle, duplicate\nRPATH entries, and an MLX library built for macOS 27.0.1 while the link target\nwas 27.0. The runtime binding check passed on this macOS 27.0.1 host; it does\nnot establish compatibility on macOS 27.0 or on other platforms. The agent\nstill directly depends on several SDK modules and has not yet been migrated\nto the workspace-wide independence rule.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "heading",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "## Explicit daemon/MCP configuration\n",
+      "level": 2,
+      "title": "Explicit daemon/MCP configuration"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 90,
+      "end_line": 95,
+      "raw": "The daemon accepts `--agent-multimodal /private/providers.json`; MCP accepts\n`--multimodal-config /private/providers.json` together with its agent `--model`.\nThe file follows the existing private-file rules and must be outside the tool\nworkspace. The daemon also requires its ordinary workspace/state/credential and\ndecision configuration. MCP stores generated media under its owned session root;\nthe authenticated Api uses separate client directories.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "fenced_code",
+      "start_line": 97,
+      "end_line": 102,
+      "raw": "```json\n{\n  \"image\": { \"model\": \"/models/image-model.iildmodel\" },\n  \"speech\": { \"bundled\": true }\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"image\": { \"model\": \"/models/image-model.iildmodel\" },\n  \"speech\": { \"bundled\": true }\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 104,
+      "end_line": 106,
+      "raw": "Custom speech uses `model`, optional `configuration`, and `phonemizer_data` in\nplace of `bundled`. To bind the existing iiAudioGen Python implementation, the\nhost must explicitly provide:\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "fenced_code",
+      "start_line": 108,
+      "end_line": 117,
+      "raw": "```json\n{\n  \"audio\": {\n    \"backend\": \"diffusers\",\n    \"model\": \"/models/local-audioldm\",\n    \"python\": \"/existing/audio-runtime/bin/python\",\n    \"device\": \"cpu\"\n  }\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"audio\": {\n    \"backend\": \"diffusers\",\n    \"model\": \"/models/local-audioldm\",\n    \"python\": \"/existing/audio-runtime/bin/python\",\n    \"device\": \"cpu\"\n  }\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 119,
+      "end_line": 123,
+      "raw": "Paths must exist. No Python backend is silently selected. Native custom audio\nbackends are supplied through the C++ `iiAudioGen::Backend` interface. Unknown\nconfiguration fields, arbitrary output destinations and wire model-path arguments\nare rejected. `agent.info` exposes configured generation capabilities; actual\ninput-model capability filtering still belongs to iiDecision routing.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Multimodal providers and generated media",
+      "anchor": "multimodal-providers-and-generated-media",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000023",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Independent voice package integration (2026-10-28)",
+      "anchor": "independent-voice-package-integration-2026-10-28",
+      "start_line": 71
+    },
+    {
+      "block_id": "b000029",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Explicit daemon/MCP configuration",
+      "anchor": "explicit-daemonmcp-configuration",
+      "start_line": 88
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000011",
+        "line": 30,
+        "text": "existing iiLocalLLM typed media/projector path. Frames do not imply video container",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 37,
+        "text": "Tool arguments contain prompts and bounded settings, never a model, executable or",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 50,
+        "text": "iiFileProvider. Existing output files are never replaced.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 60,
+        "text": "has no cancellation input: an active call must finish, after which cancellation",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 63,
+        "text": "independent batches must supply the backend's required thread-safety policy.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 92,
+        "text": "The file follows the existing private-file rules and must be outside the tool",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 106,
+        "text": "host must explicitly provide:",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 119,
+        "text": "Paths must exist. No Python backend is silently selected. Native custom audio",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": [
+      {
+        "block_id": "b000005",
+        "columns": [
+          "Tool",
+          "Actual provider call",
+          "Published result"
+        ],
+        "rows": [
+          [
+            "GenerateImage",
+            "`iiLocalDiffusion::generateNativeImageWithProgress` or host native executor",
+            "RGB PNG, dimensions and metadata"
+          ],
+          [
+            "GenerateAudio",
+            "Loaded `iiAudioGen::Generator::generate`",
+            "Validated float32 PCM as PCM16 WAV"
+          ],
+          [
+            "Speak",
+            "`iiVoiceOver::SpeechSynthesizer::synthesize`",
+            "PCM16 WAV when a supported native voice backend is available; the previous backend is retired"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -9,7 +9,7 @@ private state root. Model pointers/paths/runtimes remain trusted host configurat
 | --- | --- | --- |
 | GenerateImage | `iiLocalDiffusion::generateNativeImageWithProgress` or host native executor | RGB PNG, dimensions and metadata |
 | GenerateAudio | Loaded `iiAudioGen::Generator::generate` | Validated float32 PCM as PCM16 WAV |
-| Speak | `iiVoiceOver::SpeechSynthesizer::synthesize` | Native Piper/ONNX speech as PCM16 WAV |
+| Speak | `iiVoiceOver::SpeechSynthesizer::synthesize` | PCM16 WAV when a supported native voice backend is available; the previous backend is retired |
 
 The built-in image call crosses a small private native adapter loaded from beside
 the agent DLL/shared library. It is built/installed with the package and retained
@@ -45,8 +45,9 @@ numeric probability/value profiles were supplied.
 
 Files are published exclusively via iiFileProvider and participate in its metadata
 and preview pipeline. PNG encoding uses the existing QtCore zlib utility plus a
-small PNG container writer, without QtGui. WAV publication reuses iiVoiceOver's
-iiFileProvider writer. Existing output files are never replaced.
+small PNG container writer, without QtGui. WAV encoding uses iiVoiceOver's
+in-memory `waveBytes()` and the agent publishes those bytes exclusively through
+iiFileProvider. Existing output files are never replaced.
 
 Inline MCP-compatible content defaults to at most 512 KiB of binary media.
 Larger files return structured metadata/path and `inline_media:false`. Raising
@@ -64,7 +65,25 @@ independent batches must supply the backend's required thread-safety policy.
 Tests cover PNG decompression, PCM/WAV delivery, permissions, path injection,
 cancellation without publication, malformed backend output, actual native
 diffusion model-load failure, media reaching the next model turn under iiDecision,
-and a separate real bundled-voice Hello World smoke.
+and a historical bundled-voice Hello World smoke. The retired model is not
+available in the current voice SDK.
+
+## Independent voice package integration (2026-10-28)
+
+On macOS arm64, the agent and its test targets were built against the separately
+staged iiVoiceOver package. The `runtime_bindings` and `voice_pcm_boundary`
+tests passed: the former checked the loaded paths of the selected SDK binaries,
+including that staged voice library; the latter used a synthetic audio backend,
+checked that the provider-published WAV matched the inline bytes, and rejected
+non-finite output. The test-owned directory was removed. No model inference,
+audio playback, GPU work, or GUI application was run.
+
+The build reported an existing runtime search-path ordering cycle, duplicate
+RPATH entries, and an MLX library built for macOS 27.0.1 while the link target
+was 27.0. The runtime binding check passed on this macOS 27.0.1 host; it does
+not establish compatibility on macOS 27.0 or on other platforms. The agent
+still directly depends on several SDK modules and has not yet been migrated
+to the workspace-wide independence rule.
 
 ## Explicit daemon/MCP configuration
 

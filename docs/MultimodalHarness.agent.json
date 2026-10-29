@@ -1,0 +1,582 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:819a35fcef969bc12105b5995bd35194776c8db93348e86f6f67c552cdec0bd8",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/MultimodalHarness.md",
+    "sha256": "d665343f796cdaff438773bb4fcdea1e12b7bec9463a7d52bc98d78ebdedd2bc",
+    "bytes": 9340,
+    "line_count": 108,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Native multimodal harness",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "quote",
+      "start_line": 1,
+      "end_line": 2,
+      "raw": "> Module ownership: this harness feature is provided by iiMultimodalAgent 0.1.0.\n> Historical results below predate extraction unless explicitly dated; see [Migration](Migration.md) and [Verification](../../iiLocalLLM/docs/Verification.md) for current evidence.\n"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "# Native multimodal harness\n",
+      "level": 1,
+      "title": "Native multimodal harness"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "Version 0.55 carries typed media from user input and tool observations through the agent transcript, model routing, native budgeting, generation and compaction. The llama.cpp adapter links the pinned `libmtmd` implementation in process. Image/audio bytes become native embeddings rather than base64 text prompts. Inference uses the existing local Service scheduler.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "## Input and persistence\n",
+      "level": 2,
+      "title": "Input and persistence"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "`agent::RunRequest::content`, `Message::content` and `ToolResult::content` use a content-block array. Authenticated `agent.run`, `agent.inputs.enqueue` and their connection-owned MCP equivalents accept `content`. A content-only submission may omit the textual prompt. Queued media keeps existing priority, interruption, replay identity and acknowledgement contracts. Transcript recovery, session fork and forked skill execution retain the original blocks.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 12,
+      "end_line": 25,
+      "raw": "```json\n{\n  \"session_id\": \"<owned session>\",\n  \"prompt\": \"Compare these observations\",\n  \"content\": [\n    {\"type\": \"image\", \"mimeType\": \"image/png\", \"data\": \"<canonical base64>\"},\n    {\"type\": \"audio\", \"mimeType\": \"audio/wav\", \"data\": \"<canonical base64>\"},\n    {\"type\": \"video\", \"frames\": [\n      {\"timestamp_ms\": 0, \"mimeType\": \"image/jpeg\", \"data\": \"<canonical base64>\"},\n      {\"timestamp_ms\": 1000, \"mimeType\": \"image/jpeg\", \"data\": \"<canonical base64>\"}\n    ]}\n  ]\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"session_id\": \"<owned session>\",\n  \"prompt\": \"Compare these observations\",\n  \"content\": [\n    {\"type\": \"image\", \"mimeType\": \"image/png\", \"data\": \"<canonical base64>\"},\n    {\"type\": \"audio\", \"mimeType\": \"audio/wav\", \"data\": \"<canonical base64>\"},\n    {\"type\": \"video\", \"frames\": [\n      {\"timestamp_ms\": 0, \"mimeType\": \"image/jpeg\", \"data\": \"<canonical base64>\"},\n      {\"timestamp_ms\": 1000, \"mimeType\": \"image/jpeg\", \"data\": \"<canonical base64>\"}\n    ]}\n  ]\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "Supported image formats are PNG, JPEG, BMP and GIF; audio formats are WAV, MP3 and FLAC. The selected projector must actually support the input modality. Video input is an ordered sequence of supplied image frames with strictly increasing nonnegative timestamps. The application owns container decoding and frame selection. MP4 decoding, automatic frame sampling, streaming capture and generated audio/video output are outside this contract.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "Text blocks, embedded text resources and resource links remain observations. Embedded image/audio resource blobs become native media for inference, while the transcript preserves the original resource. Inline OpenAI `image_url` data URLs and `input_audio` blocks are also accepted by structured conversations. Remote URLs and arbitrary media paths are not fetched during inference.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "Each content array is bounded to 64 blocks and 64 total images/audio items, including video frames. It uses the existing engine/service input-character budget (1 MiB by default). The service counts the full request, including tools and system instructions. Images are inspected before decoding and limited to 16 megapixels. All decoded images/audio in one request share a 128 MiB budget; image dimensions are checked against the remaining budget before allocation. Every request must also fit the model's native token context.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "## Verified model packages\n",
+      "level": 2,
+      "title": "Verified model packages"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "A GGUF manifest may contain an optional package-relative `projector` field:\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "fenced_code",
+      "start_line": 37,
+      "end_line": 48,
+      "raw": "```json\n{\n  \"id\": \"vision-small\",\n  \"architecture\": \"smolvlm\",\n  \"format\": \"gguf\",\n  \"quantization\": \"Q4_K_M\",\n  \"context_length\": 8192,\n  \"capabilities\": [\"chat\", \"text-generation\", \"image\", \"video\"],\n  \"entry_point\": \"model.gguf\",\n  \"projector\": \"mmproj.gguf\"\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"id\": \"vision-small\",\n  \"architecture\": \"smolvlm\",\n  \"format\": \"gguf\",\n  \"quantization\": \"Q4_K_M\",\n  \"context_length\": 8192,\n  \"capabilities\": [\"chat\", \"text-generation\", \"image\", \"video\"],\n  \"entry_point\": \"model.gguf\",\n  \"projector\": \"mmproj.gguf\"\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "The projector must be a separate file inside the package, have GGUF magic and pass the same inventory/hash checks as model weights. ModelManager supplies its resolved path to the runtime; it is not an arbitrary client model-load option. Memory admission includes projector weight bytes and an additional scratch reservation. The native projector uses the service-selected device. Missing, incompatible or modality-inappropriate projectors produce explicit errors. A declared capability alone is not successful inference proof.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "heading",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "## iiDecision model-path optimization\n",
+      "level": 2,
+      "title": "iiDecision model-path optimization"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "The existing run and tool probability/value gates remain enabled by default. Trusted `DecisionOptions::modelRoutes` adds a `model_route` assessment before each model measurement/generation, using the complete model-visible history. New tool media and queued input can change the next model selection. After compaction, the visible requirements are assessed again.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "`ModelRoute` and modality masks are standard C++23 contracts without Qt dependencies. Text/image/audio/video bits are 1/2/4/8; video also requires image support. Unsupported routes are removed before economics are compared. iiDecision computes evidence-conditioned success/failure probabilities and selects the highest net expected value under the existing probability and value thresholds. Ties keep configured order. A cheaper adequate route can win over an expensive general model.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "The existing private daemon `--agent-decision` and MCP `--decision` configuration accepts:\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "fenced_code",
+      "start_line": 60,
+      "end_line": 76,
+      "raw": "```json\n{\n  \"enabled\": true,\n  \"value_unit\": \"host-value\",\n  \"model_routes\": [\n    {\"id\": \"fast\", \"model\": \"model://text-small\", \"modalities\": [\"text\"]},\n    {\"id\": \"vision\", \"model\": \"model://vision-small\", \"modalities\": [\"text\", \"image\", \"video\"]},\n    {\"id\": \"audio\", \"model\": \"model://audio-small\", \"modalities\": [\"text\", \"audio\"]}\n  ],\n  \"profiles\": [\n    {\"candidate_id\": \"run\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 1, \"success_probability\": 0.9},\n    {\"candidate_id\": \"model:fast\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 1, \"success_probability\": 0.9},\n    {\"candidate_id\": \"model:vision\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 3, \"success_probability\": 0.9},\n    {\"candidate_id\": \"model:audio\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 3, \"success_probability\": 0.9}\n  ]\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"enabled\": true,\n  \"value_unit\": \"host-value\",\n  \"model_routes\": [\n    {\"id\": \"fast\", \"model\": \"model://text-small\", \"modalities\": [\"text\"]},\n    {\"id\": \"vision\", \"model\": \"model://vision-small\", \"modalities\": [\"text\", \"image\", \"video\"]},\n    {\"id\": \"audio\", \"model\": \"model://audio-small\", \"modalities\": [\"text\", \"audio\"]}\n  ],\n  \"profiles\": [\n    {\"candidate_id\": \"run\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 1, \"success_probability\": 0.9},\n    {\"candidate_id\": \"model:fast\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 1, \"success_probability\": 0.9},\n    {\"candidate_id\": \"model:vision\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 3, \"success_probability\": 0.9},\n    {\"candidate_id\": \"model:audio\", \"success_gain\": 100, \"failure_loss\": 10, \"cost\": 3, \"success_probability\": 0.9}\n  ]\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "These are illustrative host inputs, not measured model accuracy or prices. Production hosts can use `DecisionOptions::inputs` or authenticated `decision_input` returns for goal-specific estimates and finite joint evidence models. Routing requests expose the current goal, modality mask, message/tool counts and media SHA-256/size/MIME/timestamps without base64 payloads. Generated model assertions are not trusted economic estimates.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "Missing/low-value route assessments return `RunStatus::Deferred` before native measurement/generation. No capable route returns `unsupported_modalities`. `RunResult::selectedModel` and `routing` expose model selection separately from `decision` (run/tool economics). Routes are trusted host configuration; model arguments, transcripts and `agent.run` parameters cannot change them. Empty routes retain the configured session model, which can still consume native media. Explicit `decision.enabled=false` selects the first compatible configured route and reports that opt-out.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "This compares configured alternatives at the current turn. It is not a learned global planner or a model-quality calibration system.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "heading",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "## Budgets, cache and compaction\n",
+      "level": 2,
+      "title": "Budgets, cache and compaction"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 86,
+      "end_line": 86,
+      "raw": "`RuntimeConversationPrompt::tokenCount()` includes media embeddings and native temporal positions. Measurement and generation use the same preparation path and context checks. Text token vectors remain available for sampler penalties; native embedding chunks supply the media. Unpredictable host markers and typed parts prevent literal marker text from impersonating a bitmap slot.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "Media prompts use a fresh KV prefix and report zero cached tokens. Text conversations retain existing prefix reuse. Projector scratch work is serialized. Cancellation is checked between native chunks and during llama decoding; an encoder operation already in progress may finish before cancellation is observed.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 90,
+      "end_line": 90,
+      "raw": "Micro-compaction can clear old tool media from the model-visible view while preserving original transcript records. Semantic summarization passes selected media as typed content with source message IDs. The exact latest user input remains retained. Summaries are model-generated handoffs, not proof that media interpretation is correct.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "heading",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "## Reproducible verification\n",
+      "level": 2,
+      "title": "Reproducible verification"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "`iiMultimodalAgent.multimodal` covers validation, temporal order, host configuration, capability filtering, economic deferral, content-only input, recovery/fork, queued mixed history, tool-triggered rerouting and authenticated API delivery. Existing decision/agent/service/input/MCP/compaction tests remain regression checks.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "Optional native tests use local packages and fixtures; test execution never downloads models. The vision smoke uses the supplied image and a sibling `blue.png` for its timestamped frame pair. It also creates compressed 2048-pixel PNGs in memory to verify the aggregate decoded-media budget.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "fenced_code",
+      "start_line": 98,
+      "end_line": 106,
+      "raw": "```sh\ncmake -S . -B build \\\n  -DIIMULTIMODALAGENT_TEST_VISION_PACKAGE=/absolute/package \\\n  -DIIMULTIMODALAGENT_TEST_IMAGE=/absolute/red.png \\\n  -DIIMULTIMODALAGENT_TEST_AUDIO_PACKAGE=/absolute/audio-package \\\n  -DIIMULTIMODALAGENT_TEST_AUDIO=/absolute/speech.wav\ncmake --build build -j 6\nctest --test-dir build -R '^iiMultimodalAgent.multimodal' --output-on-failure\n```\n",
+      "language": "sh",
+      "code": "cmake -S . -B build \\\n  -DIIMULTIMODALAGENT_TEST_VISION_PACKAGE=/absolute/package \\\n  -DIIMULTIMODALAGENT_TEST_IMAGE=/absolute/red.png \\\n  -DIIMULTIMODALAGENT_TEST_AUDIO_PACKAGE=/absolute/audio-package \\\n  -DIIMULTIMODALAGENT_TEST_AUDIO=/absolute/speech.wav\ncmake --build build -j 6\nctest --test-dir build -R '^iiMultimodalAgent.multimodal' --output-on-failure\n",
+      "closed": true
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 107,
+      "end_line": 107,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 108,
+      "end_line": 108,
+      "raw": "Native JSON receipts include actual image/video or audio generation, the selected iiDecision route, text/media token budgets, aggregate memory admission and unsupported-modality rejection. Installed consumers compile the same smoke against the staged SDK to check public headers, dependencies and dylib loading. See [Verification.md](../../iiLocalLLM/docs/Verification.md) for measured evidence and platform boundaries.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000003",
+      "parent_id": null,
+      "level": 1,
+      "title": "Native multimodal harness",
+      "anchor": "native-multimodal-harness",
+      "start_line": 4
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "Input and persistence",
+      "anchor": "input-and-persistence",
+      "start_line": 8
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "Verified model packages",
+      "anchor": "verified-model-packages",
+      "start_line": 33
+    },
+    {
+      "block_id": "b000027",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "iiDecision model-path optimization",
+      "anchor": "iidecision-model-path-optimization",
+      "start_line": 52
+    },
+    {
+      "block_id": "b000043",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "Budgets, cache and compaction",
+      "anchor": "budgets-cache-and-compaction",
+      "start_line": 84
+    },
+    {
+      "block_id": "b000051",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "Reproducible verification",
+      "anchor": "reproducible-verification",
+      "start_line": 92
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000013",
+        "line": 27,
+        "text": "Supported image formats are PNG, JPEG, BMP and GIF; audio formats are WAV, MP3 and FLAC. The selected projector must actually support the input modality. Video input is an ordered sequence of supplied image frames with strictly increasing nonnegative timestamps. The application owns container decoding and frame selection. MP4 decoding, automatic frame sampling, streaming capture and generated audio/video output are outside this contract.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 31,
+        "text": "Each content array is bounded to 64 blocks and 64 total images/audio items, including video frames. It uses the existing engine/service input-character budget (1 MiB by default). The service counts the full request, including tools and system instructions. Images are inspected before decoding and limited to 16 megapixels. All decoded images/audio in one request share a 128 MiB budget; image dimensions are checked against the remaining budget before allocation. Every request must also fit the model's native token context.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 50,
+        "text": "The projector must be a separate file inside the package, have GGUF magic and pass the same inventory/hash checks as model weights. ModelManager supplies its resolved path to the runtime; it is not an arbitrary client model-load option. Memory admission includes projector weight bytes and an additional scratch reservation. The native projector uses the service-selected device. Missing, incompatible or modality-inappropriate projectors produce explicit errors. A declared capability alone is not successful inference proof.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000055",
+        "line": 96,
+        "text": "Optional native tests use local packages and fixtures; test execution never downloads models. The vision smoke uses the supplied image and a sibling `blue.png` for its timestamped frame pair. It also creates compressed 2048-pixel PNGs in memory to verify the aggregate decoded-media budget.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000057",
+        "language": "sh",
+        "code": "cmake -S . -B build \\\n  -DIIMULTIMODALAGENT_TEST_VISION_PACKAGE=/absolute/package \\\n  -DIIMULTIMODALAGENT_TEST_IMAGE=/absolute/red.png \\\n  -DIIMULTIMODALAGENT_TEST_AUDIO_PACKAGE=/absolute/audio-package \\\n  -DIIMULTIMODALAGENT_TEST_AUDIO=/absolute/speech.wav\ncmake --build build -j 6\nctest --test-dir build -R '^iiMultimodalAgent.multimodal' --output-on-failure\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000001",
+        "label": "Migration",
+        "target": "Migration.md",
+        "kind": "relative",
+        "line": 2
+      },
+      {
+        "block_id": "b000001",
+        "label": "Verification",
+        "target": "../../iiLocalLLM/docs/Verification.md",
+        "kind": "relative",
+        "line": 2
+      },
+      {
+        "block_id": "b000059",
+        "label": "Verification.md",
+        "target": "../../iiLocalLLM/docs/Verification.md",
+        "kind": "relative",
+        "line": 108
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

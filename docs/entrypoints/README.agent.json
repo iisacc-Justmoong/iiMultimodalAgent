@@ -1,0 +1,587 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:94bdbe9425666052ab7b82e3cfa1180e6010a29ca1325a54538a833af352f230",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "README.md",
+    "sha256": "644c63cd81a0535786a8f932d645a19a9a418b47ce111d720bcabc91fa42b188",
+    "bytes": 6812,
+    "line_count": 124,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "iiMultimodalAgent",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiMultimodalAgent\n",
+      "level": 1,
+      "title": "iiMultimodalAgent"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "Native evidence-based failure reports are available through\n`iiMultimodalAgent::FailureDiagnostics` without Qt in the reporting code.\nSee [Failure diagnostics](docs/FailureDiagnostics.md) for evidence limits and\nintegration with the agent engine and local model explanations.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 16,
+      "raw": "The opt-in local RAG component indexes host-selected creator and project text,\nretains source revisions and byte-level citations, and connects retrieval to\nthe existing model and permission-controlled agent tool interfaces. It does not\nautomatically scan private files or infer images from captions. See\n[Local retrieval and generation](docs/Rag.md) for access controls, CLI usage,\nthe optional iiDecision evidence gate, and retrieval and citation limitations.\nEmbedding-based semantic and hybrid retrieval use a replaceable provider and a\nmodel-fingerprinted local vector cache; iiLocalLLM 0.56.1 supplies native GGUF\ntext embeddings through its service interface.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 21,
+      "raw": "C++23 multimodal agent orchestration, extracted from iiLocalLLM 0.55.1.\nThe initial package version is **0.1.0**. It owns the agent harness, session\npersistence, tools, permissions, hooks, memory, background work, subagents, teams,\nMCP client/server, authenticated API, and iiDecision admission/model routing.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "table",
+      "start_line": 23,
+      "end_line": 31,
+      "raw": "| Module | Responsibility |\n| --- | --- |\n| iiMultimodalAgent | Agent lifecycle, tool/model orchestration, media delivery, decision integration |\n| iiLocalLLM 0.56.1 | Model management, text embeddings, and text/image/audio/timestamped-frame understanding through supported models |\n| iiDecision 0.0.5 | Independent decision library; the agent owns host economics and admission/routing policy |\n| iiLocalDiffusion 0.6 | In-process native image generation |\n| iiAudioGen 0.3 | Host-selected audio generation backend and float32 PCM |\n| iiVoiceOver 0.2 | In-process Piper/ONNX speech synthesis |\n| iiFileProvider / Native 0.8.2 | Exclusive file publication, metadata and preview pipeline |\n",
+      "columns": [
+        "Module",
+        "Responsibility"
+      ],
+      "rows": [
+        [
+          "iiMultimodalAgent",
+          "Agent lifecycle, tool/model orchestration, media delivery, decision integration"
+        ],
+        [
+          "iiLocalLLM 0.56.1",
+          "Model management, text embeddings, and text/image/audio/timestamped-frame understanding through supported models"
+        ],
+        [
+          "iiDecision 0.0.5",
+          "Independent decision library; the agent owns host economics and admission/routing policy"
+        ],
+        [
+          "iiLocalDiffusion 0.6",
+          "In-process native image generation"
+        ],
+        [
+          "iiAudioGen 0.3",
+          "Host-selected audio generation backend and float32 PCM"
+        ],
+        [
+          "iiVoiceOver 0.2",
+          "In-process Piper/ONNX speech synthesis"
+        ],
+        [
+          "iiFileProvider / Native 0.8.2",
+          "Exclusive file publication, metadata and preview pipeline"
+        ]
+      ]
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 36,
+      "raw": "Dependency direction is `iiMultimodalAgent -> inference/generation/decision modules`.\nNeither iiLocalLLM nor iiDecision depends on the agent. Models and destinations\nare host configuration, never arbitrary model tool arguments. No model download\nor runtime installation occurs implicitly.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 38,
+      "end_line": 46,
+      "raw": "The native image adapter is an internal shared library beside the agent library.\nIt loads on the first actual native image call, after ordinary tool admission;\nstarting a text agent does not load the image/tensor backend. It uses the same\nC++23 tool API and adds no interpreter. Install the complete package, including\n`iiMultimodalAgentImages`, rather than copying the main library alone. Hosts that\ncall iiLocalDiffusion functions directly additionally link that SDK's target.\nThe installed `iiMultimodalAgent::NativeImages` imported target exposes the\nadapter's runtime file to native bundle deployers. Applications link the main\n`iiMultimodalAgent::iiMultimodalAgent` target; the adapter remains loaded on demand.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 51,
+      "raw": "The inherited harness uses Qt 6.8.3 Core/Network; this extraction is not a Qt-free\nrewrite. The adapters add no QtGui dependency. iiAudioGen's existing Diffusers\nbackend runs a Python worker; binding it does not make it native in-process\ninference. Hosts can inject an `iiAudioGen::Backend` without changing the agent.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "## Build, install and link\n",
+      "level": 2,
+      "title": "Build, install and link"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 55,
+      "end_line": 56,
+      "raw": "Build/install the dependencies first, including iiLocalLLM 0.56.1. Preserve their\noptional accelerators and pass the same dependency prefixes to installed consumers.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "fenced_code",
+      "start_line": 58,
+      "end_line": 65,
+      "raw": "```sh\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=\"<installed SDK and Qt prefixes>\" \\\n  -DCMAKE_INSTALL_PREFIX=\"$HOME/.local/SDK/iiMultimodalAgent\"\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n```\n",
+      "language": "sh",
+      "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=\"<installed SDK and Qt prefixes>\" \\\n  -DCMAKE_INSTALL_PREFIX=\"$HOME/.local/SDK/iiMultimodalAgent\"\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n",
+      "closed": true
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 67,
+      "end_line": 73,
+      "raw": "`./install.sh` also verifies an installed consumer. SDK-wide installation discovers\nthe package and its six SDK dependencies automatically. Optional real-model\nqualification uses `IIMULTIMODALAGENT_TEST_*` paths. Set\n`IIMULTIMODALAGENT_TEST_BUNDLED_VOICE=ON` for native Hello World synthesis through\nthe new `Speak` tool; an absent fixture is not counted as successful inference.\nThe installed consumer also links iiLocalLLM's host memory/offload options, so an\nolder inference binary cannot silently satisfy the agent installation check.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "fenced_code",
+      "start_line": 75,
+      "end_line": 78,
+      "raw": "```cmake\nfind_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)\ntarget_link_libraries(MyApp PRIVATE iiMultimodalAgent::iiMultimodalAgent)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)\ntarget_link_libraries(MyApp PRIVATE iiMultimodalAgent::iiMultimodalAgent)\n",
+      "closed": true
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "fenced_code",
+      "start_line": 80,
+      "end_line": 94,
+      "raw": "```cpp\n#include <iiMultimodalAgent.h>\nnamespace agent = iiMultimodalAgent::agent;\n\nagent::EngineOptions options;\noptions.sessionsDirectory = \"/private/agent/sessions\";\noptions.multimodal.outputDirectory = \"/existing/generated/files\";\noptions.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};\noptions.multimodal.image->modelPath = \"/models/image-model.iildmodel\";\noptions.multimodal.audio = hostLoadedAudioGenerator;\noptions.multimodal.speech = hostSpeechSynthesizer;\noptions.decision.valueUnit = \"USD\"; // Same unit as the trusted host estimates.\n// Set trusted decision profiles/inputs and the host permission policy.\nagent::Engine engine(hostModel, hostToolRegistry, hostPermissionPolicy, options);\n```\n",
+      "language": "cpp",
+      "code": "#include <iiMultimodalAgent.h>\nnamespace agent = iiMultimodalAgent::agent;\n\nagent::EngineOptions options;\noptions.sessionsDirectory = \"/private/agent/sessions\";\noptions.multimodal.outputDirectory = \"/existing/generated/files\";\noptions.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};\noptions.multimodal.image->modelPath = \"/models/image-model.iildmodel\";\noptions.multimodal.audio = hostLoadedAudioGenerator;\noptions.multimodal.speech = hostSpeechSynthesizer;\noptions.decision.valueUnit = \"USD\"; // Same unit as the trusted host estimates.\n// Set trusted decision profiles/inputs and the host permission policy.\nagent::Engine engine(hostModel, hostToolRegistry, hostPermissionPolicy, options);\n",
+      "closed": true
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 96,
+      "end_line": 100,
+      "raw": "Configured providers register `GenerateImage`, `GenerateAudio` and `Speak`.\n`ServiceModel` adapts an existing iiLocalLLM `Service` to the agent `Model` interface;\nhosts can also implement `Model` directly. `Api` gives each authenticated client\na private generated-media directory. Direct MCP hosts may add\n`multimodalTools(services)` to their registry.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 102,
+      "end_line": 104,
+      "raw": "Default iiDecision policy defers work without trusted probability/value/cost\nassessments. Permissions remain a separate requirement. Supply host profiles or\nauthenticated decision procedures; never invent economic estimates in model output.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 105,
+      "end_line": 105,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 106,
+      "end_line": 111,
+      "raw": "Entrypoints are `iiMultimodalAgentD`, `iimagent-service`, `iimagent`, `iimagent-mcp`\n(supported Unix hosts), and `iimagent-plugins`. Existing wire methods and persisted\nschemas stay stable. Inference-only `iiLocalLLMD` and `iillm` remain in iiLocalLLM.\nSee [Migration](docs/Migration.md), [Multimodal services](docs/MultimodalServices.md),\n[DecisionGate](docs/DecisionGate.md), [Agent harness](docs/AgentHarness.md), and\n[Verification](docs/Verification.md).\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 112,
+      "end_line": 112,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "Related implementation contracts: [Native tool turns](docs/NativeToolTurns.md), [Context admission](docs/ContextAdmission.md).\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 114,
+      "end_line": 114,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 115,
+      "end_line": 115,
+      "raw": "See [MCP startup and lightweight IPC client](docs/McpPeerStartup.md) for managed dependency preparation and client runtime boundaries.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 116,
+      "end_line": 116,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "html",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "heading",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "## Documentation entry points\n",
+      "level": 2,
+      "title": "Documentation entry points"
+    },
+    {
+      "id": "b000041",
+      "kind": "blank",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "list",
+      "start_line": 120,
+      "end_line": 123,
+      "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Human overview: this English `README.md`.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Agent instructions: [AGENT.md](AGENT.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Human documentation: [documentation index](docs/README.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Structured agent documentation: [agent index](docs/agent-index.json).",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000043",
+      "kind": "html",
+      "start_line": 124,
+      "end_line": 124,
+      "raw": "<!-- workspace-docs:readme:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiMultimodalAgent",
+      "anchor": "iimultimodalagent",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Build, install and link",
+      "anchor": "build-install-and-link",
+      "start_line": 53
+    },
+    {
+      "block_id": "b000040",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Documentation entry points",
+      "anchor": "documentation-entry-points",
+      "start_line": 118
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000011",
+        "line": 35,
+        "text": "are host configuration, never arbitrary model tool arguments. No model download",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000031",
+        "line": 104,
+        "text": "authenticated decision procedures; never invent economic estimates in model output.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000021",
+        "language": "sh",
+        "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=\"<installed SDK and Qt prefixes>\" \\\n  -DCMAKE_INSTALL_PREFIX=\"$HOME/.local/SDK/iiMultimodalAgent\"\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "Failure diagnostics",
+        "target": "docs/FailureDiagnostics.md",
+        "kind": "relative",
+        "line": 5
+      },
+      {
+        "block_id": "b000005",
+        "label": "Local retrieval and generation",
+        "target": "docs/Rag.md",
+        "kind": "relative",
+        "line": 12
+      },
+      {
+        "block_id": "b000033",
+        "label": "Migration",
+        "target": "docs/Migration.md",
+        "kind": "relative",
+        "line": 109
+      },
+      {
+        "block_id": "b000033",
+        "label": "Multimodal services",
+        "target": "docs/MultimodalServices.md",
+        "kind": "relative",
+        "line": 109
+      },
+      {
+        "block_id": "b000033",
+        "label": "DecisionGate",
+        "target": "docs/DecisionGate.md",
+        "kind": "relative",
+        "line": 110
+      },
+      {
+        "block_id": "b000033",
+        "label": "Agent harness",
+        "target": "docs/AgentHarness.md",
+        "kind": "relative",
+        "line": 110
+      },
+      {
+        "block_id": "b000033",
+        "label": "Verification",
+        "target": "docs/Verification.md",
+        "kind": "relative",
+        "line": 111
+      },
+      {
+        "block_id": "b000035",
+        "label": "Native tool turns",
+        "target": "docs/NativeToolTurns.md",
+        "kind": "relative",
+        "line": 113
+      },
+      {
+        "block_id": "b000035",
+        "label": "Context admission",
+        "target": "docs/ContextAdmission.md",
+        "kind": "relative",
+        "line": 113
+      },
+      {
+        "block_id": "b000037",
+        "label": "MCP startup and lightweight IPC client",
+        "target": "docs/McpPeerStartup.md",
+        "kind": "relative",
+        "line": 115
+      },
+      {
+        "block_id": "b000042",
+        "label": "AGENT.md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 121
+      },
+      {
+        "block_id": "b000042",
+        "label": "documentation index",
+        "target": "docs/README.md",
+        "kind": "relative",
+        "line": 122
+      },
+      {
+        "block_id": "b000042",
+        "label": "agent index",
+        "target": "docs/agent-index.json",
+        "kind": "relative",
+        "line": 123
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000009",
+        "columns": [
+          "Module",
+          "Responsibility"
+        ],
+        "rows": [
+          [
+            "iiMultimodalAgent",
+            "Agent lifecycle, tool/model orchestration, media delivery, decision integration"
+          ],
+          [
+            "iiLocalLLM 0.56.1",
+            "Model management, text embeddings, and text/image/audio/timestamped-frame understanding through supported models"
+          ],
+          [
+            "iiDecision 0.0.5",
+            "Independent decision library; the agent owns host economics and admission/routing policy"
+          ],
+          [
+            "iiLocalDiffusion 0.6",
+            "In-process native image generation"
+          ],
+          [
+            "iiAudioGen 0.3",
+            "Host-selected audio generation backend and float32 PCM"
+          ],
+          [
+            "iiVoiceOver 0.2",
+            "In-process Piper/ONNX speech synthesis"
+          ],
+          [
+            "iiFileProvider / Native 0.8.2",
+            "Exclusive file publication, metadata and preview pipeline"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -2,6 +2,7 @@
 #include <iiMultimodalAgent/agent/ShellTasks.h>
 #include <iiMultimodalAgent/agent/PermissionSettings.h>
 #include <QtCore/QDir>
+#include <QtCore/QDirIterator>
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
@@ -357,6 +358,19 @@ private slots:
         QCOMPARE(store.load(original.id).messages.size(), 4); QCOMPARE(store.load(fork.id).messages, fork.messages);
         auto lease = store.acquire(fork.id); lease->append({"next", a::MessageRole::User, "continue"});
         QCOMPARE(store.load(original.id).messages.size(), 4);
+    }
+    void runAdmissionStillValidatesTranscriptBody() {
+        QTemporaryDir root; auto o = options(root); auto model = std::make_shared<Model>();
+        a::Api api(model, std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), o);
+        const auto id = call(api, "agent.sessions.create", {{"model", "fixture"}})["session_id"].toString();
+        QDirIterator files(o.stateDirectory, {"transcript.jsonl"}, QDir::Files, QDirIterator::Subdirectories);
+        QVERIFY(files.hasNext()); const auto transcript = files.next(); QVERIFY(!files.hasNext());
+        QFile file(transcript); QVERIFY(file.open(QIODevice::Append));
+        const QByteArray invalid("{\"type\":\"message\",\"parent_id\":\"missing\"}\n");
+        QCOMPARE(file.write(invalid), qint64(invalid.size())); file.close();
+        const auto result = call(api, "agent.run", {{"session_id", id}, {"prompt", "wait"}});
+        QCOMPARE(result["error_code"], "protocol_error"); QCOMPARE(result["status"], "failed");
+        QVERIFY(!model->waiting.load());
     }
     void limitsQueueAndPrivateState() {
         QTemporaryDir root; auto o = options(root); auto model = std::make_shared<Model>();

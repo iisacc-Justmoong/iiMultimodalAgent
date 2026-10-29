@@ -1,0 +1,503 @@
+{
+  "format": "iisacc.agent-document-index",
+  "schema_version": 1,
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "documentation_root": "docs",
+  "agent_schema": "docs/agent-document.schema.json",
+  "documents": [
+    {
+      "document_id": "urn:iisacc:document:387c5770e8c88c4fa550a8c59a3441aac4010f662d0fedd2e950c53c67a95b1a",
+      "source": "AGENT.md",
+      "agent_json": "docs/entrypoints/AGENT.agent.json",
+      "source_sha256": "2dd8a308975265956b192a50ca506536e07c2e1f13a50e997630fe7629249a56",
+      "role": "instructions"
+    },
+    {
+      "document_id": "urn:iisacc:document:94bdbe9425666052ab7b82e3cfa1180e6010a29ca1325a54538a833af352f230",
+      "source": "README.md",
+      "agent_json": "docs/entrypoints/README.agent.json",
+      "source_sha256": "644c63cd81a0535786a8f932d645a19a9a418b47ce111d720bcabc91fa42b188",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:55011beacf17ca076b5848aad1569f0a81f81477d5d7a8c37570c8e45ba7b2f3",
+      "source": "THIRD_PARTY_NOTICES.md",
+      "agent_json": "docs/entrypoints/THIRD_PARTY_NOTICES.agent.json",
+      "source_sha256": "de7b9dfbbe4f75d190b9f27216af5d14941f9f8196761cd5d699199175b5127d",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:ed1f7e88f85cd6fb0d5c15bd08e815b999b0e0165ac791931f81bca9f6631cdc",
+      "source": "docs/AgentAPI.md",
+      "agent_json": "docs/AgentAPI.agent.json",
+      "source_sha256": "fa10b0b0d7b5b2c8cc6ba31713a6c0f5000cd99afe110edcc400ee2e5c6b18ae",
+      "role": "reference"
+    },
+    {
+      "document_id": "urn:iisacc:document:ca3cf93de630ce4d4385ec13fe1b5f974210054891395a4a76375453074e8802",
+      "source": "docs/AgentHarness.md",
+      "agent_json": "docs/AgentHarness.agent.json",
+      "source_sha256": "25af2453e8fb9fd39a50ebc02acb861ecfd95c7bc6ff0564423881bb13814bf4",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:c93319e1230695bd55e0bbdf8d0a2f1689cd69bde3cbab1388bd25fe33c52415",
+      "source": "docs/AgentHooks.md",
+      "agent_json": "docs/AgentHooks.agent.json",
+      "source_sha256": "306ae15068e5bae4d798dd8e94ec20a3e13b8501e46e6ad3eb65a65d4d74b929",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d1b62109616ec1c7f4705207fe5c24448433792da1925e872e757ce1e72743aa",
+      "source": "docs/AgentProfiles.md",
+      "agent_json": "docs/AgentProfiles.agent.json",
+      "source_sha256": "117d75bab097c1b847d18f960d6cd922e5ddbb833b9db58baf1a8fcbab9e2efc",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:f555bfd2fc10cf7a4e6f08e86679fc0e3837308c234064d880a52f61ecb43e9c",
+      "source": "docs/AsyncHooks.md",
+      "agent_json": "docs/AsyncHooks.agent.json",
+      "source_sha256": "e43c4f1efcc28cf4a4771f7592f903343e1aef5615a2be44596e234a44e29878",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:e9afc4910e838e0a10db3fe94f8ce7a2ee2d64cf2fded3efe114202a8779efe8",
+      "source": "docs/BackgroundTasks.md",
+      "agent_json": "docs/BackgroundTasks.agent.json",
+      "source_sha256": "85987cc01e424d5f0862a48207406f0493fd77d8f4c56f151a86c169e8858ed2",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:67e1b47381023c64bb276a934807b263762f18c6fb3bdbc04f9be9706ce826ca",
+      "source": "docs/CommandHooks.md",
+      "agent_json": "docs/CommandHooks.agent.json",
+      "source_sha256": "5c51aa6f5d72dbdfbb8e39c89ea7d7199d0126cc93a443e9ddde18b1864e4e85",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d0bb245dea36cb408eb311ca6c586be82b9542bb1507874bd12eb219837c3b2e",
+      "source": "docs/Compaction.md",
+      "agent_json": "docs/Compaction.agent.json",
+      "source_sha256": "86838d20c275455127b2c0ba34b08e326f63da2874b8489faef9d77f5a05b17c",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:316d9e841fe34fb67ab7d70c70c2a3124fb76aa7e7400e57002e0afdfea58b2b",
+      "source": "docs/ContextAdmission.md",
+      "agent_json": "docs/ContextAdmission.agent.json",
+      "source_sha256": "baef27961a09d08148efd7a96ef3d4b427fd3a638d4dab0999e935cebada35ba",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:0635b9e9ea31a61d0e0107de59eae1499f8cffafe07fea9bf8028f2e686830a1",
+      "source": "docs/DecisionGate.md",
+      "agent_json": "docs/DecisionGate.agent.json",
+      "source_sha256": "3cf9dbee890139f2f1b7f1d9ba9267dccd68c1bd00110ec1c304b185e2130f2c",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:c0d50e31ef43c8a7cb66d48a0ede59823ca9348c9f5d9cfe8d70fc60b4dbc045",
+      "source": "docs/FailureDiagnostics.md",
+      "agent_json": "docs/FailureDiagnostics.agent.json",
+      "source_sha256": "91053c42a314202acd34eb67516685182c592f46b7963a72c71753f072d105aa",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a927c653d0c58c1fd842c86013cd8288e57916c9c2d910b527ec6413dc694123",
+      "source": "docs/FileCheckpoints.md",
+      "agent_json": "docs/FileCheckpoints.agent.json",
+      "source_sha256": "b8924984666834b7aa46df9a55f69a7f403646bc28c69f11c363e3955bb8339a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:ff50c99cc0817d78378ba2fc05628c44ae867d19720d9eaf496a14956ce6c706",
+      "source": "docs/HOST_TEST_PATHS.md",
+      "agent_json": "docs/HOST_TEST_PATHS.agent.json",
+      "source_sha256": "58993daa1a68d1e7a2f52299f6f05b50cda149a1b5a8ba902d5062b6d1349eaf",
+      "role": "evidence"
+    },
+    {
+      "document_id": "urn:iisacc:document:0cadd186db9c06125594f547866f16f3b2cdb482064e45105a5e90d4f12233eb",
+      "source": "docs/HTTPHooks.md",
+      "agent_json": "docs/HTTPHooks.agent.json",
+      "source_sha256": "fdff5fa84aeb5b57184a440f6b4e65cb90f8edafac01f70541ca9e2b4e04d906",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d8e2b55166e5be012426cc493f5a73495438606bd126aa95f96950f0b3d0d5ac",
+      "source": "docs/HarnessParity.md",
+      "agent_json": "docs/HarnessParity.agent.json",
+      "source_sha256": "fe21bfe6e2c84fe658093ebc4441975ebc795b26c97cd6031241ff95afff48a6",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b693e917e8877aa182fc8fbcd088c513c509c40bca8766cc7803a55541f1ed63",
+      "source": "docs/InputLifecycle.md",
+      "agent_json": "docs/InputLifecycle.agent.json",
+      "source_sha256": "6d4fa8bcec46d7bd753db59b91e60ab83cec2bce5a07e7a2873d24e23e88d6d7",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:80efd90598e0af623251636cabae6ce0f062fc9ef344a33b3ce94b198abc6a30",
+      "source": "docs/InputQueue.md",
+      "agent_json": "docs/InputQueue.agent.json",
+      "source_sha256": "3721748fe66cf481854caf26399d39f17a9c21d4ca2ec5f9d01898c816494e3a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:c56d5e58670915980fe7713290b098be4e05abc62ca789662f8fb358993a99f7",
+      "source": "docs/LocalApplications.md",
+      "agent_json": "docs/LocalApplications.agent.json",
+      "source_sha256": "34fe56f03c5746ecc735634ed27f0f9ad6ce222c58adc19e4fa941e845bd5e41",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:0512655e620bf8d7e7d79bd5cbf01c1e72e8348821c3cc3343c6b5897a168723",
+      "source": "docs/Lsp.md",
+      "agent_json": "docs/Lsp.agent.json",
+      "source_sha256": "9c975abd9a842fb6d8f41e434d82182e1869d75d719d75d6176aa6d138d74c2f",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a18515d39f6ef6a595b1edd6f03e7d9812c29c28911ba62053d7ed6a6f1458ab",
+      "source": "docs/MCP.md",
+      "agent_json": "docs/MCP.agent.json",
+      "source_sha256": "2963f5a2f06cc3dd0a88f0136a8572d7070a6a7397d4788b3120507384a89450",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b08f4b50425b567f5b911d2d81902d836f2ed5d93391fcde93f191adff60d209",
+      "source": "docs/MCPHTTP.md",
+      "agent_json": "docs/MCPHTTP.agent.json",
+      "source_sha256": "382cc1c3a98c4f7eeb0e84b57d7b9ebf2bb8d7ad6a74f0f636e6380df3ce3399",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:3b689d93425c0f460a52d68201cd53ba596e6bb983abefdf0c9cd14cbf223480",
+      "source": "docs/MCPHTTPServer.md",
+      "agent_json": "docs/MCPHTTPServer.agent.json",
+      "source_sha256": "1914dbfab9109ae9a64357fdc1f140f4e9f172fd0b0be9a04613b8316be1f0aa",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:cca25be28bb45f22899bfbec29d009ce7b959db7e84144fee2a8aeb9daa6f943",
+      "source": "docs/MCPServer.md",
+      "agent_json": "docs/MCPServer.agent.json",
+      "source_sha256": "439c602dc9edc339f04b0db4ae597c93101b7ec612e48fdb93b778b99f07f328",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:0c87318e22323cdb95f41b12966b3d234cd69de422653c007447ce59b3815f45",
+      "source": "docs/McpOutputHooks.md",
+      "agent_json": "docs/McpOutputHooks.agent.json",
+      "source_sha256": "723f6acfd78ccd431efa9daac364471f18455b6b0824c47150db1fec50a7fd0a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:8e3100b6f2efc52e8feb12b971ee9c8c95c30d9b9fcca94858b337f71e9243e0",
+      "source": "docs/McpPeerStartup.md",
+      "agent_json": "docs/McpPeerStartup.agent.json",
+      "source_sha256": "5340b4ecd91be6a70aefae91862d42b72137df06981d11d35b2c9278d36ee3dd",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:7b972e7d45dd11a0ca6367629c2c643f089659a4430be8173faaf841e023015a",
+      "source": "docs/MemoryDream.md",
+      "agent_json": "docs/MemoryDream.agent.json",
+      "source_sha256": "5c52a1686656eba921db23dacee89bbd4ad6fd06c1a427aaafe500e6950bb2c9",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:70f6c37179d6f02ab916386204d94dea81925c0a72382e089861691806637af7",
+      "source": "docs/MemoryExtraction.md",
+      "agent_json": "docs/MemoryExtraction.agent.json",
+      "source_sha256": "14217be529090507cad20609d5ba1194d07ac432b80a607da789ff5f36cb707f",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d1f2274050117b5800eabbab7b12bacd66a5b35b194e93d81c1bb3c9bb6605ac",
+      "source": "docs/MemoryRecall.md",
+      "agent_json": "docs/MemoryRecall.agent.json",
+      "source_sha256": "6631289e9807ff7c5ce2b62f5c9549b902b0220666f0dcbe91b3a7d05f48bd36",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:efccd6b0d3bd5dc0e477199f57741a4b0d010e63aaee750b40883344a929821a",
+      "source": "docs/Migration.md",
+      "agent_json": "docs/Migration.agent.json",
+      "source_sha256": "d571891951c732712a25a41bf0af0cb6226d7d20c3f98cf0942378cd4edd510b",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:819a35fcef969bc12105b5995bd35194776c8db93348e86f6f67c552cdec0bd8",
+      "source": "docs/MultimodalHarness.md",
+      "agent_json": "docs/MultimodalHarness.agent.json",
+      "source_sha256": "d665343f796cdaff438773bb4fcdea1e12b7bec9463a7d52bc98d78ebdedd2bc",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:49c04032925e95e8d3f51cfa10684b4ebb50d21f7ab974a64bee8b34c7c2ba3a",
+      "source": "docs/MultimodalServices.md",
+      "agent_json": "docs/MultimodalServices.agent.json",
+      "source_sha256": "0cf7ea760e02ad268e579d5c213c8b2e92b18a88acb013a1fe1048a043d94810",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:4840aa882f3393c7ffa74b3cd6a9073cf035f9f5707d4da4cb527578e0b6ab80",
+      "source": "docs/NativeToolTurns.md",
+      "agent_json": "docs/NativeToolTurns.agent.json",
+      "source_sha256": "91a320db357823ab44b69661a930f08c857a3ed4cf243b7a222c95d49897a513",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:618bfa6a24dc5eeeec2674683a5b6a88027982b31f4db1b832f22031dab1cbf2",
+      "source": "docs/Notebooks.md",
+      "agent_json": "docs/Notebooks.agent.json",
+      "source_sha256": "df0d32f5a8a430c3a96dd23ad33de416df12a37519e58d72a3728f0ce39ac741",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:91af104b33901806d33f6967fdb542de16fb7d4f20a658b57f1998f9f1d1eaf2",
+      "source": "docs/PERFORMANCE.md",
+      "agent_json": "docs/PERFORMANCE.agent.json",
+      "source_sha256": "875fdf3d4bfe6715d0e80f52c5630f99c50eb56e960226c9fd443f6956ad35f0",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:01536b09a951ad5882abed382259a494df33e3046952414f4c8c8b3ec88e87a5",
+      "source": "docs/PermissionRequest.md",
+      "agent_json": "docs/PermissionRequest.agent.json",
+      "source_sha256": "c46e8df17436117f2b1e0358c2e672f6f49e6bbfc2415871563c21580bf874f7",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:fad6fcebc33b6631c534395b751d681c5422d8023b7481c796e094f0fdd631d9",
+      "source": "docs/PermissionRequests.md",
+      "agent_json": "docs/PermissionRequests.agent.json",
+      "source_sha256": "767530666b4cf68ae927afaccee95be718c6fdeb2b59d51ab2e079a822868549",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:183cfa15ee29281b28dd223f38b15c5a1776587c9d01498f8cebd7aba75c8144",
+      "source": "docs/PermissionSettings.md",
+      "agent_json": "docs/PermissionSettings.agent.json",
+      "source_sha256": "354c7756b332ec860b04dfcf6832506af73f1bea0aff58411b90a4d27207d064",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:3c838270abf37c1598a569205a5262492bdf97bd9b60fe35dcc64ba8817ff356",
+      "source": "docs/PermissionUpdates.md",
+      "agent_json": "docs/PermissionUpdates.agent.json",
+      "source_sha256": "6a1153c90919ffdea0d3bd72a3eea60e440d6e40e0946ed0095b8154ddbb117c",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:7754e5cff27ae487ae449678d2a93febd44cf30b40ab475e0bd14bf9ac9cf2ed",
+      "source": "docs/Permissions.md",
+      "agent_json": "docs/Permissions.agent.json",
+      "source_sha256": "871fc71559e8eaba47169ccc726dff6c46215cb29eb55f01081b8c774b33abaf",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:36c6e6453c911a845b7a8face33221bb52d54fa48bb9180d0df47b04cd8a16ed",
+      "source": "docs/PlanMode.md",
+      "agent_json": "docs/PlanMode.agent.json",
+      "source_sha256": "8790ba5c3ddc55995796816cbdc325b317a79ca6c325fa966413025c16316de1",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:812840d6182fbee37e5475ffc53e7b3274260a3415eaa47ff6e92ed9c8bd3ce1",
+      "source": "docs/Plugins.md",
+      "agent_json": "docs/Plugins.agent.json",
+      "source_sha256": "141f25e3ea6c9c04945e9e717bb8ce661dfb4270ba700127738c3619d0e8caa4",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a697abda9be2cb922132fc90922416d87848638c497f1c9a690f91d9ca3f34f6",
+      "source": "docs/Procedures.md",
+      "agent_json": "docs/Procedures.agent.json",
+      "source_sha256": "adfd2a17f043940479f1c6cb6c70da269498d329f8f19f7953a74bf8664c3a5f",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:0518ae8c7c02b989c973e20709b4f9bbc63090bc67d5ce8be39c3966659d0214",
+      "source": "docs/ProjectContext.md",
+      "agent_json": "docs/ProjectContext.agent.json",
+      "source_sha256": "c99c4a04f6f01647189fb7c8a39ab9b8b3ad284f318e2141f98cca4f030d7761",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:2f0b9e64411e8712979b3755a4d863ba7b85fb3426aaf9f6e4a57a7f0e47f053",
+      "source": "docs/ProjectMemory.md",
+      "agent_json": "docs/ProjectMemory.agent.json",
+      "source_sha256": "587b3f9785d81af46397ef7ad936b38c05d45854358c108bb79620e75a0d016e",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:e35e0f15fdb813ea57ba18df997c4d44862b4582dbd35319dd2f6dae4b2c3f3f",
+      "source": "docs/PromptHooks.md",
+      "agent_json": "docs/PromptHooks.agent.json",
+      "source_sha256": "380a3fc9488069b5af910cea38a4705bd9b80021e7999b6851070d846cd4a4dc",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:68929ced38576b5a9a5e0c88b28bcfef0d5beec44f0d2d1bfd5234d1eeea2469",
+      "source": "docs/QuestionUI.md",
+      "agent_json": "docs/QuestionUI.agent.json",
+      "source_sha256": "f8f38c6b182f6351a7e3dac55644bbb0815172d84d8348c6529db377dec6e432",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:97414493707374b4caafaf74d3290b0c378957f1798eb022ddf8e70f8cb3e795",
+      "source": "docs/README.md",
+      "agent_json": "docs/README.agent.json",
+      "source_sha256": "c5bc1ebbe31358fb500a7c3d971f8060cff74113e05ff4c46338c5c18c018de0",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:2ddabfd33f650b6890761991adfc06d9fd4419a252dc5067e303ad26b193d3b3",
+      "source": "docs/Rag.md",
+      "agent_json": "docs/Rag.agent.json",
+      "source_sha256": "a7f8af3adc7da46cf0301008084597cae15cc8342c63c0a42e6cd2d76acf3599",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:92c22e9ac649569a4074c1b0eb75aeb3cbcbf9ebddd9a1675efe940abf621dd5",
+      "source": "docs/RuntimeRetirement.md",
+      "agent_json": "docs/RuntimeRetirement.agent.json",
+      "source_sha256": "4c436172354ba65d0d13ff353d2d24cb66d9d43dc026129a5815fdf409d990ea",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:bbe2df4997a8fdbb0e3d001e31343c6c28447e685bfa894cde5796fef779ee83",
+      "source": "docs/SessionClear.md",
+      "agent_json": "docs/SessionClear.agent.json",
+      "source_sha256": "7dec0c72ae552c116a74f1af992886b8f961fd4b32f76166952627d1e9d4c003",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:365d1eb87bd75163dcccf3dbb43be4a6b62ab02deaee0f0249aa5da68a989b86",
+      "source": "docs/SessionEnd.md",
+      "agent_json": "docs/SessionEnd.agent.json",
+      "source_sha256": "23732b69e1043125be672de39cc14f56605999259202ab789ca229fa3b57e88c",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:2b7cd5de82cb5d0c757fd5968e1a73347da94b0312da1ff43b27ea7e27ed369b",
+      "source": "docs/SessionFork.md",
+      "agent_json": "docs/SessionFork.agent.json",
+      "source_sha256": "f456a745212bac9e9ce161ae8ab31ff6e9bbb103294a1f4ae0c06da20dc9ed4d",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:45b8c35a9c358ed7bb068f0182b3aa05428ba8dc2917448d2ce44934be5ff4db",
+      "source": "docs/SessionHistory.md",
+      "agent_json": "docs/SessionHistory.agent.json",
+      "source_sha256": "8a67873588efa240f539f9f88384c60cd21a011eaef1bac5dea8b61f58fb8455",
+      "role": "history"
+    },
+    {
+      "document_id": "urn:iisacc:document:83d9257fb9e61111c8598369b949e767e40044fb57c760d80237ea80fd570449",
+      "source": "docs/Skills.md",
+      "agent_json": "docs/Skills.agent.json",
+      "source_sha256": "7cb8bcad5d3c407ed4c0e9a922f99cc9f4430a93bac492e252886c8d575fb3d4",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:7ebb965b71374420bd3dec07844d88834f92fa422c13acefff73928994e8abd5",
+      "source": "docs/Subagents.md",
+      "agent_json": "docs/Subagents.agent.json",
+      "source_sha256": "d26d16d51ccc8fb6d79deefe700622a320abebc412b87d2558303128478a9396",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:4285e3e3134fcb8e0fb27d2bd6f4ab79a5171509d7b1469427c8e55fb6588ef0",
+      "source": "docs/Tasks.md",
+      "agent_json": "docs/Tasks.agent.json",
+      "source_sha256": "7b519b3395d1b890aec46ffbd8e1fdf32380780b0f3f48c0639ba6351a46fa6e",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:f97225cc46f0353ee692f6b55aa6b90672e2b99d15d9cfa3030815eb8e781179",
+      "source": "docs/Teams.md",
+      "agent_json": "docs/Teams.agent.json",
+      "source_sha256": "25c370b0082ffc08d12fa5f3e81b17cc3b21ddb85e26547862eed1ee5391c121",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:6262c51183a243d847aabaeaebf3ee5664c62a8ec547209f132610cb9edca959",
+      "source": "docs/ToolDiscovery.md",
+      "agent_json": "docs/ToolDiscovery.agent.json",
+      "source_sha256": "bb99051dfc12cbdbaac621195b1161e48b11e6028c933df587c4b8f9dd1af159",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:3ab79fd485334893a88e1b6a5a6ee5b1f97ecee6268e8a7cc05ab7b5719de2bd",
+      "source": "docs/UserQuestions.md",
+      "agent_json": "docs/UserQuestions.agent.json",
+      "source_sha256": "37c2b875ce9c6965fc8c87741d92bc63ae68f2c52aa05bff202692a40bd1cbdb",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b811b1a308e1b274ba88406a79996ff7413fb2fd4f0af35235891cfa3794193e",
+      "source": "docs/Verification.md",
+      "agent_json": "docs/Verification.agent.json",
+      "source_sha256": "27c8a429bcf7a771b5505b21397cd5f64f92d25fd41f8e3960fe0b7813846736",
+      "role": "evidence"
+    },
+    {
+      "document_id": "urn:iisacc:document:79ef9824fa271199d2a0638f17998c3f51fe0b2201e423b86bc08622f40d1dc1",
+      "source": "docs/WebFetch.md",
+      "agent_json": "docs/WebFetch.agent.json",
+      "source_sha256": "70927449c820364315019012bd606bf1b83d47040dbdaefe9431a7d506452b7e",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:2fd98fdf6ebff598b024b3fa4f29264234091c0df29251d3b75c41c9f8295687",
+      "source": "docs/WindowsSessionHistory.md",
+      "agent_json": "docs/WindowsSessionHistory.agent.json",
+      "source_sha256": "2236bbff244056a2d9e1a3357f16bed4c03bbe4f989ac12f4b673386e1dc6f4d",
+      "role": "history"
+    },
+    {
+      "document_id": "urn:iisacc:document:318a2c5f76c1c1b30e387cdccb0425f4aad0f9f0b443433461808c0861af9870",
+      "source": "docs/WorkingDirectories.md",
+      "agent_json": "docs/WorkingDirectories.agent.json",
+      "source_sha256": "97baab332d88283bc3f6fd92f41bc20f628979e30da78db8cbf26e2180aed1f2",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:bdc5dc36dbabc3436e670913ca0b3c6c97a5674d94489b98ccb09ac8565beb83",
+      "source": "docs/Worktrees.md",
+      "agent_json": "docs/Worktrees.agent.json",
+      "source_sha256": "98de9d3cf418b981cbb0d074f04d557a7ffd5fa5c75cfaf52de8c3c0ea4be068",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:6606d91cdd65fb636a74a01fac73d4203a00ebf2eecd17e8196c4ae08cca474e",
+      "source": "docs/documentation-structure.md",
+      "agent_json": "docs/documentation-structure.agent.json",
+      "source_sha256": "25ea3ac680e4ad19e3d575e25798a34a76994ac1b8404fc43193841914d93b22",
+      "role": "guide"
+    }
+  ],
+  "layout": {
+    "human_entry": "README.md",
+    "agent_entry": "AGENT.md",
+    "human_format": "markdown",
+    "agent_format": "structured_json",
+    "source_authority": "markdown"
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

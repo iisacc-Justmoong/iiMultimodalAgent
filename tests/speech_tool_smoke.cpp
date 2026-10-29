@@ -5,17 +5,19 @@
 int main(int argc,char** argv) {
     QCoreApplication app(argc,argv);
     try {
+        if(iiVoiceOver::SpeechSynthesizer::available())
+            throw std::runtime_error("Retired speech model backend advertised as available");
         auto voice=iiVoiceOver::VoiceModel::bundled();
-        if(!voice)throw std::runtime_error(voice.error().message);
-        QTemporaryDir root;
+        if(voice || voice.error().code!=iiVoiceOver::ErrorCode::unsupported)
+            throw std::runtime_error("Retired speech model was not rejected explicitly");
+        QTemporaryDir root(QCoreApplication::applicationDirPath()+"/retired-speech-XXXXXX");
         iiMultimodalAgent::agent::MultimodalServices config;
         config.outputDirectory=std::filesystem::path(root.path().toStdU16String());
-        config.speech=std::make_shared<iiVoiceOver::SpeechSynthesizer>(std::move(*voice));
         auto tools=iiMultimodalAgent::agent::multimodalTools(std::move(config));
-        iiMultimodalAgent::agent::ToolContext context;
-        auto result=tools.front().execute({{"text","Hello World"}},context);
-        if(result.isError||result.data["frames"].toInteger()<1000||result.content.size()!=1)return 2;
-        std::cout<<"Native iiVoiceOver tool produced Hello World: "<<result.data["frames"].toInteger()<<" PCM frames\n";
+        for(const auto& tool:tools)
+            if(tool.definition.name=="Speak")
+                throw std::runtime_error("Speech tool exposed without a supported provider");
+        std::cout<<"Retired speech backend is unavailable and its tool is omitted\n";
         return 0;
     } catch(const std::exception& error) {std::cerr<<error.what()<<'\n';return 1;}
 }

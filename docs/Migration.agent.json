@@ -1,0 +1,286 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:efccd6b0d3bd5dc0e477199f57741a4b0d010e63aaee750b40883344a929821a",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Migration.md",
+    "sha256": "d571891951c732712a25a41bf0af0cb6226d7d20c3f98cf0942378cd4edd510b",
+    "bytes": 3168,
+    "line_count": 51,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Module extraction and dependency ownership",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Module extraction and dependency ownership\n",
+      "level": 1,
+      "title": "Module extraction and dependency ownership"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "The extraction moves the real implementation, including Windows storage,\nbackground ownership and session-history fingerprint fixes. Agent execution is\nnot delegated back into the old library. Lower inference/decision modules never\nreference the higher agent package.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "table",
+      "start_line": 8,
+      "end_line": 18,
+      "raw": "| Before | After |\n| --- | --- |\n| Agent `find_package(iiLocalLLM 0.55 ...)` | `find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)` |\n| Agent `iiLocalLLM::iiLocalLLM` target | `iiMultimodalAgent::iiMultimodalAgent` |\n| `<agent/Engine.h>` | `<iiMultimodalAgent/agent/Engine.h>` |\n| `<mcp/Client.h>` | `<iiMultimodalAgent/mcp/Client.h>` |\n| `iiLocalLLM::agent` / `iiLocalLLM::mcp` | `iiMultimodalAgent::agent` / `iiMultimodalAgent::mcp` |\n| Agent-enabled `iiLocalLLMD` | `iiMultimodalAgentD` / `iimagent-service` |\n| `iillm agent ...`, `iillm-mcp`, `iillm-plugins` | `iimagent agent ...`, `iimagent-mcp`, `iimagent-plugins` |\n| Harness `IILOCALLLM_TEST_*` | `IIMULTIMODALAGENT_TEST_*` |\n| `IILOCALLLM_QML_DIR` | `IIMULTIMODALAGENT_QML_DIR` |\n",
+      "columns": [
+        "Before",
+        "After"
+      ],
+      "rows": [
+        [
+          "Agent `find_package(iiLocalLLM 0.55 ...)`",
+          "`find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)`"
+        ],
+        [
+          "Agent `iiLocalLLM::iiLocalLLM` target",
+          "`iiMultimodalAgent::iiMultimodalAgent`"
+        ],
+        [
+          "`<agent/Engine.h>`",
+          "`<iiMultimodalAgent/agent/Engine.h>`"
+        ],
+        [
+          "`<mcp/Client.h>`",
+          "`<iiMultimodalAgent/mcp/Client.h>`"
+        ],
+        [
+          "`iiLocalLLM::agent` / `iiLocalLLM::mcp`",
+          "`iiMultimodalAgent::agent` / `iiMultimodalAgent::mcp`"
+        ],
+        [
+          "Agent-enabled `iiLocalLLMD`",
+          "`iiMultimodalAgentD` / `iimagent-service`"
+        ],
+        [
+          "`iillm agent ...`, `iillm-mcp`, `iillm-plugins`",
+          "`iimagent agent ...`, `iimagent-mcp`, `iimagent-plugins`"
+        ],
+        [
+          "Harness `IILOCALLLM_TEST_*`",
+          "`IIMULTIMODALAGENT_TEST_*`"
+        ],
+        [
+          "`IILOCALLLM_QML_DIR`",
+          "`IIMULTIMODALAGENT_QML_DIR`"
+        ]
+      ]
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 22,
+      "raw": "iiLocalLLM advances to 0.56.0 because removing agent/MCP exports changes the\ncombined shared-library ABI. Rebuild agent consumers. Windows uses the new\n`IIMULTIMODALAGENT_EXPORT` definition, preserving imported iiLocalLLM DLL symbols.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 27,
+      "raw": "`iiMultimodalAgent::Inference.h` explicitly shares the inference module's value\nand cancellation types. Native media/projector handling stays in iiLocalLLM.\nThe Qt-free DecisionGate header retains lightweight native modality types;\ndecision JSON/procedure adapters belong to the agent. iiDecision stays independent.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 34,
+      "raw": "On macOS the agent and its consumers mark the selected shared iiFileProviderNative\nas a needed library before indirect provider dependencies. CMake normally retains\nthe last repeated dylib entry on this platform; nominal target order alone can\notherwise load an older copy bundled in another SDK prefix. Runtime binding tests\ncompare the actual symbol-owner paths with the imported CMake targets. This does\nnot depend on a global dynamic-library environment override.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 41,
+      "raw": "An exported `DYLD_LIBRARY_PATH` or `DYLD_FRAMEWORK_PATH` can still override\nmacOS package resolution. On Apple hosts, CTest and the installer remove those\noverrides, including fallback/versioned variants, only from their own processes.\nThey do not edit the user's shell configuration. Keep the same isolation when\nqualifying an installed application. The runtime-binding test verifies actual\nloaded paths, not just CMake's selected prefixes.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 43,
+      "end_line": 46,
+      "raw": "Permissions, recovery, memory, quotas, native child-process behavior and trusted\neconomic assessment semantics are preserved. `agent.run`, `iisacc.agent/1`, stored\n`iisacc.*` schemas and `IILOCALLLM_APP_ENDPOINTS` remain compatible. Assign daemon\nendpoints deliberately; two daemons must not own one socket concurrently.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 51,
+      "raw": "The inherited Qt Core/Network implementation is a documented migration boundary.\nNo Qt dependency is added to iiDecision, iiSDKCore or the generation modules.\niiAudioGen's existing Python worker is used only when the host binds that backend.\nHistorical feature documents are marked separately from the current verification.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Module extraction and dependency ownership",
+      "anchor": "module-extraction-and-dependency-ownership",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 5,
+        "text": "not delegated back into the old library. Lower inference/decision modules never",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 10,
+        "text": "| Agent `find_package(iiLocalLLM 0.55 ...)` | `find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)` |",
+        "basis": "lexical_match",
+        "context": "table"
+      },
+      {
+        "block_id": "b000013",
+        "line": 39,
+        "text": "They do not edit the user's shell configuration. Keep the same isolation when",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000015",
+        "line": 46,
+        "text": "endpoints deliberately; two daemons must not own one socket concurrently.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": [
+      {
+        "block_id": "b000005",
+        "columns": [
+          "Before",
+          "After"
+        ],
+        "rows": [
+          [
+            "Agent `find_package(iiLocalLLM 0.55 ...)`",
+            "`find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)`"
+          ],
+          [
+            "Agent `iiLocalLLM::iiLocalLLM` target",
+            "`iiMultimodalAgent::iiMultimodalAgent`"
+          ],
+          [
+            "`<agent/Engine.h>`",
+            "`<iiMultimodalAgent/agent/Engine.h>`"
+          ],
+          [
+            "`<mcp/Client.h>`",
+            "`<iiMultimodalAgent/mcp/Client.h>`"
+          ],
+          [
+            "`iiLocalLLM::agent` / `iiLocalLLM::mcp`",
+            "`iiMultimodalAgent::agent` / `iiMultimodalAgent::mcp`"
+          ],
+          [
+            "Agent-enabled `iiLocalLLMD`",
+            "`iiMultimodalAgentD` / `iimagent-service`"
+          ],
+          [
+            "`iillm agent ...`, `iillm-mcp`, `iillm-plugins`",
+            "`iimagent agent ...`, `iimagent-mcp`, `iimagent-plugins`"
+          ],
+          [
+            "Harness `IILOCALLLM_TEST_*`",
+            "`IIMULTIMODALAGENT_TEST_*`"
+          ],
+          [
+            "`IILOCALLLM_QML_DIR`",
+            "`IIMULTIMODALAGENT_QML_DIR`"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

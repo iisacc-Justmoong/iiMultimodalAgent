@@ -1,0 +1,565 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:2b7cd5de82cb5d0c757fd5968e1a73347da94b0312da1ff43b27ea7e27ed369b",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/SessionFork.md",
+    "sha256": "f456a745212bac9e9ce161ae8ab31ff6e9bbb103294a1f4ae0c06da20dc9ed4d",
+    "bytes": 8388,
+    "line_count": 58,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "세션 분기와 보관 파일 복제 (0.47)",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "quote",
+      "start_line": 1,
+      "end_line": 2,
+      "raw": "> Module ownership: this harness feature is provided by iiMultimodalAgent 0.1.0.\n> Historical results below predate extraction unless explicitly dated; see [Migration](Migration.md) and [Verification](../../iiLocalLLM/docs/Verification.md) for current evidence.\n"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "# 세션 분기와 보관 파일 복제 (0.47)\n",
+      "level": 1,
+      "title": "세션 분기와 보관 파일 복제 (0.47)"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "파일을 편집하거나 큰 도구 결과를 저장한 대화도 분기할 수 있다. C++ `Engine::forkSession`은 원본 세션의 lease를 잡고 대화·압축 경계·보관 파일·파일 체크포인트를 복제한 다음 새 transcript를 공개한다. 새 UUID와 `parent_session_id`를 사용한다. 원본 대화나 현재 작업 파일은 수정하지 않는다. 두 세션은 같은 작업 디렉터리를 사용하므로 이후 작업 파일 편집은 서로 보인다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "heading",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "## 복사 범위\n",
+      "level": 2,
+      "title": "복사 범위"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "list",
+      "start_line": 10,
+      "end_line": 14,
+      "raw": "- 전체 분기: 메시지와 압축 기록 전체, 세션 `artifacts` 아래 일반 파일 전체, 수동 생성분을 포함한 체크포인트 전체를 복제한다.\n- `through_message_id` 분기: 해당 메시지까지 포함한다. 도구 호출과 결과가 끊기는 경계는 거부한다. 남긴 메시지·시스템 프롬프트·압축 요약이 참조하는 보관 파일만 복제한다. 체크포인트는 남긴 메시지 ID에 대응하는 것만 보존하고 이후에만 추적된 파일은 제외한다. transcript 메시지에 대응하지 않는 수동/직접 편집 체크포인트는 이 형태의 분기에서 제외한다.\n- 메시지의 text·도구 인자·data·content·metadata와 시스템 프롬프트·압축 요약에 있는 원본 artifact 경로를 새 세션 경로로 바꾼다. 일반 작업 파일 경로와 메시지/도구 호출 ID는 유지한다. 보관 파일의 원시 바이트·권한은 보존하며 파일 내용 안의 임의 경로는 수정하지 않는다. 경로 인식은 네이티브 도구가 기록하는 원시 절대 경로 기준이며 임의 인코딩 URL·binary 참조는 해석하지 않는다.\n- 체크포인트의 workspace/revision 범위를 보존한다. 분기는 worktree 소유권이나 revision을 이전하지 않는다. 새 세션은 원래 작업공간에서 시작하며 현재 범위 밖의 이력은 복원할 수 없다.\n- 런타임에서 체크포인트 기능을 꺼도 이미 저장된 이력은 복제한다. 다시 활성화한 Engine에서 읽을 수 있다.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "전체 분기: 메시지와 압축 기록 전체, 세션 `artifacts` 아래 일반 파일 전체, 수동 생성분을 포함한 체크포인트 전체를 복제한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`through_message_id` 분기: 해당 메시지까지 포함한다. 도구 호출과 결과가 끊기는 경계는 거부한다. 남긴 메시지·시스템 프롬프트·압축 요약이 참조하는 보관 파일만 복제한다. 체크포인트는 남긴 메시지 ID에 대응하는 것만 보존하고 이후에만 추적된 파일은 제외한다. transcript 메시지에 대응하지 않는 수동/직접 편집 체크포인트는 이 형태의 분기에서 제외한다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "메시지의 text·도구 인자·data·content·metadata와 시스템 프롬프트·압축 요약에 있는 원본 artifact 경로를 새 세션 경로로 바꾼다. 일반 작업 파일 경로와 메시지/도구 호출 ID는 유지한다. 보관 파일의 원시 바이트·권한은 보존하며 파일 내용 안의 임의 경로는 수정하지 않는다. 경로 인식은 네이티브 도구가 기록하는 원시 절대 경로 기준이며 임의 인코딩 URL·binary 참조는 해석하지 않는다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "체크포인트의 workspace/revision 범위를 보존한다. 분기는 worktree 소유권이나 revision을 이전하지 않는다. 새 세션은 원래 작업공간에서 시작하며 현재 범위 밖의 이력은 복원할 수 없다.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "런타임에서 체크포인트 기능을 꺼도 이미 저장된 이력은 복제한다. 다시 활성화한 Engine에서 읽을 수 있다.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "복사본은 하드링크를 쓰지 않는다. 부모 보관 파일·blob의 삭제나 덮어쓰기는 자식 백업에 반영되지 않는다. `FileCheckpoints::fork`는 참조의 크기와 SHA-256을 확인하고 필요한 blob만 복사한다. 현재 작업 파일을 새로 스냅샷하거나 복원하지 않는다.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "원본에서 이미 사라진 artifact를 복구하거나 모든 문자열 참조의 존재를 검증하지는 않는다. 누락된 artifact 참조는 분기 뒤에도 유효한 파일을 가리키지 않을 수 있다. 체크포인트는 필요한 blob이 없거나 손상되면 분기 전체를 거부한다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "`Agent.fork_context`도 부모의 불변 문맥이 참조하는 artifact를 자식 저장소로 복제한다. 미완료 부모 도구 호출은 기존 계약대로 미실행 표시로 짝을 맞춘다. 부모 체크포인트 전체를 넘기지는 않으며 자식 편집은 자식 이력을 만든다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "## 공개와 실패\n",
+      "level": 2,
+      "title": "공개와 실패"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "Qt 6.8.3의 QSaveFile, QLockFile, 파일·JSON API를 재사용한다. 세션별 저장 계약에 속하는 복제이므로 새 의존성은 추가하지 않는다. artifact는 최대 4096개 디렉터리 항목, 32단계, 파일당 64 MiB, 복사 합계 256 MiB이다. 체크포인트는 기존 100개/256개 파일/64 MiB blob 한도를 유지한다. symlink·비정규 파일·손상된 blob·용량 초과를 거부하며 파일 복사 전후 크기·수정/메타데이터 시각·권한도 검사한다.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "정상 오류 경로에서는 미완성 artifact·체크포인트·계획 파일·상속된 런타임 권한을 정리하고 새 세션을 공개하지 않는다. 복사 후 transcript의 원자적 게시까지 성공해야 완료이다. `SessionStore::fork`의 `beforePublish` 콜백은 이 경계를 제공한다. 외부 상태를 추가하는 호스트는 콜백 성공 이후 transcript 게시가 실패할 경우까지 정리해야 한다.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "여러 디렉터리를 하나의 트랜잭션으로 커밋하지는 않는다. 강제 종료/전원 차단은 transcript 없는 소유 디렉터리를 남길 수 있으며 자동 고아 정리는 아직 없다. 목록은 완성된 transcript만 반환한다. 동일 OS 사용자의 적대적 동시 파일 교체를 차단하는 샌드박스도 아니다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "원본 실행 중이나 다른 프로세스의 lease 점유 시 분기를 거부한다. 현재 권한을 상속하고 계획 파일은 별도 사본으로 만들며 새 계획 승인이 필요하다. 백그라운드 프로세스·입력 큐·Task/Todo·승인 요청·LSP 프로세스·worktree·과거 Read 관찰은 복사하지 않는다.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "heading",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "## C++ / API / CLI / MCP\n",
+      "level": 2,
+      "title": "C++ / API / CLI / MCP"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "fenced_code",
+      "start_line": 34,
+      "end_line": 37,
+      "raw": "```cpp\nauto child = engine.forkSession(parentId);\nauto prefix = engine.forkSession(parentId, messageId);\n```\n",
+      "language": "cpp",
+      "code": "auto child = engine.forkSession(parentId);\nauto prefix = engine.forkSession(parentId, messageId);\n",
+      "closed": true
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 39,
+      "end_line": 39,
+      "raw": "API `agent.sessions.fork`는 소유 `session_id`와 선택 `through_message_id`를 받는다. 새 `session_id`, `parent_session_id`, 메시지/압축 개수를 반환한다. 인증된 소유자만 호출할 수 있으며 기존 부모도 계속 사용할 수 있다.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "C++ 소비자는 0.47 헤더와 라이브러리로 함께 재빌드한다. `SessionStore`의 공개 함수 인자가 늘어났으므로 이전 바이너리의 ABI 호환을 보장하지 않는다.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 42,
+      "end_line": 42,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "fenced_code",
+      "start_line": 43,
+      "end_line": 46,
+      "raw": "```sh\niillm --auth-file TOKEN_FILE agent sessions fork SESSION_ID\niillm --auth-file TOKEN_FILE agent sessions fork SESSION_ID PARAMS_JSON_FILE\n```\n",
+      "language": "sh",
+      "code": "iillm --auth-file TOKEN_FILE agent sessions fork SESSION_ID\niillm --auth-file TOKEN_FILE agent sessions fork SESSION_ID PARAMS_JSON_FILE\n",
+      "closed": true
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "MCP `iiMultimodalAgent.agent.fork`는 연결의 현재 대화를 분기하고 새 대화로 전환한다. 선택 `through_message_id`만 받으며 외부 `session_id`는 받지 않는다. 같은 연결에 다른 호출이 진행 중이면 거부한다. 실패 시 현재 대화를 유지한다. `experimental[\"iisacc/sessionFork\"]`로 발견한다. 독립 `iimagent-mcp`는 이 호스트 제어를 허용하고 임베디드 서버는 호스트 정책을 적용한다. 기본 모델 도구로는 등록하지 않는다.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "MCP 네이티브 파일 도구도 Engine 세션의 artifact 디렉터리를 사용하므로 직접 편집 백업이 전체 분기에 포함된다. 연결 종료 시 현재 대화와 해당 연결에서 분기한 부모의 수명을 종료한다. 부모 transcript는 보존하지만 MCP에서 과거 부모로 다시 전환하는 선택 API는 아직 없다. 부모 백그라운드 작업은 자식에게 이전하지 않는다.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "heading",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "## 참조와 검증\n",
+      "level": 2,
+      "title": "참조와 검증"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "기준은 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `source/src/utils/fileHistory.ts:922` `copyFileHistoryForResume`이다. 참조는 이전 백업을 새 세션으로 hardlink하고 실패 시 copy하며 백업 이전에 성공한 snapshot만 기록한다. iiLocalLLM은 독립 복사와 새 transcript 게시 전 전체 실패 처리를 사용한다. Claude SDK와 동일 wire schema라고 주장하지 않는다.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "참조의 경로들을 같은 구현으로 취급하면 안 된다. `screens/REPL.tsx:1791`은 fork의 계획 파일을 별도로 복사하고, `log.fileHistorySnapshots`가 있을 때 백업 이전을 호출한다. `utils/sessionRestore.ts:470`은 fork가 원본 worktree를 소유하지 않도록 해당 메타데이터를 제외한다. `commands/branch/branch.ts:102`는 메인 대화 메시지와 content-replacement 기록을 새 transcript에 쓰며 파일 이력 레코드는 그 복사 목록에 없다. `entrypoints/agentSdkTypes.ts:268`의 공개 `forkSession`은 설명 주석과 달리 실제 본문이 미구현 오류를 던진다. 따라서 공개 SDK의 분기 구현이 완성되어 있다고 인용하지 않는다.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "`session_fork_tests.cpp`는 바이트/권한·경로·메시지 경계·부모 삭제 후 복원·손상/용량/권한 상속 실패 정리를 검사한다. API·체크포인트·subagent 테스트도 확장했다. `notebook_wire.py --forks`와 `notebook_runtime_smoke --forks`로 실제 전송 및 모델의 자식 백업 읽기를 검증한다. 결과는 [Verification.md](../../iiLocalLLM/docs/Verification.md)에 기록한다. 대화 rewind UI·팀 공동 이력·원격 재개·전체 앱/플랫폼 검증은 남아 있다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000003",
+      "parent_id": null,
+      "level": 1,
+      "title": "세션 분기와 보관 파일 복제 (0.47)",
+      "anchor": "세션-분기와-보관-파일-복제-047",
+      "start_line": 4
+    },
+    {
+      "block_id": "b000007",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "복사 범위",
+      "anchor": "복사-범위",
+      "start_line": 8
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "공개와 실패",
+      "anchor": "공개와-실패",
+      "start_line": 22
+    },
+    {
+      "block_id": "b000027",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "C++ / API / CLI / MCP",
+      "anchor": "c--api--cli--mcp",
+      "start_line": 32
+    },
+    {
+      "block_id": "b000041",
+      "parent_id": "b000003",
+      "level": 2,
+      "title": "참조와 검증",
+      "anchor": "참조와-검증",
+      "start_line": 52
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 6,
+        "text": "파일을 편집하거나 큰 도구 결과를 저장한 대화도 분기할 수 있다. C++ `Engine::forkSession`은 원본 세션의 lease를 잡고 대화·압축 경계·보관 파일·파일 체크포인트를 복제한 다음 새 transcript를 공개한다. 새 UUID와 `parent_session_id`를 사용한다. 원본 대화나 현재 작업 파일은 수정하지 않는다. 두 세션은 같은 작업 디렉터리를 사용하므로 이후 작업 파일 편집은 서로 보인다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000009",
+        "line": 12,
+        "text": "- 메시지의 text·도구 인자·data·content·metadata와 시스템 프롬프트·압축 요약에 있는 원본 artifact 경로를 새 세션 경로로 바꾼다. 일반 작업 파일 경로와 메시지/도구 호출 ID는 유지한다. 보관 파일의 원시 바이트·권한은 보존하며 파일 내용 안의 임의 경로는 수정하지 않는다. 경로 인식은 네이티브 도구가 기록하는 원시 절대 경로 기준이며 임의 인코딩 URL·binary 참조는 해석하지 않는다.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000009",
+        "line": 13,
+        "text": "- 체크포인트의 workspace/revision 범위를 보존한다. 분기는 worktree 소유권이나 revision을 이전하지 않는다. 새 세션은 원래 작업공간에서 시작하며 현재 범위 밖의 이력은 복원할 수 없다.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000011",
+        "line": 16,
+        "text": "복사본은 하드링크를 쓰지 않는다. 부모 보관 파일·blob의 삭제나 덮어쓰기는 자식 백업에 반영되지 않는다. `FileCheckpoints::fork`는 참조의 크기와 SHA-256을 확인하고 필요한 blob만 복사한다. 현재 작업 파일을 새로 스냅샷하거나 복원하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 24,
+        "text": "Qt 6.8.3의 QSaveFile, QLockFile, 파일·JSON API를 재사용한다. 세션별 저장 계약에 속하는 복제이므로 새 의존성은 추가하지 않는다. artifact는 최대 4096개 디렉터리 항목, 32단계, 파일당 64 MiB, 복사 합계 256 MiB이다. 체크포인트는 기존 100개/256개 파일/64 MiB blob 한도를 유지한다. symlink·비정규 파일·손상된 blob·용량 초과를 거부하며 파일 복사 전후 크기·수정/메타데이터 시각·권한도 검사한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 26,
+        "text": "정상 오류 경로에서는 미완성 artifact·체크포인트·계획 파일·상속된 런타임 권한을 정리하고 새 세션을 공개하지 않는다. 복사 후 transcript의 원자적 게시까지 성공해야 완료이다. `SessionStore::fork`의 `beforePublish` 콜백은 이 경계를 제공한다. 외부 상태를 추가하는 호스트는 콜백 성공 이후 transcript 게시가 실패할 경우까지 정리해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 30,
+        "text": "원본 실행 중이나 다른 프로세스의 lease 점유 시 분기를 거부한다. 현재 권한을 상속하고 계획 파일은 별도 사본으로 만들며 새 계획 승인이 필요하다. 백그라운드 프로세스·입력 큐·Task/Todo·승인 요청·LSP 프로세스·worktree·과거 Read 관찰은 복사하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 41,
+        "text": "C++ 소비자는 0.47 헤더와 라이브러리로 함께 재빌드한다. `SessionStore`의 공개 함수 인자가 늘어났으므로 이전 바이너리의 ABI 호환을 보장하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000037",
+        "line": 48,
+        "text": "MCP `iiMultimodalAgent.agent.fork`는 연결의 현재 대화를 분기하고 새 대화로 전환한다. 선택 `through_message_id`만 받으며 외부 `session_id`는 받지 않는다. 같은 연결에 다른 호출이 진행 중이면 거부한다. 실패 시 현재 대화를 유지한다. `experimental[\"iisacc/sessionFork\"]`로 발견한다. 독립 `iimagent-mcp`는 이 호스트 제어를 허용하고 임베디드 서버는 호스트 정책을 적용한다. 기본 모델 도구로는 등록하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 50,
+        "text": "MCP 네이티브 파일 도구도 Engine 세션의 artifact 디렉터리를 사용하므로 직접 편집 백업이 전체 분기에 포함된다. 연결 종료 시 현재 대화와 해당 연결에서 분기한 부모의 수명을 종료한다. 부모 transcript는 보존하지만 MCP에서 과거 부모로 다시 전환하는 선택 API는 아직 없다. 부모 백그라운드 작업은 자식에게 이전하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000043",
+        "line": 54,
+        "text": "기준은 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `source/src/utils/fileHistory.ts:922` `copyFileHistoryForResume`이다. 참조는 이전 백업을 새 세션으로 hardlink하고 실패 시 copy하며 백업 이전에 성공한 snapshot만 기록한다. iiLocalLLM은 독립 복사와 새 transcript 게시 전 전체 실패 처리를 사용한다. Claude SDK와 동일 wire schema라고 주장하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000045",
+        "line": 56,
+        "text": "참조의 경로들을 같은 구현으로 취급하면 안 된다. `screens/REPL.tsx:1791`은 fork의 계획 파일을 별도로 복사하고, `log.fileHistorySnapshots`가 있을 때 백업 이전을 호출한다. `utils/sessionRestore.ts:470`은 fork가 원본 worktree를 소유하지 않도록 해당 메타데이터를 제외한다. `commands/branch/branch.ts:102`는 메인 대화 메시지와 content-replacement 기록을 새 transcript에 쓰며 파일 이력 레코드는 그 복사 목록에 없다. `entrypoints/agentSdkTypes.ts:268`의 공개 `forkSession`은 설명 주석과 달리 실제 본문이 미구현 오류를 던진다. 따라서 공개 SDK의 분기 구현이 완성되어 있다고 인용하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000035",
+        "language": "sh",
+        "code": "iillm --auth-file TOKEN_FILE agent sessions fork SESSION_ID\niillm --auth-file TOKEN_FILE agent sessions fork SESSION_ID PARAMS_JSON_FILE\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000001",
+        "label": "Migration",
+        "target": "Migration.md",
+        "kind": "relative",
+        "line": 2
+      },
+      {
+        "block_id": "b000001",
+        "label": "Verification",
+        "target": "../../iiLocalLLM/docs/Verification.md",
+        "kind": "relative",
+        "line": 2
+      },
+      {
+        "block_id": "b000047",
+        "label": "Verification.md",
+        "target": "../../iiLocalLLM/docs/Verification.md",
+        "kind": "relative",
+        "line": 58
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

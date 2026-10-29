@@ -482,7 +482,10 @@ public:
         if (compactOnly) fields(p, {"session_id", "instructions", "options"});
         else if (queuedOnly) fields(p, {"session_id", "options", "max_turns", "context_paths"});
         else fields(p, {"session_id", "prompt", "content", "options", "max_turns", "context_paths", "skill", "skill_arguments"});
-        const auto original = session(client, p);
+        // Admission needs the authenticated workspace, not a second full transcript
+        // scan and exclusive lease before Engine validates and acquires it.
+        const auto original = client->engine->sessionMetadata(text(p, "session_id"));
+        require(original.workingDirectory == options.workingDirectory, "Session belongs to a different workspace", ErrorCode::NotFound);
         RunRequest request{original.id, compactOnly || queuedOnly ? QString() : text(p, "prompt", !p.contains("skill")&&!p.contains("content")), generationOptionsFromJson(object(p, "options")), integer(p, "max_turns", options.maxTurns, 1, options.maxTurns)};
         require(!p.contains("content") || p["content"].isArray(), "Content must be an array");request.content=p["content"].toArray();
         request.contextPaths = contextPaths(p, options.engine.projectContext.maxTargetPaths);

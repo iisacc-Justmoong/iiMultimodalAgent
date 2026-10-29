@@ -1,0 +1,85 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:91af104b33901806d33f6967fdb542de16fb7d4f20a658b57f1998f9f1d1eaf2",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/PERFORMANCE.md",
+    "sha256": "875fdf3d4bfe6715d0e80f52c5630f99c50eb56e960226c9fd443f6956ad35f0",
+    "bytes": 780,
+    "line_count": 13,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Permission evaluation costs",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Permission evaluation costs\n",
+      "level": 1,
+      "title": "Permission evaluation costs"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "Read-only shell classification reuses fixed regular expressions for file\ndescriptors, printf formats and head/tail counts, plus an immutable flag table.\nRepeated command admission no longer recompiles these expressions or rebuilds\nthe flag table. Pattern syntax, flag allowlists, filesystem confinement, protected\npaths, redirect handling and interpreter rejection remain unchanged.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 13,
+      "raw": "Dynamic rule globs remain evaluated from the actual rule value; there is no\nunbounded global cache keyed by client input. Filesystem checks continue to run\non every admission so a changed path or symlink is not accepted using stale\nauthorization data. The shell policy tests exercise repeated accepted/rejected\ncommands and preserve the existing fail-closed cases.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Permission evaluation costs",
+      "anchor": "permission-evaluation-costs",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

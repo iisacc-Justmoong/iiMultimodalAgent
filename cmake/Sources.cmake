@@ -59,6 +59,10 @@ set(_agent_sources
     src/iiMultimodalAgent/agent/ProjectContext.cpp
     src/iiMultimodalAgent/agent/ProjectMemory.cpp
     src/iiMultimodalAgent/agent/ProjectMemory.h
+    src/iiMultimodalAgent/agent/Rag.cpp
+    src/iiMultimodalAgent/agent/Rag.h
+    src/iiMultimodalAgent/agent/SemanticRag.cpp
+    src/iiMultimodalAgent/agent/SemanticRag.h
     src/iiMultimodalAgent/agent/PromptArguments.h
     src/iiMultimodalAgent/agent/PromptState.h
     src/iiMultimodalAgent/agent/QuestionInbox.cpp

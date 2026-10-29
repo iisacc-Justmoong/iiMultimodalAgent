@@ -1,0 +1,13 @@
+{
+  "id": "creator/canvas-42",
+  "title": "Canvas project",
+  "uri": "society://canvas/42",
+  "revision": "rev-7",
+  "kind": "document",
+  "pages": [
+    {
+      "locator": "canvas:42/note:original",
+      "text": "The canvas preserves the original artwork and its edit history."
+    }
+  ]
+}

@@ -6,8 +6,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <exception>
 #include <limits>
 #include <mutex>
+#include <string_view>
 #include <thread>
 
 namespace iiMultimodalAgent::agent {
@@ -115,8 +117,14 @@ ToolResult waveArtifact(State& state, const iiVoiceOver::SpeechAudio& audio, con
         require(std::isfinite(sample), "Backend returned non-finite PCM", ErrorCode::ProtocolError);
     context.cancellation.throwIfCancelled();
     const auto path = destination(state, ".wav");
-    const auto saved = audio.saveWave(path); // iiVoiceOver uses iiFileProvider exclusive publication.
-    require(bool(saved), saved ? "" : saved.error().message.c_str(), ErrorCode::RuntimeFailure);
+    const auto utf8Path = path.u8string();
+    const std::string_view pathView(reinterpret_cast<const char*>(utf8Path.data()), utf8Path.size());
+    require(!pathView.empty() && pathView.find('\0') == std::string_view::npos && iiVoiceOver::isValidUtf8(pathView),
+        "Invalid WAV destination", ErrorCode::RuntimeFailure);
+    const auto wave = audio.waveBytes();
+    require(bool(wave), wave ? "" : wave.error().message.c_str(), ErrorCode::RuntimeFailure);
+    try { iiFileProvider::native::File::create(path, *wave); }
+    catch (const std::exception& error) { require(false, error.what(), ErrorCode::RuntimeFailure); }
     const auto bytes = iiFileProvider::native::File::read(path, state.services.maximumArtifactBytes);
     return artifact(state, path, QByteArray(bytes.data(), qsizetype(bytes.size())), "audio/wav", "audio", provider,
         {{"sample_rate", qint64(audio.sample_rate)}, {"channels", audio.channels}, {"frames", qint64(audio.samples.size() / audio.channels)}});

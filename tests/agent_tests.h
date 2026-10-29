@@ -6,6 +6,8 @@ private slots:
     void exactObservationRepairUsesTheExistingTurnLimit();
     void exactFieldRepairRequiresAnUnambiguousObservation();
     void exactValueUsesDecodedTextBeforeProtocolMetadata();
+    void exactJsonGeneratedByCustomModelsIsDecodedWithoutAnotherToolCall();
+    void catalogBudgetUsesCurrentInputAndDoesNotReplaceGenerationHistory();
     void singleToolLimitIsPassedToModels();
     void completionToolStopsBeforeLaterTools();
     void verifierPermissionModeDoesNotInheritBypass();

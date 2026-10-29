@@ -176,7 +176,10 @@ private slots:
         QFile file(index);QVERIFY(file.open(QIODevice::WriteOnly));file.write(duplicated);file.close();int turn=0;
         f.model->action=[&](const a::ModelRequest& request,const auto&)->a::ModelReply {
             if(++turn==1)return {"No changes."};
-            if(turn==2){require(request.messages.last().text.contains("duplicate"),"Missing host index review");return {{},{{"read-index","Read",{{"path",index}}}}};}
+            if(turn==2){require(request.messages.last().text.contains("duplicate"),"Missing host index review");
+                require(request.messages.last().text.contains("Use Read to read")&&request.messages.last().text.contains(index),"Missing concrete current-index read instruction");
+                require(request.messages.last().text.contains("[\"preferences.md\"]"),"Missing observed normalized duplicate target");
+                return {{},{{"read-index","Read",{{"path",index}}}}};}
             if(turn==3)return {{},{{"fix-index","Write",{{"path",index},{"content","- [Preferences](preferences.md)\n"}}}}};
             return {"Removed the duplicate link."};
         };

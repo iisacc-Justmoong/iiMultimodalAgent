@@ -5,6 +5,8 @@ install(FILES src/iiMultimodalAgent/agent/TaskStore.h DESTINATION ${CMAKE_INSTAL
 install(FILES src/iiMultimodalAgent/agent/InputQueue.h src/iiMultimodalAgent/agent/Skills.h src/iiMultimodalAgent/agent/Subagents.h src/iiMultimodalAgent/agent/Teams.h src/iiMultimodalAgent/agent/AgentProfiles.h src/iiMultimodalAgent/agent/PermissionRules.h src/iiMultimodalAgent/agent/PermissionSettings.h src/iiMultimodalAgent/agent/PermissionRequests.h src/iiMultimodalAgent/agent/CommandHooks.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/iiMultimodalAgent/agent/AsyncHooks.h src/iiMultimodalAgent/agent/PlanMode.h src/iiMultimodalAgent/agent/UserQuestions.h src/iiMultimodalAgent/agent/QuestionInbox.h src/iiMultimodalAgent/agent/ProjectMemory.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/iiMultimodalAgent/agent/MemoryRecall.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
+install(FILES src/iiMultimodalAgent/agent/Rag.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
+install(FILES src/iiMultimodalAgent/agent/SemanticRag.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/iiMultimodalAgent/agent/MemoryExtraction.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/iiMultimodalAgent/agent/MemoryContext.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/iiMultimodalAgent/agent/Worktrees.h src/iiMultimodalAgent/agent/Lsp.h src/iiMultimodalAgent/agent/WebFetch.h src/iiMultimodalAgent/agent/MemoryDream.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
