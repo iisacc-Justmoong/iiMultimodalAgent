@@ -14,14 +14,14 @@
       "document_id": "urn:iisacc:document:387c5770e8c88c4fa550a8c59a3441aac4010f662d0fedd2e950c53c67a95b1a",
       "source": "AGENT.md",
       "agent_json": "docs/entrypoints/AGENT.agent.json",
-      "source_sha256": "2dd8a308975265956b192a50ca506536e07c2e1f13a50e997630fe7629249a56",
+      "source_sha256": "42b19d1a1220e34d3600add803a187889425e43c9739ae8a732b8236b8a6426c",
       "role": "instructions"
     },
     {
       "document_id": "urn:iisacc:document:94bdbe9425666052ab7b82e3cfa1180e6010a29ca1325a54538a833af352f230",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "644c63cd81a0535786a8f932d645a19a9a418b47ce111d720bcabc91fa42b188",
+      "source_sha256": "a6f54b34d19fee6367a10448a59345107b68700d4c761f6c4fd1b50388258783",
       "role": "overview"
     },
     {
@@ -42,7 +42,7 @@
       "document_id": "urn:iisacc:document:ca3cf93de630ce4d4385ec13fe1b5f974210054891395a4a76375453074e8802",
       "source": "docs/AgentHarness.md",
       "agent_json": "docs/AgentHarness.agent.json",
-      "source_sha256": "25af2453e8fb9fd39a50ebc02acb861ecfd95c7bc6ff0564423881bb13814bf4",
+      "source_sha256": "26f83676f2893281efb8a02ca7b289eb84868115baefe1feabab4b9e81e28379",
       "role": "guide"
     },
     {
@@ -217,14 +217,14 @@
       "document_id": "urn:iisacc:document:70f6c37179d6f02ab916386204d94dea81925c0a72382e089861691806637af7",
       "source": "docs/MemoryExtraction.md",
       "agent_json": "docs/MemoryExtraction.agent.json",
-      "source_sha256": "14217be529090507cad20609d5ba1194d07ac432b80a607da789ff5f36cb707f",
+      "source_sha256": "1fe44dd660be4b2b63542c025766e16f103182526c9dad0a806a864c48a28f2e",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:d1f2274050117b5800eabbab7b12bacd66a5b35b194e93d81c1bb3c9bb6605ac",
       "source": "docs/MemoryRecall.md",
       "agent_json": "docs/MemoryRecall.agent.json",
-      "source_sha256": "6631289e9807ff7c5ce2b62f5c9549b902b0220666f0dcbe91b3a7d05f48bd36",
+      "source_sha256": "d5493e254d3fea26ae50946e21f941f5ecae1f5f5a328734c9b7b82a4d812bf6",
       "role": "guide"
     },
     {
@@ -245,7 +245,7 @@
       "document_id": "urn:iisacc:document:49c04032925e95e8d3f51cfa10684b4ebb50d21f7ab974a64bee8b34c7c2ba3a",
       "source": "docs/MultimodalServices.md",
       "agent_json": "docs/MultimodalServices.agent.json",
-      "source_sha256": "0cf7ea760e02ad268e579d5c213c8b2e92b18a88acb013a1fe1048a043d94810",
+      "source_sha256": "c004e70323521e92d90ae1575dfe2160616df847964fa96be91f5bab2e689646",
       "role": "guide"
     },
     {
@@ -336,7 +336,7 @@
       "document_id": "urn:iisacc:document:2f0b9e64411e8712979b3755a4d863ba7b85fb3426aaf9f6e4a57a7f0e47f053",
       "source": "docs/ProjectMemory.md",
       "agent_json": "docs/ProjectMemory.agent.json",
-      "source_sha256": "587b3f9785d81af46397ef7ad936b38c05d45854358c108bb79620e75a0d016e",
+      "source_sha256": "a5850d6eb65d7c987852b79291e8079efc147fb525aa13345c54ea79db4a42c9",
       "role": "guide"
     },
     {
@@ -357,7 +357,7 @@
       "document_id": "urn:iisacc:document:97414493707374b4caafaf74d3290b0c378957f1798eb022ddf8e70f8cb3e795",
       "source": "docs/README.md",
       "agent_json": "docs/README.agent.json",
-      "source_sha256": "c5bc1ebbe31358fb500a7c3d971f8060cff74113e05ff4c46338c5c18c018de0",
+      "source_sha256": "719bf4a39aaa1ae8cf62b10d25d0e5d4b2d9c5a6a7d4a200ff6a80a1bef93da3",
       "role": "overview"
     },
     {
@@ -407,6 +407,13 @@
       "source": "docs/Skills.md",
       "agent_json": "docs/Skills.agent.json",
       "source_sha256": "7cb8bcad5d3c407ed4c0e9a922f99cc9f4430a93bac492e252886c8d575fb3d4",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:aa1f7baad40db7aa817d647c99b7fdb23dbc4baaebac96d5b0d4f462937eb472",
+      "source": "docs/SourceLayout.md",
+      "agent_json": "docs/SourceLayout.agent.json",
+      "source_sha256": "943985d06202887af2cf25a0c02ad3390efb1e53ddbd9623a33e2713b029aa3b",
       "role": "guide"
     },
     {

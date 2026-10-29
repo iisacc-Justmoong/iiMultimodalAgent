@@ -1,0 +1,93 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:aa1f7baad40db7aa817d647c99b7fdb23dbc4baaebac96d5b0d4f462937eb472",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/SourceLayout.md",
+    "sha256": "943985d06202887af2cf25a0c02ad3390efb1e53ddbd9623a33e2713b029aa3b",
+    "bytes": 805,
+    "line_count": 5,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "소스 구조",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 소스 구조\n",
+      "level": 1,
+      "title": "소스 구조"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "작성한 공개 헤더와 구현은 `src/` 아래 책임별 디렉터리에 함께 둔다. 공통 API는 `API/`, 에이전트 런타임은 `Agent/Runtime/`, 메모리·세션·권한·도구·연동·확장 등은 `Agent/`의 각 하위 디렉터리에 둔다. MCP 전송은 `MCP/`, 이미지 로딩 내부 계약은 `Media/Detail/`, 실패 진단은 `Diagnostics/`에 둔다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "빌드 중에는 기존 `<iiMultimodalAgent/agent/...>`, `<iiMultimodalAgent/mcp/...>` 등 공개 include 경로를 생성 헤더로 연결하며, 설치 시에는 원본 공개 헤더를 기존 경로에 배치한다. `iiMultimodalAgent.source_layout`은 소스 분류와 중복 디렉터리 재발을 검사한다. 이 구조 변경 자체는 모델 추론이나 플랫폼 지원을 검증하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "소스 구조",
+      "anchor": "소스-구조",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 5,
+        "text": "빌드 중에는 기존 `<iiMultimodalAgent/agent/...>`, `<iiMultimodalAgent/mcp/...>` 등 공개 include 경로를 생성 헤더로 연결하며, 설치 시에는 원본 공개 헤더를 기존 경로에 배치한다. `iiMultimodalAgent.source_layout`은 소스 분류와 중복 디렉터리 재발을 검사한다. 이 구조 변경 자체는 모델 추론이나 플랫폼 지원을 검증하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

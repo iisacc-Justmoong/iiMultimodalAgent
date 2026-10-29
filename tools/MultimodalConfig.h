@@ -25,8 +25,21 @@ inline iiMultimodalAgent::agent::MultimodalServices multimodalConfig(const QStri
     const auto root=document.object();fields(root,{"image","audio","speech"});
     for(auto it=root.begin();it!=root.end();++it)require(it.value().isObject(),"Multimodal providers must be objects");
     if(root.contains("image")) {
-        const auto image=root["image"].toObject();fields(image,{"model"});
+        const auto image=root["image"].toObject();fields(image,{"model","models"});
         services.image=iiLocalDiffusion::NativeGenerationRequest{};services.image->modelPath=file(image,"model");
+        if(image.contains("models")) {
+            require(image["models"].isObject(),"Image models must be an object of host-owned paths");
+            const auto models=image["models"].toObject();
+            require(models.size()<=128,"Too many image model IDs");
+            for(auto it=models.begin();it!=models.end();++it) {
+                const auto id=it.key().toUtf8().toStdString();
+                require(iiMultimodalAgent::agent::validImageModelId(id),"Invalid image model ID");
+                require(it.value().isString()&&!it.value().toString().isEmpty(),"A configured image model path is required");
+                const auto resolved=QFileInfo(it.value().toString()).canonicalFilePath();
+                require(!resolved.isEmpty(),"Configured image model path does not exist");
+                services.imageModels.emplace(id,std::filesystem::path(resolved.toStdU16String()));
+            }
+        }
     }
     if(root.contains("audio")) {
         const auto audio=root["audio"].toObject();fields(audio,{"backend","model","python","device"});

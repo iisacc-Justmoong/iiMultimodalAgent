@@ -1,0 +1,10 @@
+#pragma once
+#include <iiMultimodalAgent/agent/PermissionRules.h>
+#include <iiMultimodalAgent/agent/Tools.h>
+namespace iiMultimodalAgent::agent::detail {
+// Allow requires coverage of every Bash command. Deny/ask match any operation.
+bool permissionRulesMatch(const QList<PermissionRule>&, const ToolDefinition&, const QJsonObject&, const ToolContext&, bool allow);
+// The caller must use a fixed system PATH and an empty startup environment.
+// Classification is deliberately conservative and is not an OS sandbox.
+bool readOnlyShell(const QJsonObject&,const ToolContext&);
+}

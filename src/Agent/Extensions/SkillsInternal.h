@@ -1,0 +1,10 @@
+#pragma once
+#include <iiMultimodalAgent/agent/Skills.h>
+#include <iiMultimodalAgent/agent/Tools.h>
+namespace iiMultimodalAgent::agent::detail {
+Tool skillTool(const QString& workingDirectory, const SkillOptions&, const SkillForkExecutor& = {}, const SkillForkRequest& = {});
+SkillCatalog executableSkills(const QString& workingDirectory, const SkillOptions&, bool canFork, const CancellationToken& = {});
+// Recover committed native Skill results; never rerun file reads or tools.
+QList<Message> pendingSkillMessages(const QList<Message>&);
+QStringList skillAllowedTools(const Message&); // Validated metadata of a freshly loaded native snapshot only.
+}

@@ -34,14 +34,60 @@ still select routes. Media/model output cannot invent economic assessments.
 
 Generation uses ordinary tool permissions, plan edit restrictions, hooks,
 session commits and Engine decision admission. Missing host economics defer work.
-Tool arguments contain prompts and bounded settings, never a model, executable or
-output path. Default image maximum is 2048 pixels per edge on an 8-pixel grid;
+Tool arguments contain prompts, bounded settings and an optional host-registered
+image model ID, never a model path, executable or output path. Default image
+maximum is 2048 pixels per edge on an 8-pixel grid;
 prompts contain 1..4096 UTF-8 bytes without NUL. The host audio ceiling defaults to
 30 seconds and artifact budget to 32 MiB. RGB length, PCM format/alignment,
 finite samples and actual output budgets are checked before publication.
 Set a nonempty host `decision.valueUnit` using the same unit as its trusted
 profiles/input estimates. A missing unit is invalid configuration, even when
 numeric probability/value profiles were supplied.
+
+## Image model selection and package defaults
+
+`GenerateImage` accepts the optional `model` ID. `default` (also used when the
+argument is absent) selects `MultimodalServices::image->modelPath`; other IDs
+must be present in the host's `imageModels` map. IDs are case-sensitive ASCII
+letters, digits, `.`, `_`, or `-`, at most 64 bytes. `default` is reserved and
+the host may register at most 128 additional IDs. Unregistered IDs and arbitrary
+paths are rejected. The tool schema advertises only these IDs. Native and
+host-injected image executors receive the selected host-owned path.
+
+On each admitted invocation, the agent reads bounded metadata from the selected
+local package itself. Supported metadata sources are `model_index.json`,
+`config.json`, `transformer/config.json` and `generation_config.json` inside a
+model directory, Safetensors metadata and the corresponding embedded assets in
+an iiLocalDiffusion Safetensors package, or a stored `.iildmodel` ZIP/ZIP64
+manifest and its first-stage Safetensors or GGUF metadata. Standalone GGUF
+metadata is also inspected. Directory metadata redirected
+outside the model directory is ignored. External sidecars, filenames, and
+unrelated description text do not identify a model. Inspection does not extract,
+hash or load weights. Compressed archives and other unsupported formats are
+not currently inspected; they retain host defaults unless the request overrides
+them. An unreadable, unrecognized, malformed or oversized metadata source is
+ignored, leaving model validation to the executor.
+
+The precedence for each supplied field is request argument, valid package
+generation setting, recognized model-family default, then the host request
+default. `generation_config.json` or the embedded `generation_config`,
+`generation_parameters`, or `iild.generation_parameters` JSON object can
+specify `num_inference_steps` (or `steps`), `width`, and `height`. A package
+step must be 1–150; dimensions must fit the host maximum and the 8-pixel grid.
+Invalid hints are ignored. Other backend-specific parameters are not changed.
+The built-in family defaults are 8 steps for MOSS-Image and 52 for Krea2. For
+MOSS-Image, this requested quick setting also applies to recognized non-distilled
+models; the [upstream Base guide](https://github.com/OpenMOSS/MOSS-Image/blob/main/USERGUIDE.md)
+recommends at least 50 steps for best results. Callers can set `steps: 50` or
+choose a package that declares a different default. The result includes the
+selected ID, actual `steps`, `steps_source` (`request`, `package`, `model_family`,
+or `host`) and, when recognized, `model_family`.
+
+These defaults do not establish that the configured image executor supports the
+identified architecture. In particular, detecting MOSS-Image does not itself add
+MOSS-Image inference to iiLocalDiffusion. A compatible host executor or backend
+must provide that capability. Rebuild C++ consumers after the `MultimodalServices`
+layout change.
 
 Files are published exclusively via iiFileProvider and participate in its metadata
 and preview pipeline. PNG encoding uses the existing QtCore zlib utility plus a
@@ -96,7 +142,10 @@ the authenticated Api uses separate client directories.
 
 ```json
 {
-  "image": { "model": "/models/image-model.iildmodel" },
+  "image": {
+    "model": "/models/image-model.iildmodel",
+    "models": { "moss": "/models/moss-image" }
+  },
   "speech": { "bundled": true }
 }
 ```
@@ -119,5 +168,6 @@ host must explicitly provide:
 Paths must exist. No Python backend is silently selected. Native custom audio
 backends are supplied through the C++ `iiAudioGen::Backend` interface. Unknown
 configuration fields, arbitrary output destinations and wire model-path arguments
-are rejected. `agent.info` exposes configured generation capabilities; actual
+are rejected. For example, a tool call can use `{"prompt":"a poster","model":"moss"}`.
+`agent.info` exposes configured generation capabilities; actual
 input-model capability filtering still belongs to iiDecision routing.

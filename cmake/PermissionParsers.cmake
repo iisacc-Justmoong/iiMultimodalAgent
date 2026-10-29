@@ -23,7 +23,7 @@ target_include_directories(iilocal_permission_parsers PRIVATE
     "${iilocal_tree_sitter_bash_SOURCE_DIR}/src")
 set_target_properties(iilocal_permission_parsers PROPERTIES POSITION_INDEPENDENT_CODE ON C_VISIBILITY_PRESET hidden C_STANDARD 11)
 target_compile_definitions(iilocal_permission_parsers PRIVATE TREE_SITTER_HIDE_SYMBOLS)
-set_property(SOURCE src/iiMultimodalAgent/agent/PermissionRules.cpp APPEND PROPERTY COMPILE_DEFINITIONS TREE_SITTER_HIDE_SYMBOLS)
+set_property(SOURCE src/Agent/Permissions/PermissionRules.cpp APPEND PROPERTY COMPILE_DEFINITIONS TREE_SITTER_HIDE_SYMBOLS)
 target_sources(iiMultimodalAgent PRIVATE $<TARGET_OBJECTS:iilocal_permission_parsers>)
 target_include_directories(iiMultimodalAgent SYSTEM PRIVATE "${iilocal_tree_sitter_SOURCE_DIR}/lib/include")
 add_library(iilocal_wildmatch OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wildmatch/wildmatch.c")

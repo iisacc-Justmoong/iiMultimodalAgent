@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/AgentHarness.md",
-    "sha256": "25af2453e8fb9fd39a50ebc02acb861ecfd95c7bc6ff0564423881bb13814bf4",
-    "bytes": 29655,
+    "sha256": "26f83676f2893281efb8a02ca7b289eb84868115baefe1feabab4b9e81e28379",
+    "bytes": 29609,
     "line_count": 217,
     "encoding": "utf-8",
     "language": "ko"
@@ -202,7 +202,7 @@
       "kind": "paragraph",
       "start_line": 67,
       "end_line": 67,
-      "raw": "공개 헤더는 `src/iiMultimodalAgent/agent/Types.h`, `src/iiMultimodalAgent/agent/Tools.h`, `src/iiMultimodalAgent/agent/SessionStore.h`, `src/iiMultimodalAgent/agent/Engine.h`이며 헤더와 구현은 같은 디렉터리에 둔다. 설치 후에도 `<src/iiMultimodalAgent/agent/Engine.h>`로 사용한다. JSON Schema의 jsoncons 타입은 외부 ABI에 노출하지 않는다.\n"
+      "raw": "공개 헤더는 `src/Agent/Runtime/Types.h`, `src/Agent/Tools/Tools.h`, `src/Agent/Session/SessionStore.h`, `src/Agent/Runtime/Engine.h`이며 헤더와 구현은 같은 디렉터리에 둔다. 설치 후에도 `<iiMultimodalAgent/agent/Engine.h>`로 사용한다. JSON Schema의 jsoncons 타입은 외부 ABI에 노출하지 않는다.\n"
     },
     {
       "id": "b000026",
@@ -1308,7 +1308,7 @@
       {
         "block_id": "b000025",
         "line": 67,
-        "text": "공개 헤더는 `src/iiMultimodalAgent/agent/Types.h`, `src/iiMultimodalAgent/agent/Tools.h`, `src/iiMultimodalAgent/agent/SessionStore.h`, `src/iiMultimodalAgent/agent/Engine.h`이며 헤더와 구현은 같은 디렉터리에 둔다. 설치 후에도 `<src/iiMultimodalAgent/agent/Engine.h>`로 사용한다. JSON Schema의 jsoncons 타입은 외부 ABI에 노출하지 않는다.",
+        "text": "공개 헤더는 `src/Agent/Runtime/Types.h`, `src/Agent/Tools/Tools.h`, `src/Agent/Session/SessionStore.h`, `src/Agent/Runtime/Engine.h`이며 헤더와 구현은 같은 디렉터리에 둔다. 설치 후에도 `<iiMultimodalAgent/agent/Engine.h>`로 사용한다. JSON Schema의 jsoncons 타입은 외부 ABI에 노출하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },

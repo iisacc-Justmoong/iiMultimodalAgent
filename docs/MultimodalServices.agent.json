@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/MultimodalServices.md",
-    "sha256": "0cf7ea760e02ad268e579d5c213c8b2e92b18a88acb013a1fe1048a043d94810",
-    "bytes": 6920,
-    "line_count": 123,
+    "sha256": "c004e70323521e92d90ae1575dfe2160616df847964fa96be91f5bab2e689646",
+    "bytes": 10054,
+    "line_count": 173,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -134,36 +134,38 @@
       "id": "b000013",
       "kind": "paragraph",
       "start_line": 35,
-      "end_line": 44,
-      "raw": "Generation uses ordinary tool permissions, plan edit restrictions, hooks,\nsession commits and Engine decision admission. Missing host economics defer work.\nTool arguments contain prompts and bounded settings, never a model, executable or\noutput path. Default image maximum is 2048 pixels per edge on an 8-pixel grid;\nprompts contain 1..4096 UTF-8 bytes without NUL. The host audio ceiling defaults to\n30 seconds and artifact budget to 32 MiB. RGB length, PCM format/alignment,\nfinite samples and actual output budgets are checked before publication.\nSet a nonempty host `decision.valueUnit` using the same unit as its trusted\nprofiles/input estimates. A missing unit is invalid configuration, even when\nnumeric probability/value profiles were supplied.\n"
+      "end_line": 45,
+      "raw": "Generation uses ordinary tool permissions, plan edit restrictions, hooks,\nsession commits and Engine decision admission. Missing host economics defer work.\nTool arguments contain prompts, bounded settings and an optional host-registered\nimage model ID, never a model path, executable or output path. Default image\nmaximum is 2048 pixels per edge on an 8-pixel grid;\nprompts contain 1..4096 UTF-8 bytes without NUL. The host audio ceiling defaults to\n30 seconds and artifact budget to 32 MiB. RGB length, PCM format/alignment,\nfinite samples and actual output budgets are checked before publication.\nSet a nonempty host `decision.valueUnit` using the same unit as its trusted\nprofiles/input estimates. A missing unit is invalid configuration, even when\nnumeric probability/value profiles were supplied.\n"
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 45,
-      "end_line": 45,
+      "start_line": 46,
+      "end_line": 46,
       "raw": "\n"
     },
     {
       "id": "b000015",
-      "kind": "paragraph",
-      "start_line": 46,
-      "end_line": 50,
-      "raw": "Files are published exclusively via iiFileProvider and participate in its metadata\nand preview pipeline. PNG encoding uses the existing QtCore zlib utility plus a\nsmall PNG container writer, without QtGui. WAV encoding uses iiVoiceOver's\nin-memory `waveBytes()` and the agent publishes those bytes exclusively through\niiFileProvider. Existing output files are never replaced.\n"
+      "kind": "heading",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "## Image model selection and package defaults\n",
+      "level": 2,
+      "title": "Image model selection and package defaults"
     },
     {
       "id": "b000016",
       "kind": "blank",
-      "start_line": 51,
-      "end_line": 51,
+      "start_line": 48,
+      "end_line": 48,
       "raw": "\n"
     },
     {
       "id": "b000017",
       "kind": "paragraph",
-      "start_line": 52,
+      "start_line": 49,
       "end_line": 55,
-      "raw": "Inline MCP-compatible content defaults to at most 512 KiB of binary media.\nLarger files return structured metadata/path and `inline_media:false`. Raising\nthat ceiling also requires suitable host/model context limits. `inlineMedia=false`\nalways returns a file and metadata.\n"
+      "raw": "`GenerateImage` accepts the optional `model` ID. `default` (also used when the\nargument is absent) selects `MultimodalServices::image->modelPath`; other IDs\nmust be present in the host's `imageModels` map. IDs are case-sensitive ASCII\nletters, digits, `.`, `_`, or `-`, at most 64 bytes. `default` is reserved and\nthe host may register at most 128 additional IDs. Unregistered IDs and arbitrary\npaths are rejected. The tool schema advertises only these IDs. Native and\nhost-injected image executors receive the selected host-owned path.\n"
     },
     {
       "id": "b000018",
@@ -176,158 +178,228 @@
       "id": "b000019",
       "kind": "paragraph",
       "start_line": 57,
-      "end_line": 63,
-      "raw": "Cancellation is checked before dispatch and publication. Diffusion bridges to its\nnative atomic flag and forwards progress; speech bridges to `std::stop_token`,\nallowing an in-flight ONNX chunk to return. The current audio Backend interface\nhas no cancellation input: an active call must finish, after which cancellation\ndiscards the result without publishing. This is not immediate backend interruption.\nCalls within one generated tool batch are serialized. Hosts sharing backends across\nindependent batches must supply the backend's required thread-safety policy.\n"
+      "end_line": 69,
+      "raw": "On each admitted invocation, the agent reads bounded metadata from the selected\nlocal package itself. Supported metadata sources are `model_index.json`,\n`config.json`, `transformer/config.json` and `generation_config.json` inside a\nmodel directory, Safetensors metadata and the corresponding embedded assets in\nan iiLocalDiffusion Safetensors package, or a stored `.iildmodel` ZIP/ZIP64\nmanifest and its first-stage Safetensors or GGUF metadata. Standalone GGUF\nmetadata is also inspected. Directory metadata redirected\noutside the model directory is ignored. External sidecars, filenames, and\nunrelated description text do not identify a model. Inspection does not extract,\nhash or load weights. Compressed archives and other unsupported formats are\nnot currently inspected; they retain host defaults unless the request overrides\nthem. An unreadable, unrecognized, malformed or oversized metadata source is\nignored, leaving model validation to the executor.\n"
     },
     {
       "id": "b000020",
-      "kind": "blank",
-      "start_line": 64,
-      "end_line": 64,
-      "raw": "\n"
-    },
-    {
-      "id": "b000021",
-      "kind": "paragraph",
-      "start_line": 65,
-      "end_line": 69,
-      "raw": "Tests cover PNG decompression, PCM/WAV delivery, permissions, path injection,\ncancellation without publication, malformed backend output, actual native\ndiffusion model-load failure, media reaching the next model turn under iiDecision,\nand a historical bundled-voice Hello World smoke. The retired model is not\navailable in the current voice SDK.\n"
-    },
-    {
-      "id": "b000022",
       "kind": "blank",
       "start_line": 70,
       "end_line": 70,
       "raw": "\n"
     },
     {
-      "id": "b000023",
-      "kind": "heading",
+      "id": "b000021",
+      "kind": "paragraph",
       "start_line": 71,
-      "end_line": 71,
-      "raw": "## Independent voice package integration (2026-10-28)\n",
-      "level": 2,
-      "title": "Independent voice package integration (2026-10-28)"
+      "end_line": 84,
+      "raw": "The precedence for each supplied field is request argument, valid package\ngeneration setting, recognized model-family default, then the host request\ndefault. `generation_config.json` or the embedded `generation_config`,\n`generation_parameters`, or `iild.generation_parameters` JSON object can\nspecify `num_inference_steps` (or `steps`), `width`, and `height`. A package\nstep must be 1–150; dimensions must fit the host maximum and the 8-pixel grid.\nInvalid hints are ignored. Other backend-specific parameters are not changed.\nThe built-in family defaults are 8 steps for MOSS-Image and 52 for Krea2. For\nMOSS-Image, this requested quick setting also applies to recognized non-distilled\nmodels; the [upstream Base guide](https://github.com/OpenMOSS/MOSS-Image/blob/main/USERGUIDE.md)\nrecommends at least 50 steps for best results. Callers can set `steps: 50` or\nchoose a package that declares a different default. The result includes the\nselected ID, actual `steps`, `steps_source` (`request`, `package`, `model_family`,\nor `host`) and, when recognized, `model_family`.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 86,
+      "end_line": 90,
+      "raw": "These defaults do not establish that the configured image executor supports the\nidentified architecture. In particular, detecting MOSS-Image does not itself add\nMOSS-Image inference to iiLocalDiffusion. A compatible host executor or backend\nmust provide that capability. Rebuild C++ consumers after the `MultimodalServices`\nlayout change.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 72,
-      "end_line": 72,
+      "start_line": 91,
+      "end_line": 91,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "paragraph",
-      "start_line": 73,
-      "end_line": 79,
-      "raw": "On macOS arm64, the agent and its test targets were built against the separately\nstaged iiVoiceOver package. The `runtime_bindings` and `voice_pcm_boundary`\ntests passed: the former checked the loaded paths of the selected SDK binaries,\nincluding that staged voice library; the latter used a synthetic audio backend,\nchecked that the provider-published WAV matched the inline bytes, and rejected\nnon-finite output. The test-owned directory was removed. No model inference,\naudio playback, GPU work, or GUI application was run.\n"
+      "start_line": 92,
+      "end_line": 96,
+      "raw": "Files are published exclusively via iiFileProvider and participate in its metadata\nand preview pipeline. PNG encoding uses the existing QtCore zlib utility plus a\nsmall PNG container writer, without QtGui. WAV encoding uses iiVoiceOver's\nin-memory `waveBytes()` and the agent publishes those bytes exclusively through\niiFileProvider. Existing output files are never replaced.\n"
     },
     {
       "id": "b000026",
       "kind": "blank",
-      "start_line": 80,
-      "end_line": 80,
+      "start_line": 97,
+      "end_line": 97,
       "raw": "\n"
     },
     {
       "id": "b000027",
       "kind": "paragraph",
-      "start_line": 81,
-      "end_line": 86,
-      "raw": "The build reported an existing runtime search-path ordering cycle, duplicate\nRPATH entries, and an MLX library built for macOS 27.0.1 while the link target\nwas 27.0. The runtime binding check passed on this macOS 27.0.1 host; it does\nnot establish compatibility on macOS 27.0 or on other platforms. The agent\nstill directly depends on several SDK modules and has not yet been migrated\nto the workspace-wide independence rule.\n"
+      "start_line": 98,
+      "end_line": 101,
+      "raw": "Inline MCP-compatible content defaults to at most 512 KiB of binary media.\nLarger files return structured metadata/path and `inline_media:false`. Raising\nthat ceiling also requires suitable host/model context limits. `inlineMedia=false`\nalways returns a file and metadata.\n"
     },
     {
       "id": "b000028",
       "kind": "blank",
-      "start_line": 87,
-      "end_line": 87,
+      "start_line": 102,
+      "end_line": 102,
       "raw": "\n"
     },
     {
       "id": "b000029",
-      "kind": "heading",
-      "start_line": 88,
-      "end_line": 88,
-      "raw": "## Explicit daemon/MCP configuration\n",
-      "level": 2,
-      "title": "Explicit daemon/MCP configuration"
+      "kind": "paragraph",
+      "start_line": 103,
+      "end_line": 109,
+      "raw": "Cancellation is checked before dispatch and publication. Diffusion bridges to its\nnative atomic flag and forwards progress; speech bridges to `std::stop_token`,\nallowing an in-flight ONNX chunk to return. The current audio Backend interface\nhas no cancellation input: an active call must finish, after which cancellation\ndiscards the result without publishing. This is not immediate backend interruption.\nCalls within one generated tool batch are serialized. Hosts sharing backends across\nindependent batches must supply the backend's required thread-safety policy.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 89,
-      "end_line": 89,
+      "start_line": 110,
+      "end_line": 110,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 90,
-      "end_line": 95,
-      "raw": "The daemon accepts `--agent-multimodal /private/providers.json`; MCP accepts\n`--multimodal-config /private/providers.json` together with its agent `--model`.\nThe file follows the existing private-file rules and must be outside the tool\nworkspace. The daemon also requires its ordinary workspace/state/credential and\ndecision configuration. MCP stores generated media under its owned session root;\nthe authenticated Api uses separate client directories.\n"
+      "start_line": 111,
+      "end_line": 115,
+      "raw": "Tests cover PNG decompression, PCM/WAV delivery, permissions, path injection,\ncancellation without publication, malformed backend output, actual native\ndiffusion model-load failure, media reaching the next model turn under iiDecision,\nand a historical bundled-voice Hello World smoke. The retired model is not\navailable in the current voice SDK.\n"
     },
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 96,
-      "end_line": 96,
+      "start_line": 116,
+      "end_line": 116,
       "raw": "\n"
     },
     {
       "id": "b000033",
-      "kind": "fenced_code",
-      "start_line": 97,
-      "end_line": 102,
-      "raw": "```json\n{\n  \"image\": { \"model\": \"/models/image-model.iildmodel\" },\n  \"speech\": { \"bundled\": true }\n}\n```\n",
-      "language": "json",
-      "code": "{\n  \"image\": { \"model\": \"/models/image-model.iildmodel\" },\n  \"speech\": { \"bundled\": true }\n}\n",
-      "closed": true
+      "kind": "heading",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "## Independent voice package integration (2026-10-28)\n",
+      "level": 2,
+      "title": "Independent voice package integration (2026-10-28)"
     },
     {
       "id": "b000034",
-      "kind": "blank",
-      "start_line": 103,
-      "end_line": 103,
-      "raw": "\n"
-    },
-    {
-      "id": "b000035",
-      "kind": "paragraph",
-      "start_line": 104,
-      "end_line": 106,
-      "raw": "Custom speech uses `model`, optional `configuration`, and `phonemizer_data` in\nplace of `bundled`. To bind the existing iiAudioGen Python implementation, the\nhost must explicitly provide:\n"
-    },
-    {
-      "id": "b000036",
-      "kind": "blank",
-      "start_line": 107,
-      "end_line": 107,
-      "raw": "\n"
-    },
-    {
-      "id": "b000037",
-      "kind": "fenced_code",
-      "start_line": 108,
-      "end_line": 117,
-      "raw": "```json\n{\n  \"audio\": {\n    \"backend\": \"diffusers\",\n    \"model\": \"/models/local-audioldm\",\n    \"python\": \"/existing/audio-runtime/bin/python\",\n    \"device\": \"cpu\"\n  }\n}\n```\n",
-      "language": "json",
-      "code": "{\n  \"audio\": {\n    \"backend\": \"diffusers\",\n    \"model\": \"/models/local-audioldm\",\n    \"python\": \"/existing/audio-runtime/bin/python\",\n    \"device\": \"cpu\"\n  }\n}\n",
-      "closed": true
-    },
-    {
-      "id": "b000038",
       "kind": "blank",
       "start_line": 118,
       "end_line": 118,
       "raw": "\n"
     },
     {
-      "id": "b000039",
+      "id": "b000035",
       "kind": "paragraph",
       "start_line": 119,
-      "end_line": 123,
-      "raw": "Paths must exist. No Python backend is silently selected. Native custom audio\nbackends are supplied through the C++ `iiAudioGen::Backend` interface. Unknown\nconfiguration fields, arbitrary output destinations and wire model-path arguments\nare rejected. `agent.info` exposes configured generation capabilities; actual\ninput-model capability filtering still belongs to iiDecision routing.\n"
+      "end_line": 125,
+      "raw": "On macOS arm64, the agent and its test targets were built against the separately\nstaged iiVoiceOver package. The `runtime_bindings` and `voice_pcm_boundary`\ntests passed: the former checked the loaded paths of the selected SDK binaries,\nincluding that staged voice library; the latter used a synthetic audio backend,\nchecked that the provider-published WAV matched the inline bytes, and rejected\nnon-finite output. The test-owned directory was removed. No model inference,\naudio playback, GPU work, or GUI application was run.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 127,
+      "end_line": 132,
+      "raw": "The build reported an existing runtime search-path ordering cycle, duplicate\nRPATH entries, and an MLX library built for macOS 27.0.1 while the link target\nwas 27.0. The runtime binding check passed on this macOS 27.0.1 host; it does\nnot establish compatibility on macOS 27.0 or on other platforms. The agent\nstill directly depends on several SDK modules and has not yet been migrated\nto the workspace-wide independence rule.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 133,
+      "end_line": 133,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "heading",
+      "start_line": 134,
+      "end_line": 134,
+      "raw": "## Explicit daemon/MCP configuration\n",
+      "level": 2,
+      "title": "Explicit daemon/MCP configuration"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 135,
+      "end_line": 135,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 136,
+      "end_line": 141,
+      "raw": "The daemon accepts `--agent-multimodal /private/providers.json`; MCP accepts\n`--multimodal-config /private/providers.json` together with its agent `--model`.\nThe file follows the existing private-file rules and must be outside the tool\nworkspace. The daemon also requires its ordinary workspace/state/credential and\ndecision configuration. MCP stores generated media under its owned session root;\nthe authenticated Api uses separate client directories.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 142,
+      "end_line": 142,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "fenced_code",
+      "start_line": 143,
+      "end_line": 151,
+      "raw": "```json\n{\n  \"image\": {\n    \"model\": \"/models/image-model.iildmodel\",\n    \"models\": { \"moss\": \"/models/moss-image\" }\n  },\n  \"speech\": { \"bundled\": true }\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"image\": {\n    \"model\": \"/models/image-model.iildmodel\",\n    \"models\": { \"moss\": \"/models/moss-image\" }\n  },\n  \"speech\": { \"bundled\": true }\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 152,
+      "end_line": 152,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 153,
+      "end_line": 155,
+      "raw": "Custom speech uses `model`, optional `configuration`, and `phonemizer_data` in\nplace of `bundled`. To bind the existing iiAudioGen Python implementation, the\nhost must explicitly provide:\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 156,
+      "end_line": 156,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "fenced_code",
+      "start_line": 157,
+      "end_line": 166,
+      "raw": "```json\n{\n  \"audio\": {\n    \"backend\": \"diffusers\",\n    \"model\": \"/models/local-audioldm\",\n    \"python\": \"/existing/audio-runtime/bin/python\",\n    \"device\": \"cpu\"\n  }\n}\n```\n",
+      "language": "json",
+      "code": "{\n  \"audio\": {\n    \"backend\": \"diffusers\",\n    \"model\": \"/models/local-audioldm\",\n    \"python\": \"/existing/audio-runtime/bin/python\",\n    \"device\": \"cpu\"\n  }\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 167,
+      "end_line": 167,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 168,
+      "end_line": 173,
+      "raw": "Paths must exist. No Python backend is silently selected. Native custom audio\nbackends are supplied through the C++ `iiAudioGen::Backend` interface. Unknown\nconfiguration fields, arbitrary output destinations and wire model-path arguments\nare rejected. For example, a tool call can use `{\"prompt\":\"a poster\",\"model\":\"moss\"}`.\n`agent.info` exposes configured generation capabilities; actual\ninput-model capability filtering still belongs to iiDecision routing.\n"
     }
   ],
   "outline": [
@@ -340,20 +412,28 @@
       "start_line": 1
     },
     {
-      "block_id": "b000023",
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Image model selection and package defaults",
+      "anchor": "image-model-selection-and-package-defaults",
+      "start_line": 47
+    },
+    {
+      "block_id": "b000033",
       "parent_id": "b000001",
       "level": 2,
       "title": "Independent voice package integration (2026-10-28)",
       "anchor": "independent-voice-package-integration-2026-10-28",
-      "start_line": 71
+      "start_line": 117
     },
     {
-      "block_id": "b000029",
+      "block_id": "b000039",
       "parent_id": "b000001",
       "level": 2,
       "title": "Explicit daemon/MCP configuration",
       "anchor": "explicit-daemonmcp-configuration",
-      "start_line": 88
+      "start_line": 134
     }
   ],
   "indexes": {
@@ -367,56 +447,99 @@
       },
       {
         "block_id": "b000013",
-        "line": 37,
-        "text": "Tool arguments contain prompts and bounded settings, never a model, executable or",
+        "line": 38,
+        "text": "image model ID, never a model path, executable or output path. Default image",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000015",
-        "line": 50,
+        "block_id": "b000017",
+        "line": 51,
+        "text": "must be present in the host's `imageModels` map. IDs are case-sensitive ASCII",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 65,
+        "text": "unrelated description text do not identify a model. Inspection does not extract,",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 76,
+        "text": "step must be 1–150; dimensions must fit the host maximum and the 8-pixel grid.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 86,
+        "text": "These defaults do not establish that the configured image executor supports the",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 89,
+        "text": "must provide that capability. Rebuild C++ consumers after the `MultimodalServices`",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000025",
+        "line": 96,
         "text": "iiFileProvider. Existing output files are never replaced.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000019",
-        "line": 60,
+        "block_id": "b000029",
+        "line": 106,
         "text": "has no cancellation input: an active call must finish, after which cancellation",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000019",
-        "line": 63,
+        "block_id": "b000029",
+        "line": 109,
         "text": "independent batches must supply the backend's required thread-safety policy.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000031",
-        "line": 92,
+        "block_id": "b000041",
+        "line": 138,
         "text": "The file follows the existing private-file rules and must be outside the tool",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000035",
-        "line": 106,
+        "block_id": "b000045",
+        "line": 155,
         "text": "host must explicitly provide:",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000039",
-        "line": 119,
+        "block_id": "b000049",
+        "line": 168,
         "text": "Paths must exist. No Python backend is silently selected. Native custom audio",
         "basis": "lexical_match",
         "context": "paragraph"
       }
     ],
     "commands": [],
-    "links": [],
+    "links": [
+      {
+        "block_id": "b000021",
+        "label": "upstream Base guide",
+        "target": "https://github.com/OpenMOSS/MOSS-Image/blob/main/USERGUIDE.md",
+        "kind": "external",
+        "line": 80
+      }
+    ],
     "tables": [
       {
         "block_id": "b000005",

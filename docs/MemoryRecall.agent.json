@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/MemoryRecall.md",
-    "sha256": "6631289e9807ff7c5ce2b62f5c9549b902b0220666f0dcbe91b3a7d05f48bd36",
-    "bytes": 6801,
+    "sha256": "d5493e254d3fea26ae50946e21f941f5ecae1f5f5a328734c9b7b82a4d812bf6",
+    "bytes": 6790,
     "line_count": 40,
     "encoding": "utf-8",
     "language": "ko"
@@ -57,7 +57,7 @@
       "kind": "paragraph",
       "start_line": 6,
       "end_line": 6,
-      "raw": "`src/iiMultimodalAgent/agent/MemoryRecall.h`는 프로젝트 메모리 주제를 로컬 모델로 선택하고 대화에 연결한다. 기존 Model·Service·ProjectMemory와 Qt를 사용하며 외부 서비스나 새로운 생산 의존성은 추가하지 않는다. 참조는 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `memdir/findRelevantMemories.ts`, `memoryScan.ts`, `memoryAge.ts`, `utils/attachments.ts`와 `query.ts`이다. 원본 소스나 프롬프트를 복사하지 않고 실행 계약을 구현한다.\n"
+      "raw": "`src/Agent/Memory/MemoryRecall.h`는 프로젝트 메모리 주제를 로컬 모델로 선택하고 대화에 연결한다. 기존 Model·Service·ProjectMemory와 Qt를 사용하며 외부 서비스나 새로운 생산 의존성은 추가하지 않는다. 참조는 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `memdir/findRelevantMemories.ts`, `memoryScan.ts`, `memoryAge.ts`, `utils/attachments.ts`와 `query.ts`이다. 원본 소스나 프롬프트를 복사하지 않고 실행 계약을 구현한다.\n"
     },
     {
       "id": "b000006",
@@ -353,7 +353,7 @@
       {
         "block_id": "b000005",
         "line": 6,
-        "text": "`src/iiMultimodalAgent/agent/MemoryRecall.h`는 프로젝트 메모리 주제를 로컬 모델로 선택하고 대화에 연결한다. 기존 Model·Service·ProjectMemory와 Qt를 사용하며 외부 서비스나 새로운 생산 의존성은 추가하지 않는다. 참조는 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `memdir/findRelevantMemories.ts`, `memoryScan.ts`, `memoryAge.ts`, `utils/attachments.ts`와 `query.ts`이다. 원본 소스나 프롬프트를 복사하지 않고 실행 계약을 구현한다.",
+        "text": "`src/Agent/Memory/MemoryRecall.h`는 프로젝트 메모리 주제를 로컬 모델로 선택하고 대화에 연결한다. 기존 Model·Service·ProjectMemory와 Qt를 사용하며 외부 서비스나 새로운 생산 의존성은 추가하지 않는다. 참조는 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `memdir/findRelevantMemories.ts`, `memoryScan.ts`, `memoryAge.ts`, `utils/attachments.ts`와 `query.ts`이다. 원본 소스나 프롬프트를 복사하지 않고 실행 계약을 구현한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },

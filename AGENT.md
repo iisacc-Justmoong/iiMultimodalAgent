@@ -1,8 +1,8 @@
 # iiMultimodalAgent 작업 안내
 
-런타임과 도구 오케스트레이션은 `src/iiMultimodalAgent/agent/`에 있다.
+런타임과 도구 오케스트레이션은 `src/Agent/`에 있다.
 추론 런타임과 모델 소유권은 iiLocalLLM에 두며 중복 로더를 만들지 않는다.
-공통 실패 진단은 `src/iiMultimodalAgent/diagnostics/FailureReport.h`에 있다.
+공통 실패 진단은 `src/Diagnostics/FailureReport.h`에 있다.
 이 계층은 C++23 표준 라이브러리만 사용하며 Qt와 I/O에 의존하지 않는다.
 확인한 사실과 추정을 구분하고 원문 오류를 보존한다.
 
@@ -11,6 +11,10 @@
 `iiMultimodalAgent.failure_report`이다. `example/failure_report.cpp`는
 모델이나 외부 서비스 없이 실행할 수 있는 최소 소비 예이다.
 전체 에이전트 테스트와 실제 모델 추론 검증은 구분하여 보고한다.
+
+이미지 모델 선택은 호스트가 등록한 ID에 한정한다. 자동 생성 기본값은 선택한
+패키지 내부 메타데이터에서 읽으며, 요청에서 명시한 값이 우선한다. 형식과
+한계는 [docs/MultimodalServices.md](docs/MultimodalServices.md)를 따른다.
 
 로컬 RAG의 자료 범위, 출처·리비전, 호스트 인가, 선택적 iiDecision 판정과
 검증 한계는 [docs/Rag.md](docs/Rag.md)를 따른다. 기본 어휘 검색 외에 명시적으로

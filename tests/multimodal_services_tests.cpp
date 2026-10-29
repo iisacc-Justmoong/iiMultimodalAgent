@@ -2,6 +2,7 @@
 #include <iiFileProviderNative.h>
 #include <iiFileProviderPresentation.h>
 #include <QtCore/QDir>
+#include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
 #include <QtTest/QtTest>
@@ -62,6 +63,63 @@ a::ToolContext context(const std::filesystem::path& root) {
     result.workingDirectory=QString::fromUtf8(reinterpret_cast<const char*>(utf8.data()), qsizetype(utf8.size()));
     return result;
 }
+std::filesystem::path path(const QString& value) { return std::filesystem::path(value.toStdU16String()); }
+struct PresentationCleanup {
+    std::filesystem::path root;
+    ~PresentationCleanup() { try { iiFileProvider::native::Presentation::cancelPending(root); } catch (...) {} }
+};
+void write(const QString& name, const QByteArray& bytes) {
+    iiFileProvider::native::File::create(path(name), std::string_view(bytes.constData(), std::size_t(bytes.size())));
+}
+QByteArray json(const QJsonObject& object) { return QJsonDocument(object).toJson(QJsonDocument::Compact); }
+void little(QByteArray& bytes, quint64 value, int count) {
+    for (int i=0;i<count;++i) bytes.append(char((value >> (8*i)) & 255));
+}
+QByteArray safetensors(const QJsonObject& metadata, const QJsonObject& assets = {}) {
+    QJsonObject header{{"__metadata__", metadata}};
+    QByteArray payload;
+    for (auto it=assets.begin();it!=assets.end();++it) {
+        const auto bytes=json(it.value().toObject());
+        const auto begin=payload.size(); payload+=bytes;
+        header.insert(it.key(),QJsonObject{{"dtype","U8"},{"shape",QJsonArray{bytes.size()}},
+            {"data_offsets",QJsonArray{begin,payload.size()}}});
+    }
+    const auto body=json(header); QByteArray result; little(result,body.size(),8); result+=body; result+=payload; return result;
+}
+QByteArray gguf(const QList<QPair<QByteArray,QByteArray>>& fields) {
+    QByteArray result("GGUF");little(result,3,4);little(result,1,8);little(result,fields.size(),8);
+    for(const auto& [key,value]:fields) {
+        little(result,key.size(),8);result+=key;little(result,8,4);little(result,value.size(),8);result+=value;
+    }
+    return result;
+}
+QByteArray storedZip(const QList<QPair<QByteArray,QByteArray>>& entries, bool zip64=false) {
+    QByteArray result, directory;
+    for (const auto& entry:entries) {
+        const auto offset=result.size(); const auto& name=entry.first; const auto& data=entry.second;
+        little(result,0x04034b50,4); little(result,20,2); little(result,0,2); little(result,0,2);
+        little(result,0,4); little(result,0,4); little(result,data.size(),4); little(result,data.size(),4);
+        little(result,name.size(),2); little(result,0,2); result+=name; result+=data;
+        little(directory,0x02014b50,4); little(directory,zip64?45:20,2); little(directory,zip64?45:20,2); little(directory,0,2);
+        little(directory,0,2); little(directory,0,4); little(directory,0,4);
+        little(directory,zip64?0xffffffff:data.size(),4); little(directory,zip64?0xffffffff:data.size(),4); little(directory,name.size(),2);
+        little(directory,zip64?28:0,2); little(directory,0,2); little(directory,0,2); little(directory,0,2);
+        little(directory,0,4); little(directory,zip64?0xffffffff:offset,4); directory+=name;
+        if(zip64) {little(directory,1,2);little(directory,24,2);little(directory,data.size(),8);
+            little(directory,data.size(),8);little(directory,offset,8);}
+    }
+    const auto offset=result.size();result+=directory;
+    if(zip64) {
+        const auto zip64Offset=result.size();little(result,0x06064b50,4);little(result,44,8);
+        little(result,45,2);little(result,45,2);little(result,0,4);little(result,0,4);
+        little(result,entries.size(),8);little(result,entries.size(),8);little(result,directory.size(),8);little(result,offset,8);
+        little(result,0x07064b50,4);little(result,0,4);little(result,zip64Offset,8);little(result,1,4);
+    }
+    little(result,0x06054b50,4);little(result,0,2);little(result,0,2);
+    little(result,zip64?0xffff:entries.size(),2);little(result,zip64?0xffff:entries.size(),2);
+    little(result,zip64?0xffffffff:directory.size(),4);little(result,zip64?0xffffffff:offset,4);
+    little(result,0,2);return result;
+}
 }
 
 class MultimodalServicesTests final : public QObject {
@@ -107,6 +165,120 @@ private slots:
         QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,allowed.run({"cancelled","GenerateImage",{{"prompt","red"}}},c));
         QCOMPARE(calls.load(),0);
         QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
+    }
+    void imageModelSelectionUsesPackageMetadataAndExplicitOptions() {
+        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        PresentationCleanup cleanup{path(root.path())};
+        QVERIFY(root.isValid());std::atomic_int calls=0;
+        QVERIFY(QDir().mkpath(root.filePath("model-a/transformer")));
+        QVERIFY(QDir().mkpath(root.filePath("MOSS-Image-not-a-model")));
+        write(root.filePath("model-a/model_index.json"),json({{"_class_name","MOSSImagePipeline"}}));
+        write(root.filePath("MOSS-Image-not-a-model/model_index.json"),json({{"_class_name","OtherPipeline"}}));
+        std::error_code linkError;
+        std::filesystem::create_symlink(path(root.filePath("model-a/model_index.json")),
+            path(root.filePath("MOSS-Image-not-a-model/config.json")),linkError);
+        auto config=services(root,calls);config.image->steps=27;
+        config.imageModels={{"moss",path(root.filePath("model-a"))},
+            {"renamed",path(root.filePath("MOSS-Image-not-a-model"))}};
+        iiLocalDiffusion::NativeGenerationRequest observed;
+        config.imageExecutor=[&](const auto& request,const auto&,const auto&) {
+            ++calls;observed=request;iiLocalDiffusion::NativeGenerationResult result;
+            result.width=request.width;result.height=request.height;result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;
+        };
+        auto tool=a::multimodalTools(config)[0];const auto c=context(root);
+        const auto choices=tool.definition.inputSchema["properties"].toObject()["model"].toObject()["enum"].toArray();
+        QVERIFY(choices.contains("default"));QVERIFY(choices.contains("moss"));QVERIFY(choices.contains("renamed"));
+        auto result=tool.execute({{"prompt","x"},{"model","moss"},{"width",8},{"height",8}},c);
+        QCOMPARE(observed.modelPath,path(root.filePath("model-a")));QCOMPARE(observed.steps,8);
+        QCOMPARE(result.data["model_family"],"moss-image");QCOMPARE(result.data["steps"],8);
+        QCOMPARE(result.data["steps_source"],"model_family");
+        const auto explicitResult=tool.execute({{"prompt","x"},{"model","moss"},{"width",8},{"height",8},{"steps",50}},c);
+        QCOMPARE(observed.steps,50);QCOMPARE(explicitResult.data["steps_source"],"request");
+        tool.execute({{"prompt","x"},{"model","renamed"},{"width",8},{"height",8}},c);
+        QCOMPARE(observed.steps,27);
+        tool.execute({{"prompt","x"},{"width",8},{"height",8}},c);
+        QCOMPARE(observed.modelPath,config.image->modelPath);QCOMPARE(observed.steps,27);
+        auto defaultMoss=config;defaultMoss.image->modelPath=path(root.filePath("model-a"));
+        a::multimodalTools(defaultMoss)[0].execute({{"prompt","x"},{"width",8},{"height",8}},c);
+        QCOMPARE(observed.steps,8);
+        auto registry=std::make_shared<a::ToolRegistry>();registry->add(tool);
+        a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
+        const auto admitted=runner.run({"alias","GenerateImage",{{"prompt","x"},{"model","moss"},{"width",8},{"height",8}}},c);
+        QVERIFY(!admitted.isError);QCOMPARE(observed.steps,8);
+        const auto rejected=runner.run({"unknown","GenerateImage",{{"prompt","x"},{"model","missing"}}},c);
+        QVERIFY(rejected.isError);
+        const auto before=calls.load();
+        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model","../model-a"}},c));
+        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",root.filePath("model-a")}},c));
+        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",true}},c));
+        QCOMPARE(calls.load(),before);
+    }
+    void embeddedDefaultsAreBoundedAndOverrideFamilyFallback() {
+        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        PresentationCleanup cleanup{path(root.path())};
+        QVERIFY(root.isValid());std::atomic_int calls=0;
+        const auto model=root.filePath("opaque.safetensors");
+        write(model,safetensors({},{{"__iild_assets__/other/model_index.json",QJsonObject{{"_class_name","MOSSImagePipeline"}}},
+            {"__iild_assets__/other/generation_config.json",QJsonObject{{"num_inference_steps",12},{"width",16},{"height",24}}}}));
+        auto config=services(root,calls);config.image->modelPath=path(model);config.maximumImageDimension=64;
+        iiLocalDiffusion::NativeGenerationRequest observed;
+        config.imageExecutor=[&](const auto& request,const auto&,const auto&) {++calls;observed=request;
+            iiLocalDiffusion::NativeGenerationResult result;result.width=request.width;result.height=request.height;
+            result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
+        config.image->width=8;config.image->height=8;
+        auto tool=a::multimodalTools(config)[0];
+        auto result=tool.execute({{"prompt","x"}},context(root));
+        QCOMPARE(observed.steps,12);QCOMPARE(observed.width,16);QCOMPARE(observed.height,24);
+        QCOMPARE(result.data["steps_source"],"package");
+        tool.execute({{"prompt","x"},{"steps",33},{"width",8}},context(root));
+        QCOMPARE(observed.steps,33);QCOMPARE(observed.width,8);QCOMPARE(observed.height,24);
+    }
+    void legacyZipReadsFirstStageMetadataWithoutExtractingWeights() {
+        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        PresentationCleanup cleanup{path(root.path())};
+        QVERIFY(root.isValid());std::atomic_int calls=0;
+        const auto model=root.filePath("opaque.iildmodel");
+        const auto zip64=root.filePath("opaque64.iildmodel"),duplicate=root.filePath("duplicate.iildmodel");
+        const auto manifest=json({{"schema","iild-unified-model-v1"},{"stages",QJsonArray{QJsonObject{{"model","members/000/model.safetensors"}}}}});
+        const QList<QPair<QByteArray,QByteArray>> entries{{"model_index.json",manifest},
+            {"members/000/model.safetensors",safetensors({{"modelspec.architecture","moss-image"}})}};
+        write(model,storedZip(entries));write(zip64,storedZip(entries,true));
+        write(duplicate,storedZip({entries[0],entries[0],entries[1]}));
+        auto config=services(root,calls);config.image->modelPath=path(model);config.image->width=8;config.image->height=8;
+        config.imageModels={{"zip64",path(zip64)},{"duplicate",path(duplicate)}};
+        int steps=0;config.imageExecutor=[&](const auto& request,const auto&,const auto&) {++calls;steps=request.steps;
+            iiLocalDiffusion::NativeGenerationResult result;result.width=request.width;result.height=request.height;
+            result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
+        const auto tool=a::multimodalTools(config)[0];
+        const auto result=tool.execute({{"prompt","x"}},context(root));
+        QCOMPARE(steps,8);QCOMPARE(result.data["model_family"],"moss-image");
+        tool.execute({{"prompt","x"},{"model","zip64"}},context(root));QCOMPARE(steps,8);
+        tool.execute({{"prompt","x"},{"model","duplicate"}},context(root));QCOMPARE(steps,20);
+        QCOMPARE(QDir(root.path()).entryList(QDir::Dirs|QDir::NoDotAndDotDot).size(),0);
+    }
+    void ggufMetadataIsInspectedWithoutUsingNamesOrInvalidHints() {
+        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        PresentationCleanup cleanup{path(root.path())};
+        QVERIFY(root.isValid());std::atomic_int calls=0;
+        const auto moss=root.filePath("opaque.gguf"),other=root.filePath("MOSS-Image.gguf"),broken=root.filePath("broken.gguf"),krea=root.filePath("other.gguf");
+        write(moss,gguf({{"general.architecture","moss_image"},
+            {"iild.generation_parameters","{\"steps\":999,\"width\":1024}"}}));
+        write(other,gguf({{"general.name","MOSS-Image-Base"},{"general.architecture","other"}}));
+        write(other+".model.json",json({{"iild.model_family","moss-image"}}));
+        write(krea,gguf({{"general.architecture","krea2"}}));
+        auto truncated=gguf({{"general.architecture","moss_image"},{"another","x"}});truncated.chop(2);write(broken,truncated);
+        auto config=services(root,calls);config.image->width=8;config.image->height=8;config.image->steps=23;
+        config.maximumImageDimension=64;config.image->modelPath=path(moss);
+        config.imageModels={{"other",path(other)},{"broken",path(broken)},{"krea",path(krea)}};
+        iiLocalDiffusion::NativeGenerationRequest observed;
+        config.imageExecutor=[&](const auto& request,const auto&,const auto&) {++calls;observed=request;
+            iiLocalDiffusion::NativeGenerationResult result;result.width=request.width;result.height=request.height;
+            result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
+        auto tool=a::multimodalTools(config)[0];
+        tool.execute({{"prompt","x"}},context(root));QCOMPARE(observed.steps,8);QCOMPARE(observed.width,8);
+        tool.execute({{"prompt","x"},{"model","other"}},context(root));QCOMPARE(observed.steps,23);
+        tool.execute({{"prompt","x"},{"model","broken"}},context(root));QCOMPARE(observed.steps,23);
+        tool.execute({{"prompt","x"},{"model","krea"}},context(root));QCOMPARE(observed.steps,52);
     }
     void pcmUsesTheBoundAudioBackendAndRejectsInvalidOutput() {
         iiFileProvider::native::TemporaryDirectory root(IIMULTIMODAL_TEST_RESOURCES);

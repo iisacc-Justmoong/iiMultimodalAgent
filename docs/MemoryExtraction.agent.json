@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/MemoryExtraction.md",
-    "sha256": "14217be529090507cad20609d5ba1194d07ac432b80a607da789ff5f36cb707f",
-    "bytes": 10713,
+    "sha256": "1fe44dd660be4b2b63542c025766e16f103182526c9dad0a806a864c48a28f2e",
+    "bytes": 10702,
     "line_count": 67,
     "encoding": "utf-8",
     "language": "ko"
@@ -57,7 +57,7 @@
       "kind": "paragraph",
       "start_line": 6,
       "end_line": 6,
-      "raw": "0.39의 `src/iiMultimodalAgent/agent/MemoryExtraction.h`는 주 에이전트의 답변 뒤에 대화에서 장기적으로 유용한 정보를 골라 프로젝트 메모리로 저장한다. C++·Qt와 기존 Model, ProjectMemory, ToolRunner, tree-sitter Bash 파서를 사용한다. 새 생산 의존성은 없다. 기준은 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `services/extractMemories/extractMemories.ts`, `prompts.ts`, `query/stopHooks.ts`, `utils/forkedAgent.ts`이며 구현과 프롬프트는 독립적으로 작성한다.\n"
+      "raw": "0.39의 `src/Agent/Memory/MemoryExtraction.h`는 주 에이전트의 답변 뒤에 대화에서 장기적으로 유용한 정보를 골라 프로젝트 메모리로 저장한다. C++·Qt와 기존 Model, ProjectMemory, ToolRunner, tree-sitter Bash 파서를 사용한다. 새 생산 의존성은 없다. 기준은 `c8cd253554319f32ff64ff7000636199f720c9bc`의 `services/extractMemories/extractMemories.ts`, `prompts.ts`, `query/stopHooks.ts`, `utils/forkedAgent.ts`이며 구현과 프롬프트는 독립적으로 작성한다.\n"
     },
     {
       "id": "b000006",

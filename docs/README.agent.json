@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/README.md",
-    "sha256": "c5bc1ebbe31358fb500a7c3d971f8060cff74113e05ff4c46338c5c18c018de0",
-    "bytes": 5678,
-    "line_count": 77,
+    "sha256": "719bf4a39aaa1ae8cf62b10d25d0e5d4b2d9c5a6a7d4a200ff6a80a1bef93da3",
+    "bytes": 5758,
+    "line_count": 78,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -79,8 +79,8 @@
       "id": "b000008",
       "kind": "table",
       "start_line": 8,
-      "end_line": 76,
-      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) | [JSON](entrypoints/THIRD_PARTY_NOTICES.agent.json) |\n| [`docs/AgentAPI.md`](AgentAPI.md) | [JSON](AgentAPI.agent.json) |\n| [`docs/AgentHarness.md`](AgentHarness.md) | [JSON](AgentHarness.agent.json) |\n| [`docs/AgentHooks.md`](AgentHooks.md) | [JSON](AgentHooks.agent.json) |\n| [`docs/AgentProfiles.md`](AgentProfiles.md) | [JSON](AgentProfiles.agent.json) |\n| [`docs/AsyncHooks.md`](AsyncHooks.md) | [JSON](AsyncHooks.agent.json) |\n| [`docs/BackgroundTasks.md`](BackgroundTasks.md) | [JSON](BackgroundTasks.agent.json) |\n| [`docs/CommandHooks.md`](CommandHooks.md) | [JSON](CommandHooks.agent.json) |\n| [`docs/Compaction.md`](Compaction.md) | [JSON](Compaction.agent.json) |\n| [`docs/ContextAdmission.md`](ContextAdmission.md) | [JSON](ContextAdmission.agent.json) |\n| [`docs/DecisionGate.md`](DecisionGate.md) | [JSON](DecisionGate.agent.json) |\n| [`docs/FailureDiagnostics.md`](FailureDiagnostics.md) | [JSON](FailureDiagnostics.agent.json) |\n| [`docs/FileCheckpoints.md`](FileCheckpoints.md) | [JSON](FileCheckpoints.agent.json) |\n| [`docs/HOST_TEST_PATHS.md`](HOST_TEST_PATHS.md) | [JSON](HOST_TEST_PATHS.agent.json) |\n| [`docs/HTTPHooks.md`](HTTPHooks.md) | [JSON](HTTPHooks.agent.json) |\n| [`docs/HarnessParity.md`](HarnessParity.md) | [JSON](HarnessParity.agent.json) |\n| [`docs/InputLifecycle.md`](InputLifecycle.md) | [JSON](InputLifecycle.agent.json) |\n| [`docs/InputQueue.md`](InputQueue.md) | [JSON](InputQueue.agent.json) |\n| [`docs/LocalApplications.md`](LocalApplications.md) | [JSON](LocalApplications.agent.json) |\n| [`docs/Lsp.md`](Lsp.md) | [JSON](Lsp.agent.json) |\n| [`docs/MCP.md`](MCP.md) | [JSON](MCP.agent.json) |\n| [`docs/MCPHTTP.md`](MCPHTTP.md) | [JSON](MCPHTTP.agent.json) |\n| [`docs/MCPHTTPServer.md`](MCPHTTPServer.md) | [JSON](MCPHTTPServer.agent.json) |\n| [`docs/MCPServer.md`](MCPServer.md) | [JSON](MCPServer.agent.json) |\n| [`docs/McpOutputHooks.md`](McpOutputHooks.md) | [JSON](McpOutputHooks.agent.json) |\n| [`docs/McpPeerStartup.md`](McpPeerStartup.md) | [JSON](McpPeerStartup.agent.json) |\n| [`docs/MemoryDream.md`](MemoryDream.md) | [JSON](MemoryDream.agent.json) |\n| [`docs/MemoryExtraction.md`](MemoryExtraction.md) | [JSON](MemoryExtraction.agent.json) |\n| [`docs/MemoryRecall.md`](MemoryRecall.md) | [JSON](MemoryRecall.agent.json) |\n| [`docs/Migration.md`](Migration.md) | [JSON](Migration.agent.json) |\n| [`docs/MultimodalHarness.md`](MultimodalHarness.md) | [JSON](MultimodalHarness.agent.json) |\n| [`docs/MultimodalServices.md`](MultimodalServices.md) | [JSON](MultimodalServices.agent.json) |\n| [`docs/NativeToolTurns.md`](NativeToolTurns.md) | [JSON](NativeToolTurns.agent.json) |\n| [`docs/Notebooks.md`](Notebooks.md) | [JSON](Notebooks.agent.json) |\n| [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |\n| [`docs/PermissionRequest.md`](PermissionRequest.md) | [JSON](PermissionRequest.agent.json) |\n| [`docs/PermissionRequests.md`](PermissionRequests.md) | [JSON](PermissionRequests.agent.json) |\n| [`docs/PermissionSettings.md`](PermissionSettings.md) | [JSON](PermissionSettings.agent.json) |\n| [`docs/PermissionUpdates.md`](PermissionUpdates.md) | [JSON](PermissionUpdates.agent.json) |\n| [`docs/Permissions.md`](Permissions.md) | [JSON](Permissions.agent.json) |\n| [`docs/PlanMode.md`](PlanMode.md) | [JSON](PlanMode.agent.json) |\n| [`docs/Plugins.md`](Plugins.md) | [JSON](Plugins.agent.json) |\n| [`docs/Procedures.md`](Procedures.md) | [JSON](Procedures.agent.json) |\n| [`docs/ProjectContext.md`](ProjectContext.md) | [JSON](ProjectContext.agent.json) |\n| [`docs/ProjectMemory.md`](ProjectMemory.md) | [JSON](ProjectMemory.agent.json) |\n| [`docs/PromptHooks.md`](PromptHooks.md) | [JSON](PromptHooks.agent.json) |\n| [`docs/QuestionUI.md`](QuestionUI.md) | [JSON](QuestionUI.agent.json) |\n| [`docs/Rag.md`](Rag.md) | [JSON](Rag.agent.json) |\n| [`docs/RuntimeRetirement.md`](RuntimeRetirement.md) | [JSON](RuntimeRetirement.agent.json) |\n| [`docs/SessionClear.md`](SessionClear.md) | [JSON](SessionClear.agent.json) |\n| [`docs/SessionEnd.md`](SessionEnd.md) | [JSON](SessionEnd.agent.json) |\n| [`docs/SessionFork.md`](SessionFork.md) | [JSON](SessionFork.agent.json) |\n| [`docs/SessionHistory.md`](SessionHistory.md) | [JSON](SessionHistory.agent.json) |\n| [`docs/Skills.md`](Skills.md) | [JSON](Skills.agent.json) |\n| [`docs/Subagents.md`](Subagents.md) | [JSON](Subagents.agent.json) |\n| [`docs/Tasks.md`](Tasks.md) | [JSON](Tasks.agent.json) |\n| [`docs/Teams.md`](Teams.md) | [JSON](Teams.agent.json) |\n| [`docs/ToolDiscovery.md`](ToolDiscovery.md) | [JSON](ToolDiscovery.agent.json) |\n| [`docs/UserQuestions.md`](UserQuestions.md) | [JSON](UserQuestions.agent.json) |\n| [`docs/Verification.md`](Verification.md) | [JSON](Verification.agent.json) |\n| [`docs/WebFetch.md`](WebFetch.md) | [JSON](WebFetch.agent.json) |\n| [`docs/WindowsSessionHistory.md`](WindowsSessionHistory.md) | [JSON](WindowsSessionHistory.agent.json) |\n| [`docs/WorkingDirectories.md`](WorkingDirectories.md) | [JSON](WorkingDirectories.agent.json) |\n| [`docs/Worktrees.md`](Worktrees.md) | [JSON](Worktrees.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
+      "end_line": 77,
+      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) | [JSON](entrypoints/THIRD_PARTY_NOTICES.agent.json) |\n| [`docs/AgentAPI.md`](AgentAPI.md) | [JSON](AgentAPI.agent.json) |\n| [`docs/AgentHarness.md`](AgentHarness.md) | [JSON](AgentHarness.agent.json) |\n| [`docs/AgentHooks.md`](AgentHooks.md) | [JSON](AgentHooks.agent.json) |\n| [`docs/AgentProfiles.md`](AgentProfiles.md) | [JSON](AgentProfiles.agent.json) |\n| [`docs/AsyncHooks.md`](AsyncHooks.md) | [JSON](AsyncHooks.agent.json) |\n| [`docs/BackgroundTasks.md`](BackgroundTasks.md) | [JSON](BackgroundTasks.agent.json) |\n| [`docs/CommandHooks.md`](CommandHooks.md) | [JSON](CommandHooks.agent.json) |\n| [`docs/Compaction.md`](Compaction.md) | [JSON](Compaction.agent.json) |\n| [`docs/ContextAdmission.md`](ContextAdmission.md) | [JSON](ContextAdmission.agent.json) |\n| [`docs/DecisionGate.md`](DecisionGate.md) | [JSON](DecisionGate.agent.json) |\n| [`docs/FailureDiagnostics.md`](FailureDiagnostics.md) | [JSON](FailureDiagnostics.agent.json) |\n| [`docs/FileCheckpoints.md`](FileCheckpoints.md) | [JSON](FileCheckpoints.agent.json) |\n| [`docs/HOST_TEST_PATHS.md`](HOST_TEST_PATHS.md) | [JSON](HOST_TEST_PATHS.agent.json) |\n| [`docs/HTTPHooks.md`](HTTPHooks.md) | [JSON](HTTPHooks.agent.json) |\n| [`docs/HarnessParity.md`](HarnessParity.md) | [JSON](HarnessParity.agent.json) |\n| [`docs/InputLifecycle.md`](InputLifecycle.md) | [JSON](InputLifecycle.agent.json) |\n| [`docs/InputQueue.md`](InputQueue.md) | [JSON](InputQueue.agent.json) |\n| [`docs/LocalApplications.md`](LocalApplications.md) | [JSON](LocalApplications.agent.json) |\n| [`docs/Lsp.md`](Lsp.md) | [JSON](Lsp.agent.json) |\n| [`docs/MCP.md`](MCP.md) | [JSON](MCP.agent.json) |\n| [`docs/MCPHTTP.md`](MCPHTTP.md) | [JSON](MCPHTTP.agent.json) |\n| [`docs/MCPHTTPServer.md`](MCPHTTPServer.md) | [JSON](MCPHTTPServer.agent.json) |\n| [`docs/MCPServer.md`](MCPServer.md) | [JSON](MCPServer.agent.json) |\n| [`docs/McpOutputHooks.md`](McpOutputHooks.md) | [JSON](McpOutputHooks.agent.json) |\n| [`docs/McpPeerStartup.md`](McpPeerStartup.md) | [JSON](McpPeerStartup.agent.json) |\n| [`docs/MemoryDream.md`](MemoryDream.md) | [JSON](MemoryDream.agent.json) |\n| [`docs/MemoryExtraction.md`](MemoryExtraction.md) | [JSON](MemoryExtraction.agent.json) |\n| [`docs/MemoryRecall.md`](MemoryRecall.md) | [JSON](MemoryRecall.agent.json) |\n| [`docs/Migration.md`](Migration.md) | [JSON](Migration.agent.json) |\n| [`docs/MultimodalHarness.md`](MultimodalHarness.md) | [JSON](MultimodalHarness.agent.json) |\n| [`docs/MultimodalServices.md`](MultimodalServices.md) | [JSON](MultimodalServices.agent.json) |\n| [`docs/NativeToolTurns.md`](NativeToolTurns.md) | [JSON](NativeToolTurns.agent.json) |\n| [`docs/Notebooks.md`](Notebooks.md) | [JSON](Notebooks.agent.json) |\n| [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |\n| [`docs/PermissionRequest.md`](PermissionRequest.md) | [JSON](PermissionRequest.agent.json) |\n| [`docs/PermissionRequests.md`](PermissionRequests.md) | [JSON](PermissionRequests.agent.json) |\n| [`docs/PermissionSettings.md`](PermissionSettings.md) | [JSON](PermissionSettings.agent.json) |\n| [`docs/PermissionUpdates.md`](PermissionUpdates.md) | [JSON](PermissionUpdates.agent.json) |\n| [`docs/Permissions.md`](Permissions.md) | [JSON](Permissions.agent.json) |\n| [`docs/PlanMode.md`](PlanMode.md) | [JSON](PlanMode.agent.json) |\n| [`docs/Plugins.md`](Plugins.md) | [JSON](Plugins.agent.json) |\n| [`docs/Procedures.md`](Procedures.md) | [JSON](Procedures.agent.json) |\n| [`docs/ProjectContext.md`](ProjectContext.md) | [JSON](ProjectContext.agent.json) |\n| [`docs/ProjectMemory.md`](ProjectMemory.md) | [JSON](ProjectMemory.agent.json) |\n| [`docs/PromptHooks.md`](PromptHooks.md) | [JSON](PromptHooks.agent.json) |\n| [`docs/QuestionUI.md`](QuestionUI.md) | [JSON](QuestionUI.agent.json) |\n| [`docs/Rag.md`](Rag.md) | [JSON](Rag.agent.json) |\n| [`docs/RuntimeRetirement.md`](RuntimeRetirement.md) | [JSON](RuntimeRetirement.agent.json) |\n| [`docs/SessionClear.md`](SessionClear.md) | [JSON](SessionClear.agent.json) |\n| [`docs/SessionEnd.md`](SessionEnd.md) | [JSON](SessionEnd.agent.json) |\n| [`docs/SessionFork.md`](SessionFork.md) | [JSON](SessionFork.agent.json) |\n| [`docs/SessionHistory.md`](SessionHistory.md) | [JSON](SessionHistory.agent.json) |\n| [`docs/Skills.md`](Skills.md) | [JSON](Skills.agent.json) |\n| [`docs/SourceLayout.md`](SourceLayout.md) | [JSON](SourceLayout.agent.json) |\n| [`docs/Subagents.md`](Subagents.md) | [JSON](Subagents.agent.json) |\n| [`docs/Tasks.md`](Tasks.md) | [JSON](Tasks.agent.json) |\n| [`docs/Teams.md`](Teams.md) | [JSON](Teams.agent.json) |\n| [`docs/ToolDiscovery.md`](ToolDiscovery.md) | [JSON](ToolDiscovery.agent.json) |\n| [`docs/UserQuestions.md`](UserQuestions.md) | [JSON](UserQuestions.agent.json) |\n| [`docs/Verification.md`](Verification.md) | [JSON](Verification.agent.json) |\n| [`docs/WebFetch.md`](WebFetch.md) | [JSON](WebFetch.agent.json) |\n| [`docs/WindowsSessionHistory.md`](WindowsSessionHistory.md) | [JSON](WindowsSessionHistory.agent.json) |\n| [`docs/WorkingDirectories.md`](WorkingDirectories.md) | [JSON](WorkingDirectories.agent.json) |\n| [`docs/Worktrees.md`](Worktrees.md) | [JSON](Worktrees.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
       "columns": [
         "Document",
         "Agent JSON"
@@ -311,6 +311,10 @@
           "[JSON](Skills.agent.json)"
         ],
         [
+          "[`docs/SourceLayout.md`](SourceLayout.md)",
+          "[JSON](SourceLayout.agent.json)"
+        ],
+        [
           "[`docs/Subagents.md`](Subagents.md)",
           "[JSON](Subagents.agent.json)"
         ],
@@ -359,8 +363,8 @@
     {
       "id": "b000009",
       "kind": "html",
-      "start_line": 77,
-      "end_line": 77,
+      "start_line": 78,
+      "end_line": 78,
       "raw": "<!-- workspace-docs:document-map:end -->\n"
     }
   ],
@@ -1172,157 +1176,171 @@
       },
       {
         "block_id": "b000008",
+        "label": "`docs/SourceLayout.md`",
+        "target": "SourceLayout.md",
+        "kind": "relative",
+        "line": 66
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "SourceLayout.agent.json",
+        "kind": "relative",
+        "line": 66
+      },
+      {
+        "block_id": "b000008",
         "label": "`docs/Subagents.md`",
         "target": "Subagents.md",
         "kind": "relative",
-        "line": 66
+        "line": 67
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Subagents.agent.json",
         "kind": "relative",
-        "line": 66
+        "line": 67
       },
       {
         "block_id": "b000008",
         "label": "`docs/Tasks.md`",
         "target": "Tasks.md",
         "kind": "relative",
-        "line": 67
+        "line": 68
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Tasks.agent.json",
         "kind": "relative",
-        "line": 67
+        "line": 68
       },
       {
         "block_id": "b000008",
         "label": "`docs/Teams.md`",
         "target": "Teams.md",
         "kind": "relative",
-        "line": 68
+        "line": 69
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Teams.agent.json",
         "kind": "relative",
-        "line": 68
+        "line": 69
       },
       {
         "block_id": "b000008",
         "label": "`docs/ToolDiscovery.md`",
         "target": "ToolDiscovery.md",
         "kind": "relative",
-        "line": 69
+        "line": 70
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "ToolDiscovery.agent.json",
         "kind": "relative",
-        "line": 69
+        "line": 70
       },
       {
         "block_id": "b000008",
         "label": "`docs/UserQuestions.md`",
         "target": "UserQuestions.md",
         "kind": "relative",
-        "line": 70
+        "line": 71
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "UserQuestions.agent.json",
         "kind": "relative",
-        "line": 70
+        "line": 71
       },
       {
         "block_id": "b000008",
         "label": "`docs/Verification.md`",
         "target": "Verification.md",
         "kind": "relative",
-        "line": 71
+        "line": 72
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Verification.agent.json",
         "kind": "relative",
-        "line": 71
+        "line": 72
       },
       {
         "block_id": "b000008",
         "label": "`docs/WebFetch.md`",
         "target": "WebFetch.md",
         "kind": "relative",
-        "line": 72
+        "line": 73
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WebFetch.agent.json",
         "kind": "relative",
-        "line": 72
+        "line": 73
       },
       {
         "block_id": "b000008",
         "label": "`docs/WindowsSessionHistory.md`",
         "target": "WindowsSessionHistory.md",
         "kind": "relative",
-        "line": 73
+        "line": 74
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WindowsSessionHistory.agent.json",
         "kind": "relative",
-        "line": 73
+        "line": 74
       },
       {
         "block_id": "b000008",
         "label": "`docs/WorkingDirectories.md`",
         "target": "WorkingDirectories.md",
         "kind": "relative",
-        "line": 74
+        "line": 75
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WorkingDirectories.agent.json",
         "kind": "relative",
-        "line": 74
+        "line": 75
       },
       {
         "block_id": "b000008",
         "label": "`docs/Worktrees.md`",
         "target": "Worktrees.md",
         "kind": "relative",
-        "line": 75
+        "line": 76
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Worktrees.agent.json",
         "kind": "relative",
-        "line": 75
+        "line": 76
       },
       {
         "block_id": "b000008",
         "label": "`docs/documentation-structure.md`",
         "target": "documentation-structure.md",
         "kind": "relative",
-        "line": 76
+        "line": 77
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "documentation-structure.agent.json",
         "kind": "relative",
-        "line": 76
+        "line": 77
       }
     ],
     "tables": [
@@ -1556,6 +1574,10 @@
           [
             "[`docs/Skills.md`](Skills.md)",
             "[JSON](Skills.agent.json)"
+          ],
+          [
+            "[`docs/SourceLayout.md`](SourceLayout.md)",
+            "[JSON](SourceLayout.agent.json)"
           ],
           [
             "[`docs/Subagents.md`](Subagents.md)",

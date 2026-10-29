@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/ProjectMemory.md",
-    "sha256": "587b3f9785d81af46397ef7ad936b38c05d45854358c108bb79620e75a0d016e",
-    "bytes": 6990,
+    "sha256": "a5850d6eb65d7c987852b79291e8079efc147fb525aa13345c54ea79db4a42c9",
+    "bytes": 6979,
     "line_count": 46,
     "encoding": "utf-8",
     "language": "ko"
@@ -57,7 +57,7 @@
       "kind": "paragraph",
       "start_line": 6,
       "end_line": 6,
-      "raw": "`src/iiMultimodalAgent/agent/ProjectMemory.h`는 프로젝트별 Markdown 메모리의 저장 위치, 자동 문맥, 목록·검색과 기존 파일 도구 연결을 제공한다. C++ 및 기존 Qt Core/Network를 사용한다. YAML 메타데이터는 이미 사용 중인 libyaml 기반 Frontmatter 파서를 재사용한다. 외부 서비스와 새 런타임 의존성은 추가하지 않는다.\n"
+      "raw": "`src/Agent/Memory/ProjectMemory.h`는 프로젝트별 Markdown 메모리의 저장 위치, 자동 문맥, 목록·검색과 기존 파일 도구 연결을 제공한다. C++ 및 기존 Qt Core/Network를 사용한다. YAML 메타데이터는 이미 사용 중인 libyaml 기반 Frontmatter 파서를 재사용한다. 외부 서비스와 새 런타임 의존성은 추가하지 않는다.\n"
     },
     {
       "id": "b000006",
@@ -395,7 +395,7 @@
       {
         "block_id": "b000005",
         "line": 6,
-        "text": "`src/iiMultimodalAgent/agent/ProjectMemory.h`는 프로젝트별 Markdown 메모리의 저장 위치, 자동 문맥, 목록·검색과 기존 파일 도구 연결을 제공한다. C++ 및 기존 Qt Core/Network를 사용한다. YAML 메타데이터는 이미 사용 중인 libyaml 기반 Frontmatter 파서를 재사용한다. 외부 서비스와 새 런타임 의존성은 추가하지 않는다.",
+        "text": "`src/Agent/Memory/ProjectMemory.h`는 프로젝트별 Markdown 메모리의 저장 위치, 자동 문맥, 목록·검색과 기존 파일 도구 연결을 제공한다. C++ 및 기존 Qt Core/Network를 사용한다. YAML 메타데이터는 이미 사용 중인 libyaml 기반 Frontmatter 파서를 재사용한다. 외부 서비스와 새 런타임 의존성은 추가하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },

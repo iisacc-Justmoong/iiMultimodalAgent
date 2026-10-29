@@ -86,6 +86,7 @@ options.sessionsDirectory = "/private/agent/sessions";
 options.multimodal.outputDirectory = "/existing/generated/files";
 options.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};
 options.multimodal.image->modelPath = "/models/image-model.iildmodel";
+options.multimodal.imageModels["moss"] = "/models/moss-image"; // Optional host-approved ID.
 options.multimodal.audio = hostLoadedAudioGenerator;
 options.multimodal.speech = hostSpeechSynthesizer;
 options.decision.valueUnit = "USD"; // Same unit as the trusted host estimates.
@@ -98,6 +99,9 @@ Configured providers register `GenerateImage`, `GenerateAudio` and `Speak`.
 hosts can also implement `Model` directly. `Api` gives each authenticated client
 a private generated-media directory. Direct MCP hosts may add
 `multimodalTools(services)` to their registry.
+`GenerateImage` selects host-approved model IDs and derives bounded image defaults
+from package metadata. Explicit request parameters take precedence; family detection
+does not imply that the chosen executor supports the model architecture.
 
 Default iiDecision policy defers work without trusted probability/value/cost
 assessments. Permissions remain a separate requirement. Supply host profiles or
@@ -113,6 +117,8 @@ See [Migration](docs/Migration.md), [Multimodal services](docs/MultimodalService
 Related implementation contracts: [Native tool turns](docs/NativeToolTurns.md), [Context admission](docs/ContextAdmission.md).
 
 See [MCP startup and lightweight IPC client](docs/McpPeerStartup.md) for managed dependency preparation and client runtime boundaries.
+
+Source files and adjacent headers are organized by responsibility under `src/`; the installed `iiMultimodalAgent/...` include paths remain stable. See [source layout](docs/SourceLayout.md).
 
 <!-- workspace-docs:readme:start -->
 ## Documentation entry points

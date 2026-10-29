@@ -6,18 +6,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
+include(cmake/SourceHeaders.cmake)
 
 add_library(iiMultimodalAgentFailureDiagnostics INTERFACE)
 add_library(iiMultimodalAgent::FailureDiagnostics ALIAS iiMultimodalAgentFailureDiagnostics)
 set_target_properties(iiMultimodalAgentFailureDiagnostics PROPERTIES EXPORT_NAME FailureDiagnostics)
 target_compile_features(iiMultimodalAgentFailureDiagnostics INTERFACE cxx_std_23)
 target_include_directories(iiMultimodalAgentFailureDiagnostics INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<INSTALL_INTERFACE:include>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include> $<INSTALL_INTERFACE:include>)
 install(TARGETS iiMultimodalAgentFailureDiagnostics EXPORT iiMultimodalAgentFailureDiagnosticsTargets COMPONENT FailureDiagnostics)
 install(EXPORT iiMultimodalAgentFailureDiagnosticsTargets NAMESPACE iiMultimodalAgent::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
-install(FILES src/iiMultimodalAgent/diagnostics/FailureReport.h DESTINATION include/iiMultimodalAgent/diagnostics COMPONENT FailureDiagnostics)
+install(FILES src/Diagnostics/FailureReport.h DESTINATION include/iiMultimodalAgent/diagnostics COMPONENT FailureDiagnostics)
 if(BUILD_TESTING)
+    add_test(NAME iiMultimodalAgent.source_layout COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/source_layout.cmake)
     add_executable(iiMultimodalAgentFailureReportTests tests/failure_report_tests.cpp)
     target_link_libraries(iiMultimodalAgentFailureReportTests PRIVATE iiMultimodalAgent::FailureDiagnostics)
     add_test(NAME iiMultimodalAgent.failure_report COMMAND iiMultimodalAgentFailureReportTests)
@@ -56,7 +58,7 @@ target_include_directories(iiMultimodalAgentImageTypes SYSTEM INTERFACE
     "$<TARGET_PROPERTY:iiLocalDiffusion::iiLocalDiffusion,INTERFACE_INCLUDE_DIRECTORIES>")
 add_library(iiMultimodalAgentImages SHARED src/providers/ImagePlugin.cpp)
 target_compile_features(iiMultimodalAgentImages PRIVATE cxx_std_23)
-target_include_directories(iiMultimodalAgentImages PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(iiMultimodalAgentImages PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_BINARY_DIR}/include")
 target_link_libraries(iiMultimodalAgentImages PRIVATE iiFileProvider::Native iiLocalDiffusion::iiLocalDiffusion)
 if(APPLE)
     get_target_property(_native_provider_kind iiFileProvider::Native TYPE)
@@ -73,7 +75,8 @@ set_target_properties(iiMultimodalAgentImages PROPERTIES
     VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 add_library(iiMultimodalAgent SHARED ${_agent_sources}
-    src/iiMultimodalAgent/agent/MultimodalTools.cpp src/providers/ImageLoader.cpp)
+    src/Agent/Tools/MultimodalTools.cpp src/Agent/Tools/ImageModelProfile.cpp
+    src/providers/ImageLoader.cpp)
 add_dependencies(iiMultimodalAgent iiMultimodalAgentImages)
 add_library(iiMultimodalAgent::iiMultimodalAgent ALIAS iiMultimodalAgent)
 target_compile_features(iiMultimodalAgent PUBLIC cxx_std_23)
@@ -90,6 +93,7 @@ if(APPLE AND _native_provider_kind STREQUAL "SHARED_LIBRARY")
 endif()
 target_include_directories(iiMultimodalAgent PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpp-httplib")
 set_target_properties(iiMultimodalAgent PROPERTIES
