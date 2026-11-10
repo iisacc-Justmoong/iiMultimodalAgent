@@ -5,5 +5,6 @@
 #include <iiMultimodalAgent/agent/Rag.h>
 #include <iiMultimodalAgent/agent/SemanticRag.h>
 #include <iiMultimodalAgent/agent/MultimodalTools.h>
+#include <iiMultimodalAgent/agent/GraphQL.h>
 #include <iiMultimodalAgent/mcp/Client.h>
 #include <iiMultimodalAgent/mcp/Server.h>

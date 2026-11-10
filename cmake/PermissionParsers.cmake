@@ -4,13 +4,13 @@ FetchContent_Declare(iilocal_tree_sitter
     URL https://codeload.github.com/tree-sitter/tree-sitter/tar.gz/refs/tags/v0.27.0
     URL_HASH SHA256=d35c96e68736bd9569d2757c3cc71052485f33082c3825f1aed9d0e86013a159
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies/tree-sitter"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/dependencies/tree-sitter"
     SOURCE_SUBDIR unused-no-cmake-project)
 FetchContent_Declare(iilocal_tree_sitter_bash
     URL https://codeload.github.com/tree-sitter/tree-sitter-bash/tar.gz/refs/tags/v0.25.1
     URL_HASH SHA256=2e785a761225b6c433410ef9c7b63cfb0a4e83a35a19e0f2aec140b42c06b52d
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies/tree-sitter-bash"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/dependencies/tree-sitter-bash"
     SOURCE_SUBDIR unused-no-cmake-project)
 FetchContent_MakeAvailable(iilocal_tree_sitter iilocal_tree_sitter_bash)
 add_library(iilocal_permission_parsers OBJECT

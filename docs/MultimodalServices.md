@@ -46,6 +46,20 @@ numeric probability/value profiles were supplied.
 
 ## Image model selection and package defaults
 
+The image tool preserves every explicit generation field supplied by the host
+or tool call. Tool-call fields take precedence over host fields. A C++ host
+marks width, height or steps as unspecified with zero; the CLI and MCP host
+configuration use that form by default. The selected backend resolves only
+those unspecified fields; the iiLocalDiffusion adapter uses its own model
+defaults. The CLI and MCP host take their initial seed from iiLocalDiffusion's
+shared default catalog; a C++ host retains the seed in its request. Explicit
+width, height and steps must be valid and cannot be zero. The host's
+maximum image dimension remains a rejection limit, not a resize instruction.
+The tool accepts the backend's step range of 1–1000 and signed 64-bit seeds;
+negative seeds request backend-selected randomness. The exact prompt is passed
+without trimming. Hooks and permission responses may deny a generation call,
+but an attempt to rewrite its arguments is rejected before execution.
+
 `GenerateImage` accepts the optional `model` ID. `default` (also used when the
 argument is absent) selects `MultimodalServices::image->modelPath`; other IDs
 must be present in the host's `imageModels` map. IDs are case-sensitive ASCII
@@ -54,40 +68,35 @@ the host may register at most 128 additional IDs. Unregistered IDs and arbitrary
 paths are rejected. The tool schema advertises only these IDs. Native and
 host-injected image executors receive the selected host-owned path.
 
-On each admitted invocation, the agent reads bounded metadata from the selected
-local package itself. Supported metadata sources are `model_index.json`,
-`config.json`, `transformer/config.json` and `generation_config.json` inside a
-model directory, Safetensors metadata and the corresponding embedded assets in
-an iiLocalDiffusion Safetensors package, or a stored `.iildmodel` ZIP/ZIP64
-manifest and its first-stage Safetensors or GGUF metadata. Standalone GGUF
-metadata is also inspected. Directory metadata redirected
-outside the model directory is ignored. External sidecars, filenames, and
-unrelated description text do not identify a model. Inspection does not extract,
-hash or load weights. Compressed archives and other unsupported formats are
-not currently inspected; they retain host defaults unless the request overrides
-them. An unreadable, unrecognized, malformed or oversized metadata source is
-ignored, leaving model validation to the executor.
+The agent does not inspect model packages to invent family or package defaults.
+An unsupported model still fails in the selected backend. Nonzero fields in a
+default-constructed `NativeGenerationRequest` are host values: set a field to
+zero explicitly when the host wants backend selection instead. The existing C++
+request layout and legacy `imageExecutor` remain compatible.
+Build the agent against an iiLocalDiffusion package that provides
+`generateNativeImageWithReport` and `resolveNativeImageDefaults`; the selected
+CMake package supplies the matching headers and library.
 
-The precedence for each supplied field is request argument, valid package
-generation setting, recognized model-family default, then the host request
-default. `generation_config.json` or the embedded `generation_config`,
-`generation_parameters`, or `iild.generation_parameters` JSON object can
-specify `num_inference_steps` (or `steps`), `width`, and `height`. A package
-step must be 1–150; dimensions must fit the host maximum and the 8-pixel grid.
-Invalid hints are ignored. Other backend-specific parameters are not changed.
-The built-in family defaults are 8 steps for MOSS-Image and 52 for Krea2. For
-MOSS-Image, this requested quick setting also applies to recognized non-distilled
-models; the [upstream Base guide](https://github.com/OpenMOSS/MOSS-Image/blob/main/USERGUIDE.md)
-recommends at least 50 steps for best results. Callers can set `steps: 50` or
-choose a package that declares a different default. The result includes the
-selected ID, actual `steps`, `steps_source` (`request`, `package`, `model_family`,
-or `host`) and, when recognized, `model_family`.
+The result's `generation_settings` object records requested values and their
+sources (`request`, `host`, or `backend_default`), the resolved request and one
+record per executed model stage. The iiLocalDiffusion engine reports its
+resolved seed, aligned base and canvas sizes, sampler, scheduler, CFG, Hires,
+the effective sigma schedules for base and Hires, image-to-image strength,
+negative prompt, selected LoRAs and Q8 cache use; final output dimensions are recorded
+separately. Thus a `-1` seed is retained as the request while the random seed
+chosen by the engine is recorded in its stage. The same object is embedded in
+the PNG's uncompressed `iTXt` entry named `iiSDK.Generation`. It contains the
+prompt and negative prompt and travels with the image. Model and LoRA paths in
+the embedded report are restricted to their file names.
 
-These defaults do not establish that the configured image executor supports the
-identified architecture. In particular, detecting MOSS-Image does not itself add
-MOSS-Image inference to iiLocalDiffusion. A compatible host executor or backend
-must provide that capability. Rebuild C++ consumers after the `MultimodalServices`
-layout change.
+The legacy `imageExecutor` does not return applied settings and is labeled
+`unreported`; the agent never claims its inputs are the settings actually
+used. Hosts that can report them may use the `multimodalTools` overload taking
+`ReportingImageExecutor`. Its returned `NativeImageExecution` must include a
+resolved request and at least one resolved stage. The agent rejects a report
+that changes explicit request dimensions, steps, seed, prompt or model. Engine
+sampling effects and output quality still depend on the selected model and
+backend; a report is not a proof of model support or output quality.
 
 Files are published exclusively via iiFileProvider and participate in its metadata
 and preview pipeline. PNG encoding uses the existing QtCore zlib utility plus a

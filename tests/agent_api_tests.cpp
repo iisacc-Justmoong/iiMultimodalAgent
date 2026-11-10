@@ -1,6 +1,8 @@
 #include <iiMultimodalAgent/agent/Api.h>
 #include <iiMultimodalAgent/agent/ShellTasks.h>
 #include <iiMultimodalAgent/agent/PermissionSettings.h>
+#include <iiMultimodalAgent/agent/GraphQL.h>
+#include <iiFileProviderPresentation.h>
 #include <QtCore/QDir>
 #include <QtCore/QDirIterator>
 #include <QtCore/QFile>
@@ -8,11 +10,16 @@
 #include <QtCore/QTemporaryDir>
 #include <QtTest/QTest>
 #include <chrono>
+#include <filesystem>
 #include <thread>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 using namespace std::chrono_literals;
 namespace a = iiMultimodalAgent::agent;
 namespace {
+struct PresentationCleanup {
+    std::filesystem::path root;
+    ~PresentationCleanup(){try{iiFileProvider::native::Presentation::cancelPending(root);}catch(...){}}
+};
 const QString firstToken(48, 'a'), secondToken(48, 'b');
 class Model final : public a::Model {
 public:
@@ -55,6 +62,35 @@ template<class F> void error(F fn, ErrorCode expected) {
 class AgentApiTests : public QObject {
     Q_OBJECT
 private slots:
+    void graphqlDirectApiUsesOwnedSessionsAndPermission() {
+        QTemporaryDir root;PresentationCleanup cleanup{std::filesystem::path(root.path().toStdU16String())};
+        auto config=options(root);auto registry=std::make_shared<a::ToolRegistry>();
+        a::GraphQLOptions graph;graph.endpoints.insert("test",{QUrl("https://example.com/graphql"),{}});
+        int calls=0;registry->add(a::graphQLTool(graph,[&](const auto&,const auto& input,const auto&,int,int){
+            ++calls;return QJsonObject{{"data",QJsonObject{{"query",input["query"]}}}};
+        }));
+        a::Api api(std::make_shared<Model>(),registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),config);
+        auto requestApi=[&](const QString& method,const QJsonObject& args,const QString& token=firstToken) {
+            auto job=api.dispatch(method,args,token);
+            if(job.result.wait_for(30s)!=std::future_status::ready)throw std::runtime_error("GraphQL API test timed out");
+            return job.result.get().toObject();
+        };
+        const auto session=requestApi("agent.sessions.create",{{"model","fixture"}})["session_id"].toString();
+        const QJsonObject request{{"session_id",session},{"endpoint","test"},{"query","query { ping }"}};
+        const auto result=requestApi("agent.graphql.execute",request);
+        QVERIFY(!result["is_error"].toBool());QCOMPARE(result["result"].toObject()["data"].toObject()["query"],"query { ping }");
+        QVERIFY(requestApi("agent.info",{})["graphql_enabled"].toBool());QCOMPARE(calls,1);
+        error([&]{requestApi("agent.graphql.execute",request,secondToken);},ErrorCode::NotFound);
+        QCOMPARE(calls,1);
+        QTemporaryDir deniedRoot;PresentationCleanup deniedCleanup{std::filesystem::path(deniedRoot.path().toStdU16String())};auto deniedConfig=options(deniedRoot);
+        a::Api deniedApi(std::make_shared<Model>(),registry,std::make_shared<a::RulePolicy>(),deniedConfig);
+        auto create=deniedApi.dispatch("agent.sessions.create",{{"model","fixture"}},firstToken);
+        QVERIFY(create.result.wait_for(30s)==std::future_status::ready);
+        const auto deniedSession=create.result.get().toObject()["session_id"].toString();QVERIFY(!deniedSession.isEmpty());
+        auto denied=deniedApi.dispatch("agent.graphql.execute",{{"session_id",deniedSession},{"endpoint","test"},{"query","query { ping }"}},firstToken);
+        QVERIFY(denied.result.wait_for(30s)==std::future_status::ready);QVERIFY(denied.result.get().toObject()["is_error"].toBool());
+        QCOMPARE(calls,1);
+    }
     void teamRoutesUseAuthenticatedSessionIdentity(){
         QTemporaryDir root;auto config=options(root);config.teamsEnabled=true;config.subagentsEnabled=true;config.engine.toolSearch.enabled=false;
         a::Api api(std::make_shared<Model>(),std::make_shared<a::ToolRegistry>(),std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),config);

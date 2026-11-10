@@ -123,6 +123,21 @@ private slots:
         a::ToolContext context; context.sessionId = session.id; context.workingDirectory = dir.path(); context.artifactsDirectory = dir.filePath("artifacts");
         QVERIFY(runner.run({"edit", "Edit", {{"path", "AGENTS.md"}, {"old_string", "Changed"}, {"new_string", "Replaced"}}}, context).isError);
     }
+    void deleteRequiresAnUnchangedReadAndPermission() {
+        QTemporaryDir dir;put(dir.filePath("item.txt"),"first");
+        auto registry=std::make_shared<a::ToolRegistry>();a::registerWorkspaceTools(*registry,dir.path());
+        a::ToolContext context;context.sessionId="delete-test";context.workingDirectory=dir.path();
+        a::ToolRunner denied(registry,std::make_shared<a::RulePolicy>());
+        a::ToolRunner allowed(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
+        QVERIFY(denied.run({"d","Delete",{{"path","item.txt"}}},context).isError);
+        QVERIFY(allowed.run({"d","Delete",{{"path","item.txt"}}},context).isError);
+        QVERIFY(!allowed.run({"r","Read",{{"path","item.txt"}}},context).isError);
+        put(dir.filePath("item.txt"),"changed");
+        QVERIFY(allowed.run({"d","Delete",{{"path","item.txt"}}},context).isError);
+        QVERIFY(!allowed.run({"r","Read",{{"path","item.txt"}}},context).isError);
+        QVERIFY(!allowed.run({"d","Delete",{{"path","item.txt"}}},context).isError);
+        QVERIFY(!QFileInfo::exists(dir.filePath("item.txt")));
+    }
     void orderImportsAndMarkdown() {
         QTemporaryDir dir;
         put(dir.filePath("CLAUDE.md"), "Root @./import.md\n\n<!-- private note -->\n\n`@./inline.md`\n\n```text\n@./code.md\n```\n");

@@ -1,5 +1,6 @@
 #include <iiMultimodalAgent.h>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
 #include <QtCore/QTemporaryDir>
 #include <iostream>
 int main(int argc,char** argv) {
@@ -10,7 +11,8 @@ int main(int argc,char** argv) {
         auto voice=iiVoiceOver::VoiceModel::bundled();
         if(voice || voice.error().code!=iiVoiceOver::ErrorCode::unsupported)
             throw std::runtime_error("Retired speech model was not rejected explicitly");
-        QTemporaryDir root(QCoreApplication::applicationDirPath()+"/retired-speech-XXXXXX");
+        QTemporaryDir root(QDir::tempPath()+"/retired-speech-XXXXXX");
+        if(!root.isValid()) throw std::runtime_error("Unable to create speech test workspace");
         iiMultimodalAgent::agent::MultimodalServices config;
         config.outputDirectory=std::filesystem::path(root.path().toStdU16String());
         auto tools=iiMultimodalAgent::agent::multimodalTools(std::move(config));

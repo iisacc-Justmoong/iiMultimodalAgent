@@ -285,6 +285,25 @@ void registerWorkspaceTools(ToolRegistry& registry, const QString& workspaceRoot
         return ToolResult{"Edited " + path, {{"path", path}, {"replacements", matches}, {"backup_path", backup},
             {"sha256",QString::fromLatin1(QCryptographicHash::hash(text.toUtf8(),QCryptographicHash::Sha256).toHex())}}, false, {}, workspace->contextPaths(path,c)};
     }; edit.definition.metadata = {{"source", "builtin.workspace"}}; preparePath(edit, workspace, true); registry.add(std::move(edit));
+    Tool remove;
+    remove.definition = {"Delete", "Delete a previously read, unchanged UTF-8 file.",
+        inputSchema({{"path", stringSchema()}}, {"path"}), {}, false, false, true};
+    remove.execute = [workspace](const QJsonObject& a, const ToolContext& c) {
+        c.cancellation.throwIfCancelled(); std::lock_guard lock(workspace->mutex);
+        const auto path=workspace->resolve(a["path"].toString(),c,true);
+        require(QFileInfo(path).isFile() && path!=c.planFilePath,"Only regular workspace files can be deleted");
+        const auto before=workspace->writable(c,path);
+        const auto backup=workspace->artifact(c,before,"before");
+        if(c.beforeFileWrite)c.beforeFileWrite(path,before,c);
+        require(workspace->resolve(path,c,true)==path && readFile(path)==before,"File changed before deletion");
+        c.cancellation.throwIfCancelled();
+        iiFileProvider::FileDevice file(path);
+        if(!file.remove())throw Error(ErrorCode::StorageFailure,"Cannot delete file: "+path);
+        workspace->observations(c).remove(workspace->key(c,path));
+        return ToolResult{"Deleted "+path,{{"path",path},{"backup_path",backup}}};
+    };
+    remove.definition.metadata={{"source","builtin.workspace"}};
+    preparePath(remove,workspace,true);registry.add(std::move(remove));
     Tool notebook;
     notebook.definition={"NotebookEdit","Edit an observed Jupyter notebook cell. Read the complete notebook first. Actual cell IDs take precedence over zero-based cell-N selectors. Insert after cell_id, or at the beginning if omitted. Replacing code clears execution results; cells are never executed. Paths resolve in the current working directory.",
         inputSchema({{"notebook_path",stringSchema()},

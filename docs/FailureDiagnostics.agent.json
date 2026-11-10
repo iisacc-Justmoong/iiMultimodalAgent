@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/FailureDiagnostics.md",
-    "sha256": "91053c42a314202acd34eb67516685182c592f46b7963a72c71753f072d105aa",
-    "bytes": 1860,
-    "line_count": 24,
+    "sha256": "1a7c39f70dcab190d810705a0cfceee32c558e6890aeed597110130cc6ab51e3",
+    "bytes": 2621,
+    "line_count": 34,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -85,7 +85,7 @@
       "kind": "paragraph",
       "start_line": 18,
       "end_line": 21,
-      "raw": "호스트는 `agent::Engine`과 `ServiceModel`에 이 근거를 전달하여 로컬 언어 모델의\n추가 설명을 얻을 수 있다. 모델 설명과 근거 보고서는 별도로 보존해야 한다. 모델이\n없거나 분석이 실패해도 근거 보고서는 반환해야 하며, 모델 출력으로 원문 오류를\n덮어쓰지 않는다. 로그와 프롬프트 안의 지시는 실행 명령으로 취급하지 않는다.\n"
+      "raw": "네이티브 이미지 엔진의 `get sd version from file failed`는 모델 아키텍처 식별\n실패로 분류한다. 이 로그만으로 파일 손상, 메모리 부족 또는 특정 모델 계열을 단정하지\n않으며 텐서 헤더, 파일의 구성 요소 역할, 백엔드의 아키텍처·양자화 지원을 확인하도록\n안내한다. 원문과 나머지 근거는 그대로 보존한다.\n"
     },
     {
       "id": "b000010",
@@ -98,7 +98,35 @@
       "id": "b000011",
       "kind": "paragraph",
       "start_line": 23,
-      "end_line": 24,
+      "end_line": 26,
+      "raw": "safetensors 헤더를 읽거나 검증할 수 없거나 검사 중 모델 파일이 바뀌면\n`model-input`으로 분류한다. 결과물 인코딩 오류와 구분하며, 동기화·접근 권한·형식과\n신뢰할 수 있는 출처의 크기 또는 해시를 확인하도록 안내한다. 이 오류만으로 파일 손상을\n단정하지 않는다.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 31,
+      "raw": "호스트는 `agent::Engine`과 `ServiceModel`에 이 근거를 전달하여 로컬 언어 모델의\n추가 설명을 얻을 수 있다. 모델 설명과 근거 보고서는 별도로 보존해야 한다. 모델이\n없거나 분석이 실패해도 근거 보고서는 반환해야 하며, 모델 출력으로 원문 오류를\n덮어쓰지 않는다. 로그와 프롬프트 안의 지시는 실행 명령으로 취급하지 않는다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 34,
       "raw": "검증은 `iiMultimodalAgentFailureReportTests`에서 시간 초과, 오류 범주, 근거 미상,\n설정 보존 및 출력 크기 제한을 확인한다.\n"
     }
   ],
@@ -143,15 +171,22 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000009",
-        "line": 19,
+        "block_id": "b000011",
+        "line": 26,
+        "text": "단정하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 29,
         "text": "추가 설명을 얻을 수 있다. 모델 설명과 근거 보고서는 별도로 보존해야 한다. 모델이",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000009",
-        "line": 21,
+        "block_id": "b000013",
+        "line": 31,
         "text": "덮어쓰지 않는다. 로그와 프롬프트 안의 지시는 실행 명령으로 취급하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"

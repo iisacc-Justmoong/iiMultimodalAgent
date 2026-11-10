@@ -127,6 +127,9 @@ public:
     std::optional<Tool> webFetchTool(bool deferred = false) const;
     ToolResult runWebFetch(const QString& sessionId,const QJsonObject&,const CancellationToken& = {},
         const EventCallback& = {},std::shared_ptr<PermissionRequests> = {}) const;
+    bool graphQLAvailable() const;
+    ToolResult runGraphQL(const QString& sessionId,const QJsonObject&,const CancellationToken& = {},
+        const EventCallback& = {},std::shared_ptr<PermissionRequests> = {}) const;
     std::optional<Tool> lspTool(bool deferred=false) const;
     ToolResult runLsp(const QString& sessionId,const QJsonObject&,const CancellationToken& = {},
         const EventCallback& = {},std::shared_ptr<PermissionRequests> = {}) const;

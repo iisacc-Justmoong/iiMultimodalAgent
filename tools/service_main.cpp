@@ -7,6 +7,7 @@
 #include "ProceduresConfig.h"
 #include "DecisionConfig.h"
 #include "MultimodalConfig.h"
+#include "GraphQLConfig.h"
 #include "CommandHookConfig.h"
 #include <iiMultimodalAgent/agent/Api.h>
 #include <iiMultimodalAgent/agent/McpConnections.h>
@@ -61,6 +62,7 @@ int main(int argc, char** argv)
         {"agent-workspace", "Enable the agent API for this existing workspace.", "directory"},
         {"agent-state", "Private agent state directory outside the workspace.", "directory"},
         {"agent-credentials", "Private JSON object mapping client IDs to distinct random tokens (32..256 URL-safe characters).", "file"},
+        {"agent-graphql-config", "Private host GraphQL endpoint configuration outside the workspace.", "file"},
         {"agent-allow", "Allow a tool permission rule, e.g. Write(src/**), Bash(git status:*) or Skill(review); repeat for more rules. Read-only tools except WebFetch are allowed by default.", "pattern"},
         {"agent-permission-settings", "Private host configuration outside the workspace for layered permission settings.", "file"},
         {"agent-permission-requests", "Private host JSON outside the workspace enabling app permission requests.", "file"},
@@ -134,7 +136,7 @@ int main(int argc, char** argv)
         namespace a = iiMultimodalAgent::agent;
         std::optional<a::ApiOptions> agentConfig;
         std::shared_ptr<const a::PermissionPolicy> agentPolicy;
-        if (parser.isSet("agent-workspace") || parser.isSet("agent-state") || parser.isSet("agent-credentials") || parser.isSet("agent-allow")
+        if (parser.isSet("agent-workspace") || parser.isSet("agent-state") || parser.isSet("agent-credentials") || parser.isSet("agent-allow") || parser.isSet("agent-graphql-config")
             || parser.isSet("agent-no-auto-compact") || parser.isSet("agent-no-project-context") || parser.isSet("agent-context-exclude") || parser.isSet("agent-no-memory")
             || parser.isSet("agent-no-memory-recall") || parser.isSet("agent-memory-recall-model") || parser.isSet("agent-no-memory-extraction") || parser.isSet("agent-no-session-history") || parser.isSet("agent-no-file-checkpoints") || parser.isSet("agent-auto-dream") || parser.isSet("agent-no-web-fetch") || parser.isSet("agent-web-model") || parser.isSet("agent-web-private-origin") || parser.isSet("agent-lsp-config") || parser.isSet("agent-worktree-config") || parser.isSet("agent-no-worktrees")
             || parser.isSet("agent-plugins") || parser.isSet("agent-mcp-config") || parser.isSet("agent-mcp-project") || parser.isSet("agent-mcp-eager")
@@ -289,12 +291,13 @@ int main(int argc, char** argv)
                 a::PluginRuntime::attach(agentConfig->engine,agentConfig->subagents.profiles,connections,runtime);
                 agentConfig->teams.profiles=agentConfig->subagents.profiles;privatePaths.append(store.directory());
             }
-            for(const auto& key:{"agent-multimodal","agent-credentials","agent-permission-settings","agent-permission-requests","agent-procedures","agent-decision","agent-profiles","agent-subagent-options","agent-hooks","agent-lsp-config","agent-worktree-config"})
+            for(const auto& key:{"agent-multimodal","agent-graphql-config","agent-credentials","agent-permission-settings","agent-permission-requests","agent-procedures","agent-decision","agent-profiles","agent-subagent-options","agent-hooks","agent-lsp-config","agent-worktree-config"})
                 if(parser.isSet(key))privatePaths.append(parser.value(key));
             for(const auto& file:connections.configFiles)privatePaths.append(QDir::isAbsolutePath(file)?file:QDir(agentConfig->workingDirectory).filePath(file));
             if(!connections.localApplicationsDirectory.isEmpty())privatePaths.append(connections.localApplicationsDirectory);
             agentConfig->engine.lsp.protectedPaths=privatePaths;
             auto registry = std::make_shared<a::ToolRegistry>(); a::registerWorkspaceTools(*registry, agentConfig->workingDirectory, shells,privatePaths);
+            if(parser.isSet("agent-graphql-config"))registry->add(a::graphQLTool(iiLocalLLMClient::graphQLConfig(parser.value("agent-graphql-config"),agentConfig->workingDirectory)));
             if (!connections.inlineServers.isEmpty() || !connections.configFiles.isEmpty() || !connections.localApplicationsDirectory.isEmpty())
                 agentConfig->mcp = std::make_shared<a::McpConnections>(registry, std::move(connections));
             agent = std::make_shared<a::Api>(std::make_shared<a::ServiceModel>(service), registry, agentPolicy, std::move(*agentConfig));

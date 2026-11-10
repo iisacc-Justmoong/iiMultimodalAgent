@@ -27,6 +27,8 @@ inline iiMultimodalAgent::agent::MultimodalServices multimodalConfig(const QStri
     if(root.contains("image")) {
         const auto image=root["image"].toObject();fields(image,{"model","models"});
         services.image=iiLocalDiffusion::NativeGenerationRequest{};services.image->modelPath=file(image,"model");
+        services.image->width=0;services.image->height=0;services.image->steps=0;
+        services.image->seed=std::get<std::int64_t>(iiLocalDiffusion::ImageParameters::defaults().values.at("seed"));
         if(image.contains("models")) {
             require(image["models"].isObject(),"Image models must be an object of host-owned paths");
             const auto models=image["models"].toObject();

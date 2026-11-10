@@ -3,6 +3,12 @@
 
 # C++ MCP 서버와 앱 도구 제공
 
+호스트가 `--graphql-config`를 제공하면 MCP `tools/list`와 `tools/call`에 `GraphQL`
+도구를 추가한다. 엔드포인트 ID와 GraphQL 쿼리만 모델에 공개하고 인증 정보는
+비공개 호스트 설정에 둔다. 기존 MCP 전송은 MCP JSON-RPC 계약을 유지하며 외부
+GraphQL API 호출은 별도의 GraphQL-over-HTTP 요청이다. 구성과 권한은
+[AgentAPI](AgentAPI.md)의 GraphQL 절을 따른다.
+
 0.54의 agent-enabled MCP는 --decision FILE로 정량 정책을 구성하고 iisacc/procedures 반환 제어로 decision_input의 호스트 사실을 교체한다. 실행 보류는 status:deferred 및 decision으로 반환한다. 조회·취소 제어는 유지한다. [DecisionGate.md](DecisionGate.md)를 따른다.
 
 0.53.0의 `iisacc/procedures/list`·`iisacc/procedures/respond`는 현재 MCP 연결이 소유한 부모 대화와 자식 절차를 조회·제어한다. `iisacc/procedures` experimental capability로 발견하며 모델 도구로 등록하지 않는다. `--procedures FILE`은 모델 사용 시 호스트의 비공개 반환 대기 설정을 읽는다. [Procedures.md](Procedures.md)에 세부 계약을 기록한다.

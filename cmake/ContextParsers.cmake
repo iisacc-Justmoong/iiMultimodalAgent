@@ -5,13 +5,13 @@ FetchContent_Declare(iilocal_md4c
     URL https://codeload.github.com/mity/md4c/tar.gz/refs/tags/release-0.5.3
     URL_HASH SHA256=353c346f376b87c954a13f3415ede2d51264cc61dc5abcd38ff1d2aa0d059b9e
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies/md4c"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/dependencies/md4c"
     SOURCE_SUBDIR unused-no-cmake-project)
 FetchContent_Declare(iilocal_yaml
     URL https://codeload.github.com/yaml/libyaml/tar.gz/refs/tags/0.2.5
     URL_HASH SHA256=fa240dbf262be053f3898006d502d514936c818e422afdcf33921c63bed9bf2e
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies/libyaml"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/dependencies/libyaml"
     SOURCE_SUBDIR unused-no-cmake-project)
 FetchContent_MakeAvailable(iilocal_md4c iilocal_yaml)
 add_library(iilocal_context_parsers OBJECT "${iilocal_md4c_SOURCE_DIR}/src/md4c.c")

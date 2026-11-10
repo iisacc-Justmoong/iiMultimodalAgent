@@ -14,6 +14,7 @@
 #include "ProceduresConfig.h"
 #include "DecisionConfig.h"
 #include "MultimodalConfig.h"
+#include "GraphQLConfig.h"
 #include "CommandHookConfig.h"
 #include <QtCore/QCommandLineParser>
 #include <QtCore/QCoreApplication>
@@ -40,6 +41,7 @@ int main(int argc, char** argv) {
         {"permission-requests", "Private host JSON outside the workspace enabling app permission requests.", "file"},
         {"procedures", "Private host JSON selecting procedure returns for app intervention.", "file"},
         {"multimodal-config", "Private host image/audio/speech configuration; requires --model.", "file"},
+        {"graphql-config", "Private host GraphQL endpoint configuration outside the workspace.", "file"},
         {"decision", "Private host JSON with quantitative success, gain, loss and cost profiles.", "file"},
         {"add-dir", "Additional file working directory; repeat. Does not enable disk settings without --permission-settings.", "directory"},
         {"hooks", "Private command/HTTP/prompt/agent hook JSON configuration outside the workspace.", "file"},
@@ -218,11 +220,12 @@ int main(int argc, char** argv) {
             a::CommandHookOptions hooks;hooks.workingDirectory=workspace;
             plugins=std::make_shared<a::PluginRuntime>(store.snapshot(),hooks);privatePaths.append(store.directory());
         }
-        for(const auto& key:{"credentials","permission-settings","permission-requests","procedures","decision","multimodal-config","agent-profiles","model-options","sessions","artifacts","hooks","lsp-config","worktree-config"})
+        for(const auto& key:{"credentials","permission-settings","permission-requests","procedures","decision","multimodal-config","graphql-config","agent-profiles","model-options","sessions","artifacts","hooks","lsp-config","worktree-config"})
             if(parser.isSet(key))privatePaths.append(parser.value(key));
         for(const auto& file:connectionOptions.configFiles)privatePaths.append(iiFileProvider::Directory::isAbsolutePath(file)?file:iiFileProvider::Directory(workspace).filePath(file));
         if(!connectionOptions.localApplicationsDirectory.isEmpty())privatePaths.append(connectionOptions.localApplicationsDirectory);
         auto registry = std::make_shared<a::ToolRegistry>(); a::registerWorkspaceTools(*registry, workspace, shells,privatePaths);
+        if(parser.isSet("graphql-config"))registry->add(a::graphQLTool(iiLocalLLMClient::graphQLConfig(parser.value("graphql-config"),workspace)));
         std::unique_ptr<a::McpConnections> connections;
         if (!plugins && (!connectionOptions.configFiles.isEmpty() || !connectionOptions.localApplicationsDirectory.isEmpty()))
             connections = std::make_unique<a::McpConnections>(registry, std::move(connectionOptions));

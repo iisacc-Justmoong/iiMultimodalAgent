@@ -17,6 +17,25 @@ int main() {
     context.timedOut = false; context.error = "unknown failure";
     report = explain(context); check(report.category == "unclassified");
     check(report.details.contains("root cause")); // Prompt words cannot classify the failure.
+    context.operation = "Image";
+    context.error = "stable-diffusion.cpp:1026 - get sd version from file failed: '/fixture/model.safetensors'";
+    report = explain(context);
+    check(report.category == "model-identification");
+    check(report.summary.contains("could not identify"));
+    check(report.details.contains(context.error));
+    check(report.details.contains("does not establish"));
+    check(report.details.contains("tensor"));
+    for (const auto& error : {
+        "The safetensors header is invalid, incomplete, or unreadable. Check the file format, access and sync status.",
+        "The selected model changed during header inspection. Wait for synchronization to finish and try again."}) {
+        context.error = error;
+        report = explain(context);
+        check(report.category == "model-input");
+        check(report.details.contains(error));
+        check(!report.summary.contains("output"));
+    }
+    context.error = "The model could not be loaded";
+    check(explain(context).category == "unclassified");
     for (const auto& [error, category] : std::map<std::string, std::string>{
         {"HTTP 401 Unauthorized", "authorization"}, {"HTTP 429", "rate-limit"},
         {"OUT OF MEMORY", "resource-allocation"}, {"Permission denied", "storage-access"},

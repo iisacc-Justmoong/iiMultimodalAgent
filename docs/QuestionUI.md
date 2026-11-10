@@ -20,7 +20,7 @@ toolOptions.hooks.append(inbox->hook());
 
 생성·읽기·`refresh`·`submit`·`reject`·`close`는 QObject의 GUI 스레드에서 수행한다. `hook()`이 반환한 콜백은 채널만 캡처하므로 작업 스레드에서 사용할 수 있다. 콜백은 native `AskUserQuestion`의 PermissionRequest와 `builtin.user-question` 출처만 처리한다. GUI 스레드에서 ToolRunner를 동기 실행하면 질문 답변을 처리할 수 없으므로 금한다.
 
-`requests`는 도착 순서의 대기 요청 QVariantList이며 `errorString`은 입력 실패 이유이다. 100ms 타이머는 실제 JSON 스냅샷이 변경되었을 때만 `requestsChanged`를 발생시킨다. `submit(id, answers, annotations)`는 질문 원문을 키로 받는다. C++에서 원래 질문을 보존하고 스키마·주석·답변을 검증한 뒤 요청을 확정한다. 잘못된 답변은 요청을 소비하지 않는다. `reject(id, reason)`는 도구 실패를 돌려준다. 빈 answers는 건너뛰기이다. 취소·만료·연결 종료 후 늦은 응답은 실행을 재개하지 않는다.
+`requests`는 도착 순서의 대기 요청 QVariantList이며 `errorString`은 입력 실패 이유이다. 채널은 요청이 추가·해결·취소·만료되면 요청 ID를 수신자의 스레드에 비동기 통지한다. 질문함은 그 ID만 조회하여 해당 행을 삽입하거나 제거하고, 값이 바뀌었을 때만 `requestsChanged`를 발생시킨다. 초기 연결 및 앱이 명시적으로 요청한 `refresh()`는 전체 스냅샷을 다시 읽어 상태를 재조정한다. 수신 QObject가 파괴되면 구독은 해제되며 빌린 채널은 유지된다. `submit(id, answers, annotations)`는 질문 원문을 키로 받는다. C++에서 원래 질문을 보존하고 스키마·주석·답변을 검증한 뒤 요청을 확정한다. 잘못된 답변은 요청을 소비하지 않는다. `reject(id, reason)`는 도구 실패를 돌려준다. 빈 answers는 건너뛰기이다. 취소·만료·연결 종료 후 늦은 응답은 실행을 재개하지 않는다.
 
 기본 채널은 120초, 64개 요청, 총 8MiB 대기 한도를 갖는다. MCP 서버의 기본 요청 기한은 60초이며 클라이언트가 더 짧은 기한을 설정할 수 있다. 실제 대기는 가장 먼저 도달한 기한이나 취소에 종료된다. 앱 통합은 연결별 호출 취소를 전달하지만 질문 목록은 로컬 UI에 통합해서 보여 준다. 외부 MCP 호출자는 다른 요청을 조회하거나 UI 답변을 제출하는 도구를 받지 않는다.
 

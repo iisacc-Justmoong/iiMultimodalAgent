@@ -39,6 +39,9 @@ endif()
 find_package(iiLocalLLM 0.56.1 CONFIG REQUIRED)
 find_package(iiDecision 0.0.5 CONFIG REQUIRED)
 find_package(iiLocalDiffusion 0.6 CONFIG REQUIRED)
+# The explicitly selected diffusion package must precede unrelated SDK paths
+# from CPATH; otherwise a stale installed header can mask its reporting API.
+set_target_properties(iiLocalDiffusion::iiLocalDiffusion PROPERTIES IMPORTED_NO_SYSTEM TRUE)
 find_package(iiAudioGen 0.3 CONFIG REQUIRED)
 find_package(iiVoiceOver 0.2 CONFIG REQUIRED)
 find_package(iiFileProvider 0.6 CONFIG REQUIRED)
@@ -54,7 +57,7 @@ include(cmake/Sources.cmake)
 add_library(iiMultimodalAgentImageTypes INTERFACE)
 set_target_properties(iiMultimodalAgentImageTypes PROPERTIES EXPORT_NAME ImageTypes)
 target_compile_features(iiMultimodalAgentImageTypes INTERFACE cxx_std_23)
-target_include_directories(iiMultimodalAgentImageTypes SYSTEM INTERFACE
+target_include_directories(iiMultimodalAgentImageTypes INTERFACE
     "$<TARGET_PROPERTY:iiLocalDiffusion::iiLocalDiffusion,INTERFACE_INCLUDE_DIRECTORIES>")
 add_library(iiMultimodalAgentImages SHARED src/providers/ImagePlugin.cpp)
 target_compile_features(iiMultimodalAgentImages PRIVATE cxx_std_23)
@@ -75,7 +78,7 @@ set_target_properties(iiMultimodalAgentImages PROPERTIES
     VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 add_library(iiMultimodalAgent SHARED ${_agent_sources}
-    src/Agent/Tools/MultimodalTools.cpp src/Agent/Tools/ImageModelProfile.cpp
+    src/Agent/Tools/MultimodalTools.cpp
     src/providers/ImageLoader.cpp)
 add_dependencies(iiMultimodalAgent iiMultimodalAgentImages)
 add_library(iiMultimodalAgent::iiMultimodalAgent ALIAS iiMultimodalAgent)
@@ -104,6 +107,13 @@ set_target_properties(iiMultimodalAgent PROPERTIES
 if(WIN32)
     target_link_libraries(iiMultimodalAgent PRIVATE ws2_32)
 endif()
+include(cmake/DependencySources.cmake)
+ii_agent_reuse_dependency(FETCHCONTENT_SOURCE_DIR_IILOCAL_JSONCONS "${CMAKE_CURRENT_SOURCE_DIR}" jsoncons include/jsoncons/json.hpp)
+ii_agent_reuse_dependency(FETCHCONTENT_SOURCE_DIR_IILOCAL_MD4C "${CMAKE_CURRENT_SOURCE_DIR}" md4c src/md4c.c)
+ii_agent_reuse_dependency(FETCHCONTENT_SOURCE_DIR_IILOCAL_YAML "${CMAKE_CURRENT_SOURCE_DIR}" libyaml include/yaml.h)
+ii_agent_reuse_dependency(FETCHCONTENT_SOURCE_DIR_IILOCAL_LEXBOR "${CMAKE_CURRENT_SOURCE_DIR}" lexbor source/lexbor/core/base.h)
+ii_agent_reuse_dependency(FETCHCONTENT_SOURCE_DIR_IILOCAL_TREE_SITTER "${CMAKE_CURRENT_SOURCE_DIR}" tree-sitter lib/src/lib.c)
+ii_agent_reuse_dependency(FETCHCONTENT_SOURCE_DIR_IILOCAL_TREE_SITTER_BASH "${CMAKE_CURRENT_SOURCE_DIR}" tree-sitter-bash src/parser.c)
 include(cmake/JsonSchema.cmake)
 include(cmake/ContextParsers.cmake)
 include(cmake/WebParser.cmake)
@@ -141,7 +151,7 @@ set(_versioned_entrypoints ${_agent_entrypoints})
 set(IIMULTIMODALAGENT_WITH_LLAMA ${iiLocalLLM_WITH_LLAMA})
 include(cmake/TestOptions.cmake)
 if(BUILD_TESTING AND IIMULTIMODALAGENT_TEST_MCP_PYTHON)
-    add_custom_target(iiMultimodalAgentMcpDependencyArtifacts ALL
+    add_custom_target(iiMultimodalAgentMcpDependencyArtifacts
         COMMAND "${IIMULTIMODALAGENT_TEST_MCP_PYTHON}" -B
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_mcp_bytecode.py"
         COMMENT "Prepare managed MCP dependency bytecode" VERBATIM)

@@ -1274,6 +1274,27 @@ ToolResult Engine::runWebFetch(const QString& id,const QJsonObject& arguments,co
     return ToolRunner(registry,d->policy,options).run({uuid(),"WebFetch",arguments},d->permissionContext(context),callback);
 }
 std::optional<Tool> Engine::lspTool(bool deferred)const {if(!d->lsp)return std::nullopt;return d->lsp->tool(deferred);}
+bool Engine::graphQLAvailable() const {
+    for(const auto& definition:d->registry->definitions())
+        if(definition.name=="GraphQL" && definition.metadata["source"]=="builtin.graphql")return true;
+    return false;
+}
+ToolResult Engine::runGraphQL(const QString& id,const QJsonObject& arguments,const CancellationToken& token,
+    const EventCallback& callback,std::shared_ptr<PermissionRequests> requests)const {
+    const auto snapshot=d->registry->snapshot();bool available=false;
+    for(const auto& definition:snapshot->definitions())
+        if(definition.name=="GraphQL" && definition.metadata["source"]=="builtin.graphql")available=true;
+    if(!available)throw Error(ErrorCode::RuntimeUnavailable,"GraphQL is disabled");
+    Impl::NativeOperation operation(*d,id,token);const auto session=d->executionSession(id);
+    auto registry=std::make_shared<ToolRegistry>();registry->add(snapshot->get("GraphQL"));
+    ToolContext context{id,uuid(),session.workingDirectory,QDir(d->options.sessionsDirectory).filePath(id+"/artifacts"),operation.token};
+    context.transcriptPath=transcriptPath(id);context.sessionSnapshot=std::make_shared<Session>(session);
+    if(!d->options.hooks.isEmpty())context.asyncHooks=d->hookScope(id);context.hookCancellation=operation.token;
+    context.permissionRequests=requests?requests:d->options.permissionRequests;
+    ToolRunnerOptions options{d->options.hooks,d->options.permission,24000,d->options.permissionResponse,d->options.permissionUpdates,
+        context.permissionRequests,d->model,session.model,detail::hookAgentExecutor(d->options,d->tasks),d->plans};
+    return ToolRunner(registry,d->policy,options).run({uuid(),"GraphQL",arguments},d->permissionContext(context),callback);
+}
 QJsonObject Engine::lspStatus(const QString& id,const CancellationToken& token)const {
     Impl::NativeOperation operation(*d,id,token);const auto session=d->executionSession(id);operation.token.throwIfCancelled();
     if(!d->lsp)return {{"enabled",false},{"servers",QJsonArray{}},{"diagnostics",QJsonArray{}}};

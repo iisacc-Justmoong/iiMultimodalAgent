@@ -229,7 +229,11 @@ ToolResult ToolRunner::run(ToolCall call, const ToolContext& suppliedContext, co
             const auto r = hook({HookKind::BeforeTool, context.sessionId, context.runId, call, {}, {},hookContext,modelContext}, context.cancellation);
             hookEvents(r);
             if (r.block) throw Error(ErrorCode::InvalidArgument, "Pre-tool hook blocked execution: " + r.feedback);
-            if (r.updatedArguments) call.arguments = *r.updatedArguments;
+            if (r.updatedArguments) {
+                if (tool.definition.metadata.value("iimagent.preserve_arguments").toBool() && *r.updatedArguments != call.arguments)
+                    throw Error(ErrorCode::InvalidArgument, "This tool does not permit argument rewriting");
+                call.arguments = *r.updatedArguments;
+            }
             if(r.permission) {
                 auto priority=[](PermissionBehavior b){return b==PermissionBehavior::Deny?3:b==PermissionBehavior::Ask?2:1;};
                 if(!hookPermission||priority(r.permission->behavior)>=priority(hookPermission->behavior))hookPermission=r.permission;
@@ -371,7 +375,11 @@ ToolResult ToolRunner::run(ToolCall call, const ToolContext& suppliedContext, co
                     const auto current=decide();
                     if(current.behavior==PermissionBehavior::Deny)throw Error(ErrorCode::InvalidArgument,"Tool permission denied: "+current.reason);
                 };
-                if(response->updatedArguments){call.arguments=*response->updatedArguments;entry->validateInput(call.arguments);}
+                if(response->updatedArguments){
+                    if(tool.definition.metadata.value("iimagent.preserve_arguments").toBool() && *response->updatedArguments!=call.arguments)
+                        throw Error(ErrorCode::InvalidArgument,"This tool does not permit argument rewriting");
+                    call.arguments=*response->updatedArguments;entry->validateInput(call.arguments);
+                }
                 if(!response->updatedPermissions.isEmpty()) {
                     if(options_.permissionUpdates)options_.permissionUpdates(response->updatedPermissions,context);
                     else policy_->applyUpdates(response->updatedPermissions,context);

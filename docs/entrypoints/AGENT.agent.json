@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "AGENT.md",
-    "sha256": "42b19d1a1220e34d3600add803a187889425e43c9739ae8a732b8236b8a6426c",
-    "bytes": 2958,
+    "sha256": "0d1994fc45c1e7d59958120826a5313b50efbff1b4d28acd942571fdccad29a5",
+    "bytes": 3082,
     "line_count": 40,
     "encoding": "utf-8",
     "language": "ko"
@@ -57,7 +57,7 @@
       "kind": "paragraph",
       "start_line": 9,
       "end_line": 13,
-      "raw": "빌드 산출물은 `build/`에 둔다. API 변경에는 문서와 관련 테스트를 함께 갱신한다.\n실패 보고서 검사는 `iiMultimodalAgentFailureReportTests`와 CTest의\n`iiMultimodalAgent.failure_report`이다. `example/failure_report.cpp`는\n모델이나 외부 서비스 없이 실행할 수 있는 최소 소비 예이다.\n전체 에이전트 테스트와 실제 모델 추론 검증은 구분하여 보고한다.\n"
+      "raw": "컴파일 산출물은 `build/`에 둔다. 의존성 소스와 테스트 임시 파일은 `resources/`에 배치하고 테스트 후 임시 파일을 정리한다. API 변경에는 문서와 관련 테스트를 함께 갱신한다.\n실패 보고서 검사는 `iiMultimodalAgentFailureReportTests`와 CTest의\n`iiMultimodalAgent.failure_report`이다. `example/failure_report.cpp`는\n모델이나 외부 서비스 없이 실행할 수 있는 최소 소비 예이다.\n전체 에이전트 테스트와 실제 모델 추론 검증은 구분하여 보고한다.\n"
     },
     {
       "id": "b000006",

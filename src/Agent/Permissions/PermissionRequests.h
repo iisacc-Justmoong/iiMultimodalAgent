@@ -1,5 +1,8 @@
 #pragma once
 #include <iiMultimodalAgent/agent/Tools.h>
+#include <QtCore/QObject>
+#include <functional>
+#include <optional>
 
 namespace iiMultimodalAgent::agent {
 struct PermissionRequestsOptions {
@@ -28,6 +31,10 @@ public:
     Ticket begin(const ToolCall&, const PermissionDecision&, const ToolContext&, const QJsonObject& preview = {});
     PermissionResponse wait(const Ticket&, const CancellationToken& = {}, QJsonObject* resolution = nullptr);
     QJsonObject pending(qint64 after = 0, int limit = 32, int maxBytes = 4 * 1024 * 1024);
+    // Query just one changed request. Notifications are queued to context's
+    // thread and automatically disconnected when that context is destroyed.
+    std::optional<QJsonObject> pendingRequest(const QString& requestId);
+    QMetaObject::Connection observe(QObject* context, std::function<void(const QString&)> changed);
     // Acknowledges a decision, not tool completion. Identical retries are
     // idempotent while retained; conflicting retries never replace the winner.
     QJsonObject respond(const QString& requestId, const QJsonObject& decision);

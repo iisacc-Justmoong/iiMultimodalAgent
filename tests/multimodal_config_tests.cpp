@@ -36,6 +36,8 @@ private slots:
         QFile::setPermissions(config,QFileDevice::ReadOwner|QFileDevice::WriteOwner);
         const auto loaded=iiLocalLLMClient::multimodalConfig(config,root.filePath("work"));
         QVERIFY(loaded.image);QCOMPARE(loaded.image->modelPath,std::filesystem::path(model.toStdU16String()));
+        QCOMPARE(loaded.image->width,0);QCOMPARE(loaded.image->height,0);QCOMPARE(loaded.image->steps,0);
+        QCOMPARE(loaded.image->seed,std::get<std::int64_t>(iiLocalDiffusion::ImageParameters::defaults().values.at("seed")));
         const auto invalid=root.filePath("audio.json");iiFileProvider::native::File::create(std::filesystem::path(invalid.toStdU16String()),"{\"audio\":{\"model\":\"model\"}}");
         QFile::setPermissions(invalid,QFileDevice::ReadOwner|QFileDevice::WriteOwner);
         QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,iiLocalLLMClient::multimodalConfig(invalid,root.filePath("work")));

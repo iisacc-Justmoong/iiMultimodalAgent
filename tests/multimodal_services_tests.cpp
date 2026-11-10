@@ -132,7 +132,7 @@ private slots:
         QVERIFY(!a::multimodalCapabilities(empty)["speech_synthesis"].toBool());
     }
     void imageIsAValidPngAndProviderFileWithInlineMedia() {
-        QTemporaryDir root; std::atomic_int calls=0;
+        QTemporaryDir root; PresentationCleanup cleanup{path(root.path())}; std::atomic_int calls=0;
         auto tools=a::multimodalTools(services(root,calls));
         QCOMPARE(tools.size(),1);
         auto result=tools[0].execute({{"prompt","red square"},{"width",8},{"height",8}},context(root));
@@ -147,7 +147,23 @@ private slots:
             +quint32(static_cast<unsigned char>(png[34]))*65536U+quint32(static_cast<unsigned char>(png[35]))*256U
             +quint32(static_cast<unsigned char>(png[36]));
         const auto raw=qUncompress(QByteArray::fromHex("000000c8")+png.mid(41,compressedLength));
-        QCOMPARE(raw.size(),200); QCOMPARE(raw[1],char(127));
+        QCOMPARE(raw.size(),200);
+        for(int row=0;row<8;++row) {
+            QCOMPARE(raw[row*25],char(0));
+            for(int column=0;column<24;++column) QCOMPARE(raw[row*25+1+column],char(127));
+        }
+        QVERIFY(png.contains("iiSDK.Generation"));
+        const auto settings=result.data["generation_settings"].toObject();
+        QCOMPARE(settings["report_status"],"unreported");
+        QCOMPARE(settings["output"].toObject()["width"],8);QCOMPARE(settings["output"].toObject()["height"],8);
+        const auto marker=png.indexOf("iiSDK.Generation");
+        QVERIFY(marker>=8);QCOMPARE(png.mid(marker-4,4),QByteArray("iTXt"));
+        const auto length=(quint32(static_cast<unsigned char>(png[marker-8]))<<24)
+            |(quint32(static_cast<unsigned char>(png[marker-7]))<<16)
+            |(quint32(static_cast<unsigned char>(png[marker-6]))<<8)
+            |quint32(static_cast<unsigned char>(png[marker-5]));
+        const auto header=qsizetype(QByteArray("iiSDK.Generation").size()+5);
+        QCOMPARE(QJsonDocument::fromJson(png.mid(marker+header,length-header)).object(),settings);
         QCOMPARE(QByteArray::fromBase64(result.content.first().toObject()["data"].toString().toLatin1()),png);
     }
     void validationCancellationAndPermissionPreventSideEffects() {
@@ -166,7 +182,104 @@ private slots:
         QCOMPARE(calls.load(),0);
         QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
     }
-    void imageModelSelectionUsesPackageMetadataAndExplicitOptions() {
+    void imageInputsAreNotRewrittenByHooksOrPermissionResponses() {
+        QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;
+        auto registry=std::make_shared<a::ToolRegistry>();
+        for(auto& tool:a::multimodalTools(services(root,calls)))registry->add(tool);
+        a::ToolRunnerOptions hooks;
+        hooks.hooks.append([](const a::HookInput& input,const auto&) {
+            a::HookResult result;
+            if(input.kind==a::HookKind::BeforeTool) {
+                auto edited=input.call.arguments;edited["steps"]=7;result.updatedArguments=edited;
+            }
+            return result;
+        });
+        const a::ToolCall call{"immutable","GenerateImage",{{"prompt","unchanged"},{"width",8},{"height",8},{"steps",50}}};
+        auto result=a::ToolRunner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),hooks).run(call,context(root));
+        QVERIFY(result.isError);QCOMPARE(calls.load(),0);
+        a::ToolRunnerOptions permission;
+        permission.permissionResponse=[](const auto& input,const auto&,const auto&) {
+            a::PermissionResponse response;response.behavior=a::PermissionBehavior::Allow;
+            auto edited=input.arguments;edited["steps"]=9;response.updatedArguments=edited;return response;
+        };
+        result=a::ToolRunner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Default),permission).run(call,context(root));
+        QVERIFY(result.isError);QCOMPARE(calls.load(),0);
+    }
+    void imageSeedAndExplicitValuesReachTheExecutorWithoutNarrowing() {
+        QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;auto config=services(root,calls);
+        iiLocalDiffusion::NativeGenerationRequest observed;
+        config.imageExecutor=[&](const auto& request,const auto&,const auto&) {
+            observed=request;++calls;iiLocalDiffusion::NativeGenerationResult image;
+            image.width=request.width;image.height=request.height;image.rgb.assign(std::size_t(image.width)*image.height*3,7);return image;
+        };
+        const auto tool=a::multimodalTools(config)[0];
+        const auto result=tool.execute({{"prompt"," untouched "},{"width",8},{"height",8},{"steps",300},
+            {"seed",qint64(2147483648LL)}},context(root));
+        QCOMPARE(observed.prompt,std::string(" untouched "));QCOMPARE(observed.steps,300);
+        QCOMPARE(observed.seed,std::int64_t(2147483648LL));QCOMPARE(result.data["steps_source"],"request");
+        tool.execute({{"prompt","x"},{"width",8},{"height",8},{"seed",-1}},context(root));
+        QCOMPARE(observed.seed,std::int64_t(-1));
+        tool.execute({{"prompt","x"},{"width",8},{"height",8},{"seed",qint64(std::numeric_limits<std::int64_t>::max())}},context(root));
+        QCOMPARE(observed.seed,std::numeric_limits<std::int64_t>::max());
+        auto registry=std::make_shared<a::ToolRegistry>();registry->add(tool);
+        a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
+        const auto admitted=runner.run({"wide-seed","GenerateImage",{{"prompt","x"},{"width",8},{"height",8},
+            {"seed",qint64(2147483648LL)}}},context(root));
+        QVERIFY(!admitted.isError);QCOMPARE(observed.seed,std::int64_t(2147483648LL));
+        const auto maximum=runner.run({"maximum-seed","GenerateImage",{{"prompt","x"},{"width",8},{"height",8},
+            {"seed",qint64(std::numeric_limits<std::int64_t>::max())}}},context(root));
+        QVERIFY(!maximum.isError);QCOMPARE(observed.seed,std::numeric_limits<std::int64_t>::max());
+    }
+    void nativeAdapterRejectsMissingModelAndOversizeDefaultsBeforeInference() {
+        QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;
+        auto config=services(root,calls);config.imageExecutor={};
+        config.image->modelPath=path(root.filePath("missing.safetensors"));
+        config.image->width=0;config.image->height=0;config.image->steps=0;config.maximumImageDimension=64;
+        auto tool=a::multimodalTools(config)[0];
+        try { tool.execute({{"prompt","x"}},context(root));QFAIL("Oversize backend defaults must fail"); }
+        catch(const iiLocalLLM::Error& error) {
+            QCOMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure);
+            QVERIFY(QString::fromUtf8(error.what()).contains("budget",Qt::CaseInsensitive));
+        }
+        config.maximumImageDimension=2048;tool=a::multimodalTools(config)[0];
+        try { tool.execute({{"prompt","x"}},context(root));QFAIL("A missing model must fail before inference"); }
+        catch(const iiLocalLLM::Error& error) { QCOMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure); }
+        QCOMPARE(calls.load(),0);
+    }
+    void imageBackendResolvesOnlyUnspecifiedValuesAndReportsActualSettings() {
+        QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;
+        auto config=services(root,calls);config.imageExecutor={};
+        config.image->width=0;config.image->height=0;config.image->steps=0;config.image->seed=-1;
+        iiLocalDiffusion::NativeGenerationRequest observed;
+        a::ReportingImageExecutor executor=[&](const auto& request,const auto&,const auto&) {
+            observed=request;++calls;iiLocalDiffusion::NativeImageExecution execution;
+            execution.report.resolvedRequest=request;
+            auto& resolved=execution.report.resolvedRequest;
+            if (!resolved.width) resolved.width=8;
+            if (!resolved.height) resolved.height=8;
+            if (!resolved.steps) resolved.steps=42;
+            execution.image.width=resolved.width;execution.image.height=resolved.height;
+            execution.image.rgb.assign(std::size_t(resolved.width)*resolved.height*3,3);
+            iiLocalDiffusion::NativeImageStageSettings stage;stage.resolved=true;stage.seed=123456;
+            stage.baseWidth=64;stage.baseHeight=64;stage.steps=resolved.steps;stage.hires=true;stage.hiresResolved=true;
+            stage.hiresSteps=2;stage.hiresSchedulerSteps=8;stage.hiresSigmas={1.f,.5f,0.f};
+            stage.samplerName="fixture";execution.report.stages.push_back(stage);return execution;
+        };
+        const auto tool=a::multimodalTools(config,executor)[0];
+        const auto result=tool.execute({{"prompt","model default"}},context(root));
+        QCOMPARE(observed.width,0);QCOMPARE(observed.height,0);QCOMPARE(observed.steps,0);QCOMPARE(observed.seed,std::int64_t(-1));
+        const auto settings=result.data["generation_settings"].toObject();
+        QCOMPARE(settings["report_status"],"backend_reported");QCOMPARE(settings["reported_by"],"host_executor");
+        QCOMPARE(settings["resolved_request"].toObject()["steps"],42);
+        QCOMPARE(settings["stages"].toArray().first().toObject()["seed"],123456);
+        QCOMPARE(settings["stages"].toArray().first().toObject()["hires_steps"],2);
+        QCOMPARE(settings["stages"].toArray().first().toObject()["hires_sigmas"].toArray().size(),3);
+        QCOMPARE(result.data["steps_source"],"backend_default");
+        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"steps",0}},context(root)));
+        tool.execute({{"prompt","x"},{"steps",47},{"width",8}},context(root));
+        QCOMPARE(observed.steps,47);QCOMPARE(observed.width,8);QCOMPARE(observed.height,0);
+    }
+    void imageModelSelectionKeepsHostAndExplicitOptions() {
         QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
         QVERIFY(root.isValid());std::atomic_int calls=0;
@@ -189,9 +302,8 @@ private slots:
         const auto choices=tool.definition.inputSchema["properties"].toObject()["model"].toObject()["enum"].toArray();
         QVERIFY(choices.contains("default"));QVERIFY(choices.contains("moss"));QVERIFY(choices.contains("renamed"));
         auto result=tool.execute({{"prompt","x"},{"model","moss"},{"width",8},{"height",8}},c);
-        QCOMPARE(observed.modelPath,path(root.filePath("model-a")));QCOMPARE(observed.steps,8);
-        QCOMPARE(result.data["model_family"],"moss-image");QCOMPARE(result.data["steps"],8);
-        QCOMPARE(result.data["steps_source"],"model_family");
+        QCOMPARE(observed.modelPath,path(root.filePath("model-a")));QCOMPARE(observed.steps,27);
+        QCOMPARE(result.data["steps"],27);QCOMPARE(result.data["steps_source"],"host");
         const auto explicitResult=tool.execute({{"prompt","x"},{"model","moss"},{"width",8},{"height",8},{"steps",50}},c);
         QCOMPARE(observed.steps,50);QCOMPARE(explicitResult.data["steps_source"],"request");
         tool.execute({{"prompt","x"},{"model","renamed"},{"width",8},{"height",8}},c);
@@ -200,11 +312,11 @@ private slots:
         QCOMPARE(observed.modelPath,config.image->modelPath);QCOMPARE(observed.steps,27);
         auto defaultMoss=config;defaultMoss.image->modelPath=path(root.filePath("model-a"));
         a::multimodalTools(defaultMoss)[0].execute({{"prompt","x"},{"width",8},{"height",8}},c);
-        QCOMPARE(observed.steps,8);
+        QCOMPARE(observed.steps,27);
         auto registry=std::make_shared<a::ToolRegistry>();registry->add(tool);
         a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
         const auto admitted=runner.run({"alias","GenerateImage",{{"prompt","x"},{"model","moss"},{"width",8},{"height",8}}},c);
-        QVERIFY(!admitted.isError);QCOMPARE(observed.steps,8);
+        QVERIFY(!admitted.isError);QCOMPARE(observed.steps,27);
         const auto rejected=runner.run({"unknown","GenerateImage",{{"prompt","x"},{"model","missing"}}},c);
         QVERIFY(rejected.isError);
         const auto before=calls.load();
@@ -213,7 +325,7 @@ private slots:
         QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",true}},c));
         QCOMPARE(calls.load(),before);
     }
-    void embeddedDefaultsAreBoundedAndOverrideFamilyFallback() {
+    void embeddedMetadataDoesNotReplaceHostOptions() {
         QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
         QVERIFY(root.isValid());std::atomic_int calls=0;
@@ -228,12 +340,12 @@ private slots:
         config.image->width=8;config.image->height=8;
         auto tool=a::multimodalTools(config)[0];
         auto result=tool.execute({{"prompt","x"}},context(root));
-        QCOMPARE(observed.steps,12);QCOMPARE(observed.width,16);QCOMPARE(observed.height,24);
-        QCOMPARE(result.data["steps_source"],"package");
+        QCOMPARE(observed.steps,20);QCOMPARE(observed.width,8);QCOMPARE(observed.height,8);
+        QCOMPARE(result.data["steps_source"],"host");
         tool.execute({{"prompt","x"},{"steps",33},{"width",8}},context(root));
-        QCOMPARE(observed.steps,33);QCOMPARE(observed.width,8);QCOMPARE(observed.height,24);
+        QCOMPARE(observed.steps,33);QCOMPARE(observed.width,8);QCOMPARE(observed.height,8);
     }
-    void legacyZipReadsFirstStageMetadataWithoutExtractingWeights() {
+    void packagedModelsAreForwardedWithoutMetadataOverrides() {
         QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
         QVERIFY(root.isValid());std::atomic_int calls=0;
@@ -251,12 +363,12 @@ private slots:
             result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
         const auto tool=a::multimodalTools(config)[0];
         const auto result=tool.execute({{"prompt","x"}},context(root));
-        QCOMPARE(steps,8);QCOMPARE(result.data["model_family"],"moss-image");
-        tool.execute({{"prompt","x"},{"model","zip64"}},context(root));QCOMPARE(steps,8);
+        QCOMPARE(steps,20);
+        tool.execute({{"prompt","x"},{"model","zip64"}},context(root));QCOMPARE(steps,20);
         tool.execute({{"prompt","x"},{"model","duplicate"}},context(root));QCOMPARE(steps,20);
         QCOMPARE(QDir(root.path()).entryList(QDir::Dirs|QDir::NoDotAndDotDot).size(),0);
     }
-    void ggufMetadataIsInspectedWithoutUsingNamesOrInvalidHints() {
+    void ggufMetadataCannotReplaceHostOptions() {
         QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
         QVERIFY(root.isValid());std::atomic_int calls=0;
@@ -275,10 +387,10 @@ private slots:
             iiLocalDiffusion::NativeGenerationResult result;result.width=request.width;result.height=request.height;
             result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
         auto tool=a::multimodalTools(config)[0];
-        tool.execute({{"prompt","x"}},context(root));QCOMPARE(observed.steps,8);QCOMPARE(observed.width,8);
+        tool.execute({{"prompt","x"}},context(root));QCOMPARE(observed.steps,23);QCOMPARE(observed.width,8);
         tool.execute({{"prompt","x"},{"model","other"}},context(root));QCOMPARE(observed.steps,23);
         tool.execute({{"prompt","x"},{"model","broken"}},context(root));QCOMPARE(observed.steps,23);
-        tool.execute({{"prompt","x"},{"model","krea"}},context(root));QCOMPARE(observed.steps,52);
+        tool.execute({{"prompt","x"},{"model","krea"}},context(root));QCOMPARE(observed.steps,23);
     }
     void pcmUsesTheBoundAudioBackendAndRejectsInvalidOutput() {
         iiFileProvider::native::TemporaryDirectory root(IIMULTIMODAL_TEST_RESOURCES);

@@ -5,7 +5,7 @@ FetchContent_Declare(iilocal_lexbor
     URL https://codeload.github.com/lexbor/lexbor/tar.gz/refs/tags/v3.0.0
     URL_HASH SHA256=eafaa79ef9871f0bbb1978eda8677d184f7ecdcaa203d7cd25b3f86e32c014c2
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dependencies/lexbor"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources/dependencies/lexbor"
     SOURCE_SUBDIR unused-no-cmake-project)
 FetchContent_MakeAvailable(iilocal_lexbor)
 set(_web_sources)

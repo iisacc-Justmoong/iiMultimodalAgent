@@ -9,7 +9,7 @@ install(FILES src/Agent/Memory/Rag.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiM
 install(FILES src/Agent/Memory/SemanticRag.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Memory/MemoryExtraction.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Memory/MemoryContext.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
-install(FILES src/Agent/Tools/Worktrees.h src/Agent/Integrations/Lsp.h src/Agent/Integrations/WebFetch.h src/Agent/Memory/MemoryDream.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
+install(FILES src/Agent/Tools/Worktrees.h src/Agent/Integrations/Lsp.h src/Agent/Integrations/WebFetch.h src/Agent/Integrations/GraphQL.h src/Agent/Memory/MemoryDream.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Tools/Notebook.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Tools/FileCheckpoints.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Session/SessionHistory.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)

@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "a6f54b34d19fee6367a10448a59345107b68700d4c761f6c4fd1b50388258783",
-    "bytes": 7337,
-    "line_count": 130,
+    "sha256": "087d5b7113a13326e890d8d23fff963b92a78ea3509087fca4158b2ed55df74f",
+    "bytes": 7997,
+    "line_count": 137,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -70,21 +70,21 @@
       "id": "b000007",
       "kind": "paragraph",
       "start_line": 18,
-      "end_line": 21,
-      "raw": "C++23 multimodal agent orchestration, extracted from iiLocalLLM 0.55.1.\nThe initial package version is **0.1.0**. It owns the agent harness, session\npersistence, tools, permissions, hooks, memory, background work, subagents, teams,\nMCP client/server, authenticated API, and iiDecision admission/model routing.\n"
+      "end_line": 23,
+      "raw": "C++23 multimodal agent orchestration, extracted from iiLocalLLM 0.55.1.\nThe initial package version is **0.1.0**. It owns the agent harness, session\npersistence, tools, permissions, hooks, memory, background work, subagents, teams,\nMCP client/server, authenticated API, and iiDecision admission/model routing.\nHost-configured GraphQL endpoints are available to the agent, direct API clients,\nthe CLI and MCP through the same permission-controlled tool. See [agent API](docs/AgentAPI.md).\n"
     },
     {
       "id": "b000008",
       "kind": "blank",
-      "start_line": 22,
-      "end_line": 22,
+      "start_line": 24,
+      "end_line": 24,
       "raw": "\n"
     },
     {
       "id": "b000009",
       "kind": "table",
-      "start_line": 23,
-      "end_line": 31,
+      "start_line": 25,
+      "end_line": 33,
       "raw": "| Module | Responsibility |\n| --- | --- |\n| iiMultimodalAgent | Agent lifecycle, tool/model orchestration, media delivery, decision integration |\n| iiLocalLLM 0.56.1 | Model management, text embeddings, and text/image/audio/timestamped-frame understanding through supported models |\n| iiDecision 0.0.5 | Independent decision library; the agent owns host economics and admission/routing policy |\n| iiLocalDiffusion 0.6 | In-process native image generation |\n| iiAudioGen 0.3 | Host-selected audio generation backend and float32 PCM |\n| iiVoiceOver 0.2 | In-process Piper/ONNX speech synthesis |\n| iiFileProvider / Native 0.8.2 | Exclusive file publication, metadata and preview pipeline |\n",
       "columns": [
         "Module",
@@ -124,57 +124,57 @@
     {
       "id": "b000010",
       "kind": "blank",
-      "start_line": 32,
-      "end_line": 32,
+      "start_line": 34,
+      "end_line": 34,
       "raw": "\n"
     },
     {
       "id": "b000011",
       "kind": "paragraph",
-      "start_line": 33,
-      "end_line": 36,
+      "start_line": 35,
+      "end_line": 38,
       "raw": "Dependency direction is `iiMultimodalAgent -> inference/generation/decision modules`.\nNeither iiLocalLLM nor iiDecision depends on the agent. Models and destinations\nare host configuration, never arbitrary model tool arguments. No model download\nor runtime installation occurs implicitly.\n"
     },
     {
       "id": "b000012",
       "kind": "blank",
-      "start_line": 37,
-      "end_line": 37,
+      "start_line": 39,
+      "end_line": 39,
       "raw": "\n"
     },
     {
       "id": "b000013",
       "kind": "paragraph",
-      "start_line": 38,
-      "end_line": 46,
+      "start_line": 40,
+      "end_line": 48,
       "raw": "The native image adapter is an internal shared library beside the agent library.\nIt loads on the first actual native image call, after ordinary tool admission;\nstarting a text agent does not load the image/tensor backend. It uses the same\nC++23 tool API and adds no interpreter. Install the complete package, including\n`iiMultimodalAgentImages`, rather than copying the main library alone. Hosts that\ncall iiLocalDiffusion functions directly additionally link that SDK's target.\nThe installed `iiMultimodalAgent::NativeImages` imported target exposes the\nadapter's runtime file to native bundle deployers. Applications link the main\n`iiMultimodalAgent::iiMultimodalAgent` target; the adapter remains loaded on demand.\n"
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 47,
-      "end_line": 47,
+      "start_line": 49,
+      "end_line": 49,
       "raw": "\n"
     },
     {
       "id": "b000015",
       "kind": "paragraph",
-      "start_line": 48,
-      "end_line": 51,
+      "start_line": 50,
+      "end_line": 53,
       "raw": "The inherited harness uses Qt 6.8.3 Core/Network; this extraction is not a Qt-free\nrewrite. The adapters add no QtGui dependency. iiAudioGen's existing Diffusers\nbackend runs a Python worker; binding it does not make it native in-process\ninference. Hosts can inject an `iiAudioGen::Backend` without changing the agent.\n"
     },
     {
       "id": "b000016",
       "kind": "blank",
-      "start_line": 52,
-      "end_line": 52,
+      "start_line": 54,
+      "end_line": 54,
       "raw": "\n"
     },
     {
       "id": "b000017",
       "kind": "heading",
-      "start_line": 53,
-      "end_line": 53,
+      "start_line": 55,
+      "end_line": 55,
       "raw": "## Build, install and link\n",
       "level": 2,
       "title": "Build, install and link"
@@ -182,29 +182,29 @@
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 54,
-      "end_line": 54,
+      "start_line": 56,
+      "end_line": 56,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "paragraph",
-      "start_line": 55,
-      "end_line": 56,
+      "start_line": 57,
+      "end_line": 58,
       "raw": "Build/install the dependencies first, including iiLocalLLM 0.56.1. Preserve their\noptional accelerators and pass the same dependency prefixes to installed consumers.\n"
     },
     {
       "id": "b000020",
       "kind": "blank",
-      "start_line": 57,
-      "end_line": 57,
+      "start_line": 59,
+      "end_line": 59,
       "raw": "\n"
     },
     {
       "id": "b000021",
       "kind": "fenced_code",
-      "start_line": 58,
-      "end_line": 65,
+      "start_line": 60,
+      "end_line": 67,
       "raw": "```sh\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=\"<installed SDK and Qt prefixes>\" \\\n  -DCMAKE_INSTALL_PREFIX=\"$HOME/.local/SDK/iiMultimodalAgent\"\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n```\n",
       "language": "sh",
       "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=\"<installed SDK and Qt prefixes>\" \\\n  -DCMAKE_INSTALL_PREFIX=\"$HOME/.local/SDK/iiMultimodalAgent\"\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n",
@@ -213,29 +213,29 @@
     {
       "id": "b000022",
       "kind": "blank",
-      "start_line": 66,
-      "end_line": 66,
+      "start_line": 68,
+      "end_line": 68,
       "raw": "\n"
     },
     {
       "id": "b000023",
       "kind": "paragraph",
-      "start_line": 67,
-      "end_line": 73,
+      "start_line": 69,
+      "end_line": 75,
       "raw": "`./install.sh` also verifies an installed consumer. SDK-wide installation discovers\nthe package and its six SDK dependencies automatically. Optional real-model\nqualification uses `IIMULTIMODALAGENT_TEST_*` paths. Set\n`IIMULTIMODALAGENT_TEST_BUNDLED_VOICE=ON` for native Hello World synthesis through\nthe new `Speak` tool; an absent fixture is not counted as successful inference.\nThe installed consumer also links iiLocalLLM's host memory/offload options, so an\nolder inference binary cannot silently satisfy the agent installation check.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 74,
-      "end_line": 74,
+      "start_line": 76,
+      "end_line": 76,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "fenced_code",
-      "start_line": 75,
-      "end_line": 78,
+      "start_line": 77,
+      "end_line": 80,
       "raw": "```cmake\nfind_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)\ntarget_link_libraries(MyApp PRIVATE iiMultimodalAgent::iiMultimodalAgent)\n```\n",
       "language": "cmake",
       "code": "find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)\ntarget_link_libraries(MyApp PRIVATE iiMultimodalAgent::iiMultimodalAgent)\n",
@@ -244,139 +244,153 @@
     {
       "id": "b000026",
       "kind": "blank",
-      "start_line": 79,
-      "end_line": 79,
+      "start_line": 81,
+      "end_line": 81,
       "raw": "\n"
     },
     {
       "id": "b000027",
       "kind": "fenced_code",
-      "start_line": 80,
-      "end_line": 95,
-      "raw": "```cpp\n#include <iiMultimodalAgent.h>\nnamespace agent = iiMultimodalAgent::agent;\n\nagent::EngineOptions options;\noptions.sessionsDirectory = \"/private/agent/sessions\";\noptions.multimodal.outputDirectory = \"/existing/generated/files\";\noptions.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};\noptions.multimodal.image->modelPath = \"/models/image-model.iildmodel\";\noptions.multimodal.imageModels[\"moss\"] = \"/models/moss-image\"; // Optional host-approved ID.\noptions.multimodal.audio = hostLoadedAudioGenerator;\noptions.multimodal.speech = hostSpeechSynthesizer;\noptions.decision.valueUnit = \"USD\"; // Same unit as the trusted host estimates.\n// Set trusted decision profiles/inputs and the host permission policy.\nagent::Engine engine(hostModel, hostToolRegistry, hostPermissionPolicy, options);\n```\n",
+      "start_line": 82,
+      "end_line": 98,
+      "raw": "```cpp\n#include <iiMultimodalAgent.h>\nnamespace agent = iiMultimodalAgent::agent;\n\nagent::EngineOptions options;\noptions.sessionsDirectory = \"/private/agent/sessions\";\noptions.multimodal.outputDirectory = \"/existing/generated/files\";\noptions.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};\noptions.multimodal.image->modelPath = \"/models/image-model.iildmodel\";\noptions.multimodal.image->width = options.multimodal.image->height = options.multimodal.image->steps = 0; // Use backend defaults.\noptions.multimodal.imageModels[\"moss\"] = \"/models/moss-image\"; // Optional host-approved ID.\noptions.multimodal.audio = hostLoadedAudioGenerator;\noptions.multimodal.speech = hostSpeechSynthesizer;\noptions.decision.valueUnit = \"USD\"; // Same unit as the trusted host estimates.\n// Set trusted decision profiles/inputs and the host permission policy.\nagent::Engine engine(hostModel, hostToolRegistry, hostPermissionPolicy, options);\n```\n",
       "language": "cpp",
-      "code": "#include <iiMultimodalAgent.h>\nnamespace agent = iiMultimodalAgent::agent;\n\nagent::EngineOptions options;\noptions.sessionsDirectory = \"/private/agent/sessions\";\noptions.multimodal.outputDirectory = \"/existing/generated/files\";\noptions.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};\noptions.multimodal.image->modelPath = \"/models/image-model.iildmodel\";\noptions.multimodal.imageModels[\"moss\"] = \"/models/moss-image\"; // Optional host-approved ID.\noptions.multimodal.audio = hostLoadedAudioGenerator;\noptions.multimodal.speech = hostSpeechSynthesizer;\noptions.decision.valueUnit = \"USD\"; // Same unit as the trusted host estimates.\n// Set trusted decision profiles/inputs and the host permission policy.\nagent::Engine engine(hostModel, hostToolRegistry, hostPermissionPolicy, options);\n",
+      "code": "#include <iiMultimodalAgent.h>\nnamespace agent = iiMultimodalAgent::agent;\n\nagent::EngineOptions options;\noptions.sessionsDirectory = \"/private/agent/sessions\";\noptions.multimodal.outputDirectory = \"/existing/generated/files\";\noptions.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};\noptions.multimodal.image->modelPath = \"/models/image-model.iildmodel\";\noptions.multimodal.image->width = options.multimodal.image->height = options.multimodal.image->steps = 0; // Use backend defaults.\noptions.multimodal.imageModels[\"moss\"] = \"/models/moss-image\"; // Optional host-approved ID.\noptions.multimodal.audio = hostLoadedAudioGenerator;\noptions.multimodal.speech = hostSpeechSynthesizer;\noptions.decision.valueUnit = \"USD\"; // Same unit as the trusted host estimates.\n// Set trusted decision profiles/inputs and the host permission policy.\nagent::Engine engine(hostModel, hostToolRegistry, hostPermissionPolicy, options);\n",
       "closed": true
     },
     {
       "id": "b000028",
       "kind": "blank",
-      "start_line": 96,
-      "end_line": 96,
+      "start_line": 99,
+      "end_line": 99,
       "raw": "\n"
     },
     {
       "id": "b000029",
       "kind": "paragraph",
-      "start_line": 97,
-      "end_line": 104,
-      "raw": "Configured providers register `GenerateImage`, `GenerateAudio` and `Speak`.\n`ServiceModel` adapts an existing iiLocalLLM `Service` to the agent `Model` interface;\nhosts can also implement `Model` directly. `Api` gives each authenticated client\na private generated-media directory. Direct MCP hosts may add\n`multimodalTools(services)` to their registry.\n`GenerateImage` selects host-approved model IDs and derives bounded image defaults\nfrom package metadata. Explicit request parameters take precedence; family detection\ndoes not imply that the chosen executor supports the model architecture.\n"
+      "start_line": 100,
+      "end_line": 109,
+      "raw": "Configured providers register `GenerateImage`, `GenerateAudio` and `Speak`.\n`ServiceModel` adapts an existing iiLocalLLM `Service` to the agent `Model` interface;\nhosts can also implement `Model` directly. `Api` gives each authenticated client\na private generated-media directory. Direct MCP hosts may add\n`multimodalTools(services)` to their registry.\n`GenerateImage` selects host-approved model IDs, preserves explicit parameters,\nand leaves unspecified dimensions and steps to the image backend. The result and\nPNG record reported applied settings; legacy custom executors that do not report\ntheir settings are identified as unreported. Model support remains the selected\nexecutor's responsibility.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 105,
-      "end_line": 105,
+      "start_line": 110,
+      "end_line": 110,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 106,
-      "end_line": 108,
+      "start_line": 111,
+      "end_line": 113,
       "raw": "Default iiDecision policy defers work without trusted probability/value/cost\nassessments. Permissions remain a separate requirement. Supply host profiles or\nauthenticated decision procedures; never invent economic estimates in model output.\n"
     },
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 109,
-      "end_line": 109,
+      "start_line": 114,
+      "end_line": 114,
       "raw": "\n"
     },
     {
       "id": "b000033",
       "kind": "paragraph",
-      "start_line": 110,
-      "end_line": 115,
+      "start_line": 115,
+      "end_line": 120,
       "raw": "Entrypoints are `iiMultimodalAgentD`, `iimagent-service`, `iimagent`, `iimagent-mcp`\n(supported Unix hosts), and `iimagent-plugins`. Existing wire methods and persisted\nschemas stay stable. Inference-only `iiLocalLLMD` and `iillm` remain in iiLocalLLM.\nSee [Migration](docs/Migration.md), [Multimodal services](docs/MultimodalServices.md),\n[DecisionGate](docs/DecisionGate.md), [Agent harness](docs/AgentHarness.md), and\n[Verification](docs/Verification.md).\n"
     },
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 116,
-      "end_line": 116,
+      "start_line": 121,
+      "end_line": 121,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 117,
-      "end_line": 117,
+      "start_line": 122,
+      "end_line": 122,
       "raw": "Related implementation contracts: [Native tool turns](docs/NativeToolTurns.md), [Context admission](docs/ContextAdmission.md).\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 118,
-      "end_line": 118,
+      "start_line": 123,
+      "end_line": 123,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 119,
-      "end_line": 119,
+      "start_line": 124,
+      "end_line": 124,
       "raw": "See [MCP startup and lightweight IPC client](docs/McpPeerStartup.md) for managed dependency preparation and client runtime boundaries.\n"
     },
     {
       "id": "b000038",
-      "kind": "blank",
-      "start_line": 120,
-      "end_line": 120,
-      "raw": "\n"
-    },
-    {
-      "id": "b000039",
-      "kind": "paragraph",
-      "start_line": 121,
-      "end_line": 121,
-      "raw": "Source files and adjacent headers are organized by responsibility under `src/`; the installed `iiMultimodalAgent/...` include paths remain stable. See [source layout](docs/SourceLayout.md).\n"
-    },
-    {
-      "id": "b000040",
-      "kind": "blank",
-      "start_line": 122,
-      "end_line": 122,
-      "raw": "\n"
-    },
-    {
-      "id": "b000041",
-      "kind": "html",
-      "start_line": 123,
-      "end_line": 123,
-      "raw": "<!-- workspace-docs:readme:start -->\n"
-    },
-    {
-      "id": "b000042",
-      "kind": "heading",
-      "start_line": 124,
-      "end_line": 124,
-      "raw": "## Documentation entry points\n",
-      "level": 2,
-      "title": "Documentation entry points"
-    },
-    {
-      "id": "b000043",
       "kind": "blank",
       "start_line": 125,
       "end_line": 125,
       "raw": "\n"
     },
     {
-      "id": "b000044",
-      "kind": "list",
+      "id": "b000039",
+      "kind": "paragraph",
       "start_line": 126,
+      "end_line": 126,
+      "raw": "Source files and adjacent headers are organized by responsibility under `src/`; the installed `iiMultimodalAgent/...` include paths remain stable. See [source layout](docs/SourceLayout.md).\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 128,
+      "end_line": 128,
+      "raw": "Compilation outputs stay in `build/`; third-party source trees are reused from `resources/dependencies/`. Test outputs use a disposable directory under `resources/.state/` and are cleaned after CTest. See [build layout](docs/BuildLayout.md).\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 129,
       "end_line": 129,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "html",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "heading",
+      "start_line": 131,
+      "end_line": 131,
+      "raw": "## Documentation entry points\n",
+      "level": 2,
+      "title": "Documentation entry points"
+    },
+    {
+      "id": "b000045",
+      "kind": "blank",
+      "start_line": 132,
+      "end_line": 132,
+      "raw": "\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "list",
+      "start_line": 133,
+      "end_line": 136,
       "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
       "items": [
         {
@@ -402,10 +416,10 @@
       ]
     },
     {
-      "id": "b000045",
+      "id": "b000047",
       "kind": "html",
-      "start_line": 130,
-      "end_line": 130,
+      "start_line": 137,
+      "end_line": 137,
       "raw": "<!-- workspace-docs:readme:end -->\n"
     }
   ],
@@ -424,29 +438,36 @@
       "level": 2,
       "title": "Build, install and link",
       "anchor": "build-install-and-link",
-      "start_line": 53
+      "start_line": 55
     },
     {
-      "block_id": "b000042",
+      "block_id": "b000044",
       "parent_id": "b000001",
       "level": 2,
       "title": "Documentation entry points",
       "anchor": "documentation-entry-points",
-      "start_line": 124
+      "start_line": 131
     }
   ],
   "indexes": {
     "directive_candidates": [
       {
         "block_id": "b000011",
-        "line": 35,
+        "line": 37,
         "text": "are host configuration, never arbitrary model tool arguments. No model download",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
+        "block_id": "b000029",
+        "line": 107,
+        "text": "PNG record reported applied settings; legacy custom executors that do not report",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
         "block_id": "b000031",
-        "line": 108,
+        "line": 113,
         "text": "authenticated decision procedures; never invent economic estimates in model output.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -475,88 +496,102 @@
         "line": 12
       },
       {
+        "block_id": "b000007",
+        "label": "agent API",
+        "target": "docs/AgentAPI.md",
+        "kind": "relative",
+        "line": 23
+      },
+      {
         "block_id": "b000033",
         "label": "Migration",
         "target": "docs/Migration.md",
         "kind": "relative",
-        "line": 113
+        "line": 118
       },
       {
         "block_id": "b000033",
         "label": "Multimodal services",
         "target": "docs/MultimodalServices.md",
         "kind": "relative",
-        "line": 113
+        "line": 118
       },
       {
         "block_id": "b000033",
         "label": "DecisionGate",
         "target": "docs/DecisionGate.md",
         "kind": "relative",
-        "line": 114
+        "line": 119
       },
       {
         "block_id": "b000033",
         "label": "Agent harness",
         "target": "docs/AgentHarness.md",
         "kind": "relative",
-        "line": 114
+        "line": 119
       },
       {
         "block_id": "b000033",
         "label": "Verification",
         "target": "docs/Verification.md",
         "kind": "relative",
-        "line": 115
+        "line": 120
       },
       {
         "block_id": "b000035",
         "label": "Native tool turns",
         "target": "docs/NativeToolTurns.md",
         "kind": "relative",
-        "line": 117
+        "line": 122
       },
       {
         "block_id": "b000035",
         "label": "Context admission",
         "target": "docs/ContextAdmission.md",
         "kind": "relative",
-        "line": 117
+        "line": 122
       },
       {
         "block_id": "b000037",
         "label": "MCP startup and lightweight IPC client",
         "target": "docs/McpPeerStartup.md",
         "kind": "relative",
-        "line": 119
+        "line": 124
       },
       {
         "block_id": "b000039",
         "label": "source layout",
         "target": "docs/SourceLayout.md",
         "kind": "relative",
-        "line": 121
+        "line": 126
       },
       {
-        "block_id": "b000044",
-        "label": "AGENT.md",
-        "target": "AGENT.md",
-        "kind": "relative",
-        "line": 127
-      },
-      {
-        "block_id": "b000044",
-        "label": "documentation index",
-        "target": "docs/README.md",
+        "block_id": "b000041",
+        "label": "build layout",
+        "target": "docs/BuildLayout.md",
         "kind": "relative",
         "line": 128
       },
       {
-        "block_id": "b000044",
+        "block_id": "b000046",
+        "label": "AGENT.md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 134
+      },
+      {
+        "block_id": "b000046",
+        "label": "documentation index",
+        "target": "docs/README.md",
+        "kind": "relative",
+        "line": 135
+      },
+      {
+        "block_id": "b000046",
         "label": "agent index",
         "target": "docs/agent-index.json",
         "kind": "relative",
-        "line": 129
+        "line": 136
       }
     ],
     "tables": [

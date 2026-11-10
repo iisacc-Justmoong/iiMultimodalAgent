@@ -7,4 +7,7 @@ namespace iiMultimodalAgent::detail {
 using ImageEntry = void (*)(const iiLocalDiffusion::NativeGenerationRequest*,
     const std::atomic_bool*, const iiLocalDiffusion::NativeProgressCallback*,
     iiLocalDiffusion::NativeGenerationResult*);
+using ImageEntryV2 = void (*)(const iiLocalDiffusion::NativeGenerationRequest*,
+    const std::atomic_bool*, const iiLocalDiffusion::NativeProgressCallback*, int,
+    iiLocalDiffusion::NativeImageExecution*);
 }

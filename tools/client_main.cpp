@@ -101,7 +101,7 @@ int main(int argc, char** argv)
         {"auth-file", "Private file containing the app token for rpc.", "file"},
         {"defaults", "Include literal defaults in parameter exports"},
         {"redact", "Redact sensitive fields in parameter exports"}});
-    parser.addPositionalArgument("command", "run MODEL [PROMPT] | models | pull MODEL | ps | parameters [GROUP [FILE]] | rpc METHOD [FILE] | agent mcp | agent tasks/todos/shell/inputs ACTION SESSION [FILE]");
+    parser.addPositionalArgument("command", "run MODEL [PROMPT] | models | pull MODEL | ps | parameters [GROUP [FILE]] | rpc METHOD [FILE] | agent mcp | agent graphql execute SESSION FILE | agent tasks/todos/shell/inputs ACTION SESSION [FILE]");
     parser.addPositionalArgument("arguments", "Model reference and optional prompt", "[arguments...]");
     parser.process(app);
     const auto args = parser.positionalArguments();
@@ -132,9 +132,9 @@ int main(int argc, char** argv)
             const bool plugins = args.size() == 2 && args[1] == "plugins";
             const bool permissions=args.size()>=3&&args.size()<=4&&args[1]=="permissions"
                 &&(args[2]=="pending"||(args[2]=="respond"&&args.size()==4));
-            const bool tasks = args.size() >= 4 && args.size() <= 5 && (args[1] == "tasks" || args[1] == "todos" || args[1] == "shell" || args[1] == "inputs" || args[1] == "skills" || args[1] == "agents" || args[1] == "teams" || args[1] == "permissions" || args[1] == "memory" || args[1] == "sessions" || args[1] == "web" || args[1] == "lsp" || args[1] == "worktrees" || args[1] == "notebooks" || args[1] == "checkpoints");
+            const bool tasks = args.size() >= 4 && args.size() <= 5 && (args[1] == "tasks" || args[1] == "todos" || args[1] == "shell" || args[1] == "inputs" || args[1] == "skills" || args[1] == "agents" || args[1] == "teams" || args[1] == "permissions" || args[1] == "memory" || args[1] == "sessions" || args[1] == "web" || args[1] == "graphql" || args[1] == "lsp" || args[1] == "worktrees" || args[1] == "notebooks" || args[1] == "checkpoints");
             if ((!mcp && !plugins && !tasks && !permissions) || !parser.isSet("auth-file"))
-                throw std::runtime_error("Usage: iimagent --auth-file FILE agent mcp/plugins | agent permissions pending [FILE] | agent permissions respond FILE | agent tasks/todos/shell/inputs/skills/agents/teams/permissions/memory/sessions/web/lsp/worktrees/notebooks/checkpoints ACTION SESSION [PARAMS_JSON_FILE]");
+                throw std::runtime_error("Usage: iimagent --auth-file FILE agent mcp/plugins | agent permissions pending [FILE] | agent permissions respond FILE | agent tasks/todos/shell/inputs/skills/agents/teams/permissions/memory/sessions/web/graphql/lsp/worktrees/notebooks/checkpoints ACTION SESSION [PARAMS_JSON_FILE]");
             const auto token = QString::fromUtf8(iiLocalLLMClient::readPrivateFile(parser.value("auth-file"), 512)).trimmed();
             if (token.size() < 32 || token.size() > 256) throw std::runtime_error("Invalid app token length");
             if (mcp) printJson(client.call("agent.mcp.status", {}, {}, 300000, token));
@@ -149,6 +149,7 @@ int main(int argc, char** argv)
                     : args[1] == "checkpoints" ? QStringList{"list","create","rewind"}
                     : args[1] == "lsp" ? QStringList{"query","status"}
                     : args[1] == "web" ? QStringList{"fetch"}
+                    : args[1] == "graphql" ? QStringList{"execute"}
                     : args[1] == "sessions" ? QStringList{"search","fork"}
                     : args[1] == "memory" ? QStringList{"get","read","write","edit","glob","grep","forget","recall","extract","extraction.status","extraction.cancel","dream","dream.status","dream.cancel"}
                     : args[1] == "teams" ? QStringList{"create","delete","status","spawn","send","inbox","wait","stop"}

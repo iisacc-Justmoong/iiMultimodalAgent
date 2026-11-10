@@ -67,6 +67,21 @@ inline FailureReport explain(const FailureContext& input) {
         report.checks = {"Check the failing path and confirm the file is downloaded and its drive mounted.",
             "Verify checkpoint, text encoder, VAE, tokenizer and reference inputs required by this model.",
             "Refresh the model inventory after restoring the resource, then retry the original request."};
+    } else if (has("the safetensors header is invalid, incomplete, or unreadable")
+               || has("the selected model changed during header inspection")) {
+        report.category = "model-input";
+        report.summary = "The selected model input could not be safely inspected.";
+        interpretation = "The header check reported invalid or unreadable input, or observed the file changing while it was read. This does not by itself establish a damaged model; incomplete synchronization, access or format problems remain possible.";
+        report.checks = {"Check the exact model path and wait for any download or synchronization to finish.",
+            "Verify access and inspect the safetensors header and declared tensor ranges without modifying the original.",
+            "If a trusted source is available, verify its documented file size and checksum before replacing any copy."};
+    } else if (has("get sd version from file failed")) {
+        report.category = "model-identification";
+        report.summary = "The native image engine could not identify the model architecture from the selected file.";
+        interpretation = "This diagnostic establishes a model-version detection failure. It does not establish whether the file is incomplete, is a component rather than a checkpoint, or uses an architecture or quantization unsupported by this engine. A filename alone cannot identify the cause.";
+        report.checks = {"Inspect the selected file's bounded tensor header and architecture without modifying the original.",
+            "Check whether it is a full checkpoint, a denoiser, a VAE, a text encoder or an adapter, and identify required companion components.",
+            "Compare the identified architecture and quantization with the selected backend's supported formats before retrying."};
     } else if (input.operation != "Image" && input.operation != "Video" && input.operation != "Generation"
         && (has("unsupported") || has("not implemented"))) {
         report.category = "operation-capability"; report.summary = "The requested operation or input is unsupported by this backend.";

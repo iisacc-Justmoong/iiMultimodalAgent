@@ -3,6 +3,11 @@
 
 # C++ 에이전트 실행 계층
 
+`Delete`는 읽기와 변경 감지를 완료한 일반 파일을 삭제하는 workspace 도구이다.
+기존 도구 권한과 canonical 경로 검사를 거치며, 설정된 artifact 저장소에는
+삭제 전 내용을 보관한다. 외부 프로세스의 동시 변경에 대한 OS 수준의 원자적
+비교 삭제는 제공하지 않는다.
+
 0.55.0은 사용자 입력·입력 큐·도구 관측의 이미지, 오디오, 시간 정보가 있는 영상 프레임을 네이티브 임베딩 추론까지 연결한다. iiDecision의 `model_route` 절차는 매 턴 모델 문맥의 모달리티와 호스트 기대가치를 평가하며 모델 경로를 선택한다. 원본 기록, KV 경계, 미디어 토큰 예산과 압축의 계약은 [MultimodalHarness.md](MultimodalHarness.md)에 기록한다.
 
 0.54.0은 초기 실행과 도구 선택에 [iiDecision 기반 정량 판단](DecisionGate.md)을 적용한다. 호스트가 제공한 성공/실패 확률모형·수익·손실·비용으로 순기대가치를 계산한다. 평가가 없거나 기준보다 낮으면 deferred로 보류하며, 적격 도구 중 가장 높은 기대가치인 하나를 선택한다. decision_input 반환에서 호스트 사실을 바꾸고 decision 반환에서 실제 평가·선택·보류를 관측한다.
@@ -102,7 +107,7 @@ Engine은 제한된 QThreadPool과 수락 대기열을 사용한다. 도구는 �
 
 RulePolicy는 Default/AcceptEdits/DontAsk/Bypass/Plan을 제공한다. 명시적 deny가 먼저 적용되고 ask는 allow보다 우선한다. Plan은 읽기 전용 도구만 허용한다. DontAsk는 남은 ask를 deny로 바꾼다. Ask는 호스트의 PermissionCallback이 있어야 허용할 수 있다. 자동 분류기·내용별 세부 규칙·OS 샌드박스는 아직 추가되지 않았다.
 
-`registerWorkspaceTools`는 한 canonical workspace에 Read/Write/Edit/Glob/Grep/Bash를 등록한다. 이 registry를 다른 작업 디렉터리의 세션에 재사용하지 않는다. 파일 작업은 기존 symlink 해석을 거쳐 workspace 밖을 거부하고, 현재 세션의 artifact는 읽기만 허용한다. 경로 검증은 OS 샌드박스나 외부 프로세스의 경로 교체까지 막는 파일 잠금과 다르다.
+`registerWorkspaceTools`는 한 canonical workspace에 Read/Write/Edit/Delete/Glob/Grep/Bash를 등록한다. 이 registry를 다른 작업 디렉터리의 세션에 재사용하지 않는다. 파일 작업은 기존 symlink 해석을 거쳐 workspace 밖을 거부하고, 현재 세션의 artifact는 읽기만 허용한다. 경로 검증은 OS 샌드박스나 외부 프로세스의 경로 교체까지 막는 파일 잠금과 다르다.
 
 - Read: UTF-8, 최대 1 MiB, 줄 범위. 완전 읽기 상태와 SHA-256을 기록한다.
 - Write/Edit: 기존 파일의 완전 읽기·내용 일치를 요구한다. 변경 전 백업과 QSaveFile 쓰기를 사용한다.

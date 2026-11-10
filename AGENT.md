@@ -6,7 +6,7 @@
 이 계층은 C++23 표준 라이브러리만 사용하며 Qt와 I/O에 의존하지 않는다.
 확인한 사실과 추정을 구분하고 원문 오류를 보존한다.
 
-빌드 산출물은 `build/`에 둔다. API 변경에는 문서와 관련 테스트를 함께 갱신한다.
+컴파일 산출물은 `build/`에 둔다. 의존성 소스와 테스트 임시 파일은 `resources/`에 배치하고 테스트 후 임시 파일을 정리한다. API 변경에는 문서와 관련 테스트를 함께 갱신한다.
 실패 보고서 검사는 `iiMultimodalAgentFailureReportTests`와 CTest의
 `iiMultimodalAgent.failure_report`이다. `example/failure_report.cpp`는
 모델이나 외부 서비스 없이 실행할 수 있는 최소 소비 예이다.

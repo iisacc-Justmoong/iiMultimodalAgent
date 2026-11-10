@@ -1,8 +1,8 @@
 #include <iiMultimodalAgent/agent/MultimodalTools.h>
-#include <iiMultimodalAgent/agent/ImageModelProfile.h>
 #include <iiMultimodalAgent/detail/ImageLoader.h>
 #include <iiFileProviderNative.h>
 #include <QtCore/QByteArray>
+#include <QtCore/QJsonDocument>
 #include <QtCore/QUuid>
 #include <algorithm>
 #include <chrono>
@@ -37,6 +37,15 @@ int integer(const QJsonObject& args, const char* key, int fallback, int minimum,
         && value.toInt() >= minimum && value.toInt() <= maximum, "Invalid integer generation option");
     return value.toInt();
 }
+std::int64_t imageSeed(const QJsonObject& args, std::int64_t fallback) {
+    const auto value = args.value("seed");
+    if (value.isUndefined()) return fallback;
+    const auto number = value.toDouble(std::numeric_limits<double>::quiet_NaN());
+    const auto parsed = value.toInteger();
+    require(value.isDouble() && std::isfinite(number) && std::trunc(number) == number
+        && value == QJsonValue(parsed), "Image seed must be a signed 64-bit integer");
+    return parsed;
+}
 void fields(const QJsonObject& args, const QStringList& allowed) {
     for (auto it = args.begin(); it != args.end(); ++it)
         require(allowed.contains(it.key()), "Unknown generation option");
@@ -61,7 +70,7 @@ void chunk(QByteArray& png, const char* kind, const QByteArray& payload) {
     }
     append32(png, crc ^ 0xffffffffU);
 }
-QByteArray pngBytes(const iiLocalDiffusion::NativeGenerationResult& image) {
+QByteArray pngBytes(const iiLocalDiffusion::NativeGenerationResult& image, const QJsonObject& settings) {
     QByteArray header;
     append32(header, quint32(image.width)); append32(header, quint32(image.height));
     header += QByteArray::fromHex("0802000000"); // 8-bit RGB, PNG filter/compression/interlace 0.
@@ -75,11 +84,16 @@ QByteArray pngBytes(const iiLocalDiffusion::NativeGenerationResult& image) {
     QByteArray png = QByteArray::fromHex("89504e470d0a1a0a");
     chunk(png, "IHDR", header);
     chunk(png, "IDAT", qCompress(scanlines, 6).mid(4)); // qCompress's first 4 bytes are its length, not zlib.
+    QByteArray metadata("iiSDK.Generation");
+    metadata.append(5, char(0)); // keyword terminator, uncompressed, method, language, translated keyword
+    metadata += QJsonDocument(settings).toJson(QJsonDocument::Compact);
+    chunk(png, "iTXt", metadata);
     chunk(png, "IEND", {});
     return png;
 }
 struct State {
     MultimodalServices services;
+    ReportingImageExecutor reportingImageExecutor;
     std::timed_mutex mutex;
 };
 class Lease {
@@ -130,8 +144,8 @@ ToolResult waveArtifact(State& state, const iiVoiceOver::SpeechAudio& audio, con
     return artifact(state, path, QByteArray(bytes.data(), qsizetype(bytes.size())), "audio/wav", "audio", provider,
         {{"sample_rate", qint64(audio.sample_rate)}, {"channels", audio.channels}, {"frames", qint64(audio.samples.size() / audio.channels)}});
 }
-iiLocalDiffusion::NativeGenerationResult nativeImage(const iiLocalDiffusion::NativeGenerationRequest& request,
-    const CancellationToken& token, const iiLocalDiffusion::NativeProgressCallback& progress) {
+iiLocalDiffusion::NativeImageExecution nativeImage(const iiLocalDiffusion::NativeGenerationRequest& request,
+    const CancellationToken& token, const iiLocalDiffusion::NativeProgressCallback& progress, int maximumImageDimension) {
     std::atomic_bool cancelled{token.isCancelled()};
     std::jthread bridge([token, &cancelled](std::stop_token stop) {
         while (!stop.stop_requested()) {
@@ -139,8 +153,39 @@ iiLocalDiffusion::NativeGenerationResult nativeImage(const iiLocalDiffusion::Nat
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     });
-    iiLocalDiffusion::NativeGenerationResult result;
-    detail::imageEntry()(&request, &cancelled, &progress, &result);
+    iiLocalDiffusion::NativeImageExecution result;
+    detail::imageEntry()(&request, &cancelled, &progress, maximumImageDimension, &result);
+    return result;
+}
+QJsonObject stageSettings(const iiLocalDiffusion::NativeImageStageSettings& stage) {
+    QJsonArray loras;
+    for (const auto& lora : stage.loras)
+        loras.append(QJsonObject{{"name",pathText(lora.path.filename())},{"strength",double(lora.strength)}});
+    QJsonArray sigmas;
+    for (const auto sigma : stage.sigmas) sigmas.append(double(sigma));
+    QJsonArray hiresSigmas;
+    for (const auto sigma : stage.hiresSigmas) hiresSigmas.append(double(sigma));
+    QJsonObject result{{"model",pathText(stage.modelPath.filename())},
+        {"effective_model",pathText(stage.effectiveModelPath.filename())},{"q8_cache_used",stage.q8CacheUsed},
+        {"model_family",QString::fromStdString(stage.modelFamily)},
+        {"vae",pathText(stage.vaePath.filename())},{"prompt",QString::fromStdString(stage.prompt)},
+        {"negative_prompt",QString::fromStdString(stage.negativePrompt)},
+        {"base_width",stage.baseWidth},{"base_height",stage.baseHeight},
+        {"canvas_width",stage.canvasWidth},{"canvas_height",stage.canvasHeight},
+        {"steps",stage.steps},{"seed",qint64(stage.seed)},
+        {"sampler",QString::fromStdString(stage.samplerName)}, {"scheduler",QString::fromStdString(stage.schedulerName)},
+        {"cfg_scale",double(stage.cfgScale)},{"image_cfg_scale",double(stage.imageCfgScale)},
+        {"distilled_guidance",double(stage.distilledGuidance)},{"hires",stage.hires},
+        {"hires_upscaler",QString::fromStdString(stage.hiresUpscalerName)},
+        {"hires_steps",stage.hiresResolved ? QJsonValue(stage.hiresSteps) : QJsonValue(QJsonValue::Null)},
+        {"hires_strength",double(stage.hiresStrength)}, {"loras",loras},
+        {"image_to_image",stage.imageToImage},{"sigmas",sigmas}};
+    if (stage.hiresResolved) {
+        result.insert("hires_scheduler_steps",stage.hiresSchedulerSteps);
+        result.insert("hires_sigmas",hiresSigmas);
+    }
+    if (stage.imageToImage) result.insert("image_strength",double(stage.imageStrength));
+    if (std::isfinite(stage.flowShift)) result.insert("flow_shift",double(stage.flowShift));
     return result;
 }
 Tool tool(const char* name, const char* description, const char* provider, const char* modality, QJsonObject input) {
@@ -160,12 +205,17 @@ QJsonObject multimodalCapabilities(const MultimodalServices& services) {
 }
 
 QList<Tool> multimodalTools(MultimodalServices services) {
+    return multimodalTools(std::move(services), {});
+}
+
+QList<Tool> multimodalTools(MultimodalServices services, ReportingImageExecutor imageExecutor) {
     require(services.maximumImageDimension >= 8 && services.maximumImageDimension <= 4096
         && std::isfinite(services.maximumAudioSeconds) && services.maximumAudioSeconds > 0 && services.maximumAudioSeconds <= 300
         && services.maximumArtifactBytes >= 1024 && services.maximumArtifactBytes <= 128 * 1024 * 1024
         && services.maximumInlineBytes <= services.maximumArtifactBytes,
         "Invalid multimodal generation budgets");
     require(services.image || services.imageModels.empty(), "Image model IDs require an image provider");
+    require(!imageExecutor || (services.image && !services.imageExecutor), "A reporting image executor requires a single image provider");
     require(services.imageModels.size() <= 128, "Too many image model IDs");
     for (const auto& [id,path] : services.imageModels)
         require(validImageModelId(id) && !path.empty(), "Invalid host image model ID or path");
@@ -175,14 +225,15 @@ QList<Tool> multimodalTools(MultimodalServices services) {
     services.outputDirectory = std::filesystem::canonical(services.outputDirectory);
     if (services.image) {
         require(!services.image->modelPath.empty(), "A host-owned diffusion model path is required");
-        require(services.image->width >= 8 && services.image->width <= services.maximumImageDimension
-            && services.image->height >= 8 && services.image->height <= services.maximumImageDimension,
+        const auto validDimension = [&](int value) {
+            return value == 0 || (value >= 8 && value <= services.maximumImageDimension && value % 8 == 0);
+        };
+        require(validDimension(services.image->width) && validDimension(services.image->height),
             "Default image dimensions exceed the host budget");
-        require(services.image->steps >= 1 && services.image->steps <= 150 && services.image->seed >= 0
-            && services.image->seed <= 2147483647 && services.image->timeoutMilliseconds > 0,
+        require(services.image->steps >= 0 && services.image->steps <= 1000 && services.image->timeoutMilliseconds > 0,
             "Invalid host diffusion sampling options");
     }
-    auto state = std::make_shared<State>(); state->services = std::move(services);
+    auto state = std::make_shared<State>(); state->services = std::move(services); state->reportingImageExecutor = std::move(imageExecutor);
     QList<Tool> tools;
     if (state->services.image) {
         QJsonArray modelIds{"default"};
@@ -194,8 +245,9 @@ QList<Tool> multimodalTools(MultimodalServices services) {
                 {"model", QJsonObject{{"type", "string"}, {"enum", modelIds},
                     {"description", "Host-configured image model ID; default uses the host's default model"}}},
                 {"width", numberSchema(8, state->services.maximumImageDimension)},
-                {"height", numberSchema(8, state->services.maximumImageDimension)}, {"steps", numberSchema(1, 150)},
-                {"seed", numberSchema(0, 2147483647)}}, "prompt"));
+                {"height", numberSchema(8, state->services.maximumImageDimension)}, {"steps", numberSchema(1, 1000)},
+                {"seed", QJsonObject{{"type", "integer"}}}}, "prompt"));
+        image.definition.metadata.insert("iimagent.preserve_arguments", true);
         image.execute = [state](const QJsonObject& args, const ToolContext& context) {
             Lease lease(*state, context.cancellation);
             fields(args, {"prompt", "model", "width", "height", "steps", "seed"});
@@ -211,35 +263,70 @@ QList<Tool> multimodalTools(MultimodalServices services) {
                     request.modelPath=found->second;
                 }
             }
-            const auto profile=image_detail::inspectImageModel(request.modelPath,state->services.maximumImageDimension);
-            if (profile.width) request.width=*profile.width;
-            if (profile.height) request.height=*profile.height;
-            if (profile.steps) request.steps=*profile.steps;
-            const QString stepsSource=args.contains("steps") ? "request" : profile.stepsFromPackage ? "package"
-                : profile.steps ? "model_family" : "host";
+            const auto source = [&](const char* key, int value) -> QString {
+                return args.contains(QLatin1String(key)) ? "request" : value == 0 ? "backend_default" : "host";
+            };
+            const QString widthSource=source("width",request.width), heightSource=source("height",request.height),
+                stepsSource=source("steps",request.steps);
             request.width = integer(args, "width", request.width, 8, state->services.maximumImageDimension);
             request.height = integer(args, "height", request.height, 8, state->services.maximumImageDimension);
-            request.steps = integer(args, "steps", request.steps, 1, 150);
-            request.seed = integer(args, "seed", int(request.seed), 0, 2147483647);
+            request.steps = integer(args, "steps", request.steps, 1, 1000);
+            request.seed = imageSeed(args, request.seed);
             require(request.width % 8 == 0 && request.height % 8 == 0, "Image dimensions must use an 8-pixel grid");
             context.cancellation.throwIfCancelled();
             const auto progress = [&](const iiLocalDiffusion::NativeGenerationProgress& p) {
                 if (context.progress) context.progress({{"provider", "iiLocalDiffusion"}, {"step", p.step}, {"total", p.total}});
             };
-            const auto result = (state->services.imageExecutor ? state->services.imageExecutor : nativeImage)(request, context.cancellation, progress);
+            iiLocalDiffusion::NativeImageExecution execution;
+            const bool reported = !state->services.imageExecutor;
+            if (state->services.imageExecutor)
+                execution.image = state->services.imageExecutor(request, context.cancellation, progress);
+            else if (state->reportingImageExecutor)
+                execution = state->reportingImageExecutor(request, context.cancellation, progress);
+            else
+                execution = nativeImage(request, context.cancellation, progress, state->services.maximumImageDimension);
+            const auto& result = execution.image;
             context.cancellation.throwIfCancelled();
             require(!result.cancelled, "Image generation cancelled", ErrorCode::Cancelled);
             require(result.error.empty(), result.error.c_str(), ErrorCode::RuntimeFailure);
-            require(result.width == request.width && result.height == request.height
+            require(result.width >= 8 && result.height >= 8
+                && result.width <= state->services.maximumImageDimension && result.height <= state->services.maximumImageDimension
+                && (request.width == 0 || result.width == request.width) && (request.height == 0 || result.height == request.height)
                 && result.rgb.size() == std::size_t(result.width) * result.height * 3,
                 "Backend returned an invalid RGB image", ErrorCode::ProtocolError);
-            const auto bytes = pngBytes(result);
+            QJsonObject requested{{"model",modelId},{"prompt",QString::fromStdString(request.prompt)},
+                {"width",request.width ? QJsonValue(request.width) : QJsonValue(QJsonValue::Null)},
+                {"height",request.height ? QJsonValue(request.height) : QJsonValue(QJsonValue::Null)},
+                {"steps",request.steps ? QJsonValue(request.steps) : QJsonValue(QJsonValue::Null)},
+                {"seed",qint64(request.seed)},{"width_source",widthSource},{"height_source",heightSource},
+                {"steps_source",stepsSource},{"seed_source",args.contains("seed") ? "request" : "host"}};
+            QJsonObject settings{{"report_status",reported ? "backend_reported" : "unreported"},
+                {"requested",requested},{"output",QJsonObject{{"width",result.width},{"height",result.height}}}};
+            if (reported) {
+                require(!execution.report.stages.empty(), "Image backend omitted applied generation settings", ErrorCode::ProtocolError);
+                const auto& resolved = execution.report.resolvedRequest;
+                require(resolved.width == result.width && resolved.height == result.height
+                    && (request.steps == 0 || resolved.steps == request.steps)
+                    && resolved.seed == request.seed && resolved.prompt == request.prompt
+                    && resolved.modelPath == request.modelPath, "Image backend changed an explicit request", ErrorCode::ProtocolError);
+                QJsonArray stages;
+                for (const auto& stage : execution.report.stages) {
+                    require(stage.resolved, "Image backend returned unresolved generation settings", ErrorCode::ProtocolError);
+                    stages.append(stageSettings(stage));
+                }
+                settings.insert("resolved_request",QJsonObject{{"width",resolved.width},{"height",resolved.height},
+                    {"steps",resolved.steps},{"seed",qint64(resolved.seed)}});
+                settings.insert("stages",stages);
+                settings.insert("reported_by",state->reportingImageExecutor ? "host_executor" : "iiLocalDiffusion");
+            }
+            const auto bytes = pngBytes(result, settings);
             require(std::size_t(bytes.size()) <= state->services.maximumArtifactBytes, "PNG exceeds the artifact budget", ErrorCode::ResourceLimit);
             const auto path = destination(*state, ".png");
             iiFileProvider::native::File::create(path, std::string_view(bytes.constData(), std::size_t(bytes.size())));
+            const auto effectiveSteps = reported ? execution.report.resolvedRequest.steps : request.steps;
             QJsonObject details{{"width", result.width}, {"height", result.height}, {"model",modelId},
-                {"steps",request.steps}, {"steps_source",stepsSource}};
-            if (!profile.family.isEmpty()) details.insert("model_family",profile.family);
+                {"steps",effectiveSteps ? QJsonValue(effectiveSteps) : QJsonValue(QJsonValue::Null)},
+                {"steps_source",stepsSource}, {"generation_settings",settings}};
             return artifact(*state, path, bytes, "image/png", "image", "iiLocalDiffusion", details);
         };
         tools.append(std::move(image));

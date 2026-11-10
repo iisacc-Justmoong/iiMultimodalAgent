@@ -27,6 +27,7 @@ signals:
 private:
     QuestionInbox(std::shared_ptr<PermissionRequests>,bool owned,QObject* parent);
     bool finish(const QString&,const QVariantMap&,const QVariantMap&,const std::optional<QString>&);
+    void requestChanged(const QString& requestId);
     void error(QString);
     class Impl;
     std::unique_ptr<Impl> d;

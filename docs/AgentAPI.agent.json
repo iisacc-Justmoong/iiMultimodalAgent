@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/AgentAPI.md",
-    "sha256": "fa10b0b0d7b5b2c8cc6ba31713a6c0f5000cd99afe110edcc400ee2e5c6b18ae",
-    "bytes": 30140,
-    "line_count": 250,
+    "sha256": "e59e3212b6bbecb7b7e551a1d3d07750a6acd2a86565f6c6f884d6f68ff23670",
+    "bytes": 33729,
+    "line_count": 302,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -457,9 +457,9 @@
       "kind": "heading",
       "start_line": 75,
       "end_line": 75,
-      "raw": "## HTTP\n",
+      "raw": "## 외부 GraphQL API 직접 호출\n",
       "level": 2,
-      "title": "HTTP"
+      "title": "외부 GraphQL API 직접 호출"
     },
     {
       "id": "b000054",
@@ -472,558 +472,709 @@
       "id": "b000055",
       "kind": "paragraph",
       "start_line": 77,
-      "end_line": 77,
-      "raw": "`POST /v1/rpc`, `Content-Type: application/json`, `Authorization: Bearer <token>`을 사용한다. 키를 JSON 본문에 넣을 수 없다. 요청 `id`는 클라이언트가 정한 1~128자 문자열이다. `params`를 생략하면 `{}`, `stream`을 생략하면 false이다.\n"
+      "end_line": 81,
+      "raw": "호스트가 `GraphQL` 도구를 등록하면 에이전트와 인증된 API 클라이언트가 외부\nGraphQL 서버의 query 또는 mutation을 호출할 수 있다. 이 기능은 기존 에이전트의\nHTTP/native IPC 전송을 GraphQL 서버로 바꾸지 않는다. 외부 API에는 GraphQL-over-HTTP\nPOST 요청을 보낸다. iiNetwork에 직접 링크하지 않는 호스트는 C++ `GraphQLExecutor`\n콜백으로 자체 전송을 주입할 수 있다.\n"
     },
     {
       "id": "b000056",
-      "kind": "blank",
-      "start_line": 78,
-      "end_line": 78,
-      "raw": "\n"
-    },
-    {
-      "id": "b000057",
-      "kind": "fenced_code",
-      "start_line": 79,
-      "end_line": 81,
-      "raw": "```json\n{\"id\":\"create-1\",\"method\":\"agent.sessions.create\",\"params\":{\"model\":\"model://my-model\"}}\n```\n",
-      "language": "json",
-      "code": "{\"id\":\"create-1\",\"method\":\"agent.sessions.create\",\"params\":{\"model\":\"model://my-model\"}}\n",
-      "closed": true
-    },
-    {
-      "id": "b000058",
       "kind": "blank",
       "start_line": 82,
       "end_line": 82,
       "raw": "\n"
     },
     {
+      "id": "b000057",
+      "kind": "fenced_code",
+      "start_line": 83,
+      "end_line": 86,
+      "raw": "```cpp\nauto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();\nregistry->add(iiMultimodalAgent::agent::graphQLTool(graphqlOptions, hostGraphQLExecutor));\n```\n",
+      "language": "cpp",
+      "code": "auto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();\nregistry->add(iiMultimodalAgent::agent::graphQLTool(graphqlOptions, hostGraphQLExecutor));\n",
+      "closed": true
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "\n"
+    },
+    {
       "id": "b000059",
       "kind": "paragraph",
-      "start_line": 83,
-      "end_line": 83,
-      "raw": "일반 응답은 `{\"id\":\"create-1\",\"request_id\":\"server-uuid\",\"result\":{...}}`이다. 잘못된 키는 HTTP 401과 WWW-Authenticate, 다른 앱의 세션은 404, 사용 중인 세션은 409, 포화·용량 제한은 429, 요청 기한은 504를 반환한다. 인증·파싱 등 수락 전 오류는 error만 포함할 수 있다. 수락된 실행의 모델·도구 실패는 HTTP 200의 RunResult에서 `status`와 `error`로 표현될 수 있으므로 둘 다 검사한다.\n"
+      "start_line": 88,
+      "end_line": 89,
+      "raw": "콜백을 생략하면 내장 HTTP 전송을 사용한다. 호스트 콜백은 취소와 전달받은\n기한·응답 바이트 한도를 준수하고 GraphQL 응답 객체를 반환해야 한다.\n"
     },
     {
       "id": "b000060",
       "kind": "blank",
-      "start_line": 84,
-      "end_line": 84,
+      "start_line": 90,
+      "end_line": 90,
       "raw": "\n"
     },
     {
       "id": "b000061",
       "kind": "paragraph",
-      "start_line": 85,
-      "end_line": 85,
-      "raw": "`stream:true`이면 SSE `data:` 프레임으로 전달한다.\n"
+      "start_line": 91,
+      "end_line": 95,
+      "raw": "데몬의 `--agent-graphql-config` 또는 MCP 서버의 `--graphql-config`는 workspace 밖의\n소유자 전용 JSON 파일을 받는다. 각 엔드포인트의 URL과 선택적 Authorization 헤더는\n호스트가 정한다. HTTP도 명시적으로 설정할 수 있으므로 기밀 인증 정보는 TLS가\n있는 HTTPS 엔드포인트에 사용해야 한다. 설정한 엔드포인트와 인증 정보는 해당\n호스트의 도구 사용을 허용받은 클라이언트가 공유한다.\n"
     },
     {
       "id": "b000062",
-      "kind": "blank",
-      "start_line": 86,
-      "end_line": 86,
-      "raw": "\n"
-    },
-    {
-      "id": "b000063",
-      "kind": "fenced_code",
-      "start_line": 87,
-      "end_line": 95,
-      "raw": "```text\ndata: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"accepted\"}\n\ndata: {\"id\":\"run-1\",\"event\":\"rpc\",\"data\":{\"event\":\"started\",\"run_id\":\"run-uuid\",\"session_id\":\"session-uuid\",\"sequence\":1,\"text\":\"\",\"data\":{}}}\n\ndata: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"done\",\"result\":{...}}\n\ndata: [DONE]\n```\n",
-      "language": "text",
-      "code": "data: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"accepted\"}\n\ndata: {\"id\":\"run-1\",\"event\":\"rpc\",\"data\":{\"event\":\"started\",\"run_id\":\"run-uuid\",\"session_id\":\"session-uuid\",\"sequence\":1,\"text\":\"\",\"data\":{}}}\n\ndata: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"done\",\"result\":{...}}\n\ndata: [DONE]\n",
-      "closed": true
-    },
-    {
-      "id": "b000064",
       "kind": "blank",
       "start_line": 96,
       "end_line": 96,
       "raw": "\n"
     },
     {
-      "id": "b000065",
-      "kind": "paragraph",
+      "id": "b000063",
+      "kind": "fenced_code",
       "start_line": 97,
-      "end_line": 97,
-      "raw": "`rpc.data`는 에이전트 Event 원본에 요청별 sequence를 더한 객체다. 위 예시는 필드 일부를 생략했다. tool_call_id·메시지·도구 결과 등도 기존 Event 계약을 보존한다. 최종 응답은 앞선 이벤트를 추월하지 않는다. 출력 제한·시간 초과로 스트림이 실패하면 done 프레임의 error를 확인한다. 헤더를 보낸 이후에는 HTTP 상태 코드를 바꿀 수 없다. 연결이 끊기면 종료 프레임 전송을 보장하지 않는다.\n"
-    },
-    {
-      "id": "b000066",
-      "kind": "blank",
-      "start_line": 98,
-      "end_line": 98,
-      "raw": "\n"
-    },
-    {
-      "id": "b000067",
-      "kind": "heading",
-      "start_line": 99,
       "end_line": 99,
-      "raw": "## Native IPC와 CLI\n",
-      "level": 2,
-      "title": "Native IPC와 CLI"
+      "raw": "```json\n{\"endpoints\":{\"catalog\":{\"url\":\"https://api.example.com/graphql\",\"authorization\":\"Bearer HOST_SECRET\"}},\"timeout_ms\":30000,\"max_response_bytes\":1048576}\n```\n",
+      "language": "json",
+      "code": "{\"endpoints\":{\"catalog\":{\"url\":\"https://api.example.com/graphql\",\"authorization\":\"Bearer HOST_SECRET\"}},\"timeout_ms\":30000,\"max_response_bytes\":1048576}\n",
+      "closed": true
     },
     {
-      "id": "b000068",
+      "id": "b000064",
       "kind": "blank",
       "start_line": 100,
       "end_line": 100,
       "raw": "\n"
     },
     {
-      "id": "b000069",
+      "id": "b000065",
       "kind": "paragraph",
       "start_line": 101,
-      "end_line": 101,
-      "raw": "같은 메서드를 기존 줄 단위 JSON 소켓에 보내고, 최상위 `auth`에 키를 넣는다.\n"
-    },
-    {
-      "id": "b000070",
-      "kind": "blank",
-      "start_line": 102,
-      "end_line": 102,
-      "raw": "\n"
-    },
-    {
-      "id": "b000071",
-      "kind": "fenced_code",
-      "start_line": 103,
-      "end_line": 105,
-      "raw": "```json\n{\"id\":\"run-1\",\"method\":\"agent.run\",\"auth\":\"APP_TOKEN\",\"params\":{\"session_id\":\"session-uuid\",\"prompt\":\"Read README.md and explain it\",\"max_turns\":8}}\n```\n",
-      "language": "json",
-      "code": "{\"id\":\"run-1\",\"method\":\"agent.run\",\"auth\":\"APP_TOKEN\",\"params\":{\"session_id\":\"session-uuid\",\"prompt\":\"Read README.md and explain it\",\"max_turns\":8}}\n",
-      "closed": true
-    },
-    {
-      "id": "b000072",
-      "kind": "blank",
-      "start_line": 106,
-      "end_line": 106,
-      "raw": "\n"
-    },
-    {
-      "id": "b000073",
-      "kind": "paragraph",
-      "start_line": 107,
       "end_line": 107,
-      "raw": "먼저 accepted/request_id, 이어서 `event:\"rpc\"`의 이벤트들을 받는다. native IPC의 마지막 줄은 기존 계약에 따라 `{\"id\":\"run-1\",\"result\":{...}}` 또는 error이며 HTTP의 done 표시를 사용하지 않는다. request_id는 수락한 RPC ID, 내부 run_id는 Engine 실행 ID로 서로 다르다. 취소·조회에는 request_id를 사용한다.\n"
+      "raw": "`GraphQL` 도구는 `endpoint` ID, `query`, 선택적 `variables` 객체 및 `operation_name`을\n받는다. 임의 URL이나 인증 헤더는 도구 인자로 받을 수 없다. 기본 권한은 Ask이며\nmutation을 포함하므로 plan 모드에서 차단된다. 호스트가 예를 들어 `--agent-allow GraphQL`\n또는 MCP의 `--allow GraphQL`을 설정할 수 있다. 훅에는 쿼리와 변수가 전달되므로\n비밀 값은 호스트 인증 설정에서 관리한다. 자동 리다이렉트·쿠키·프록시는 사용하지\n않으며 요청 크기, 응답 크기, 기한과 취소를 제한한다. 서버의 GraphQL `errors`는\n도구 오류로 표시하면서 부분 `data`를 함께 보존한다.\n"
     },
     {
-      "id": "b000074",
+      "id": "b000066",
       "kind": "blank",
       "start_line": 108,
       "end_line": 108,
       "raw": "\n"
     },
     {
-      "id": "b000075",
+      "id": "b000067",
       "kind": "paragraph",
       "start_line": 109,
-      "end_line": 109,
-      "raw": "클라이언트 키 하나만 담은 별도 일반 텍스트 파일을 만든 뒤 CLI로 호출할 수도 있다. 키 파일에는 JSON 객체를 넣지 않는다.\n"
-    },
-    {
-      "id": "b000076",
-      "kind": "blank",
-      "start_line": 110,
-      "end_line": 110,
-      "raw": "\n"
-    },
-    {
-      "id": "b000077",
-      "kind": "fenced_code",
-      "start_line": 111,
       "end_line": 116,
-      "raw": "```sh\nchmod 600 private/society-token\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.info\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.sessions.create create.json\niillm --socket private/llm.sock --auth-file private/society-token --json rpc agent.run run.json\n```\n",
-      "language": "sh",
-      "code": "chmod 600 private/society-token\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.info\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.sessions.create create.json\niillm --socket private/llm.sock --auth-file private/society-token --json rpc agent.run run.json\n",
-      "closed": true
+      "raw": "인증된 API는 세션 소유권과 동일한 도구 권한·훅을 적용하는\n`agent.graphql.execute`를 제공하며 `agent.info.graphql_enabled`가 등록 여부를 표시한다.\n`iimagent --auth-file TOKEN agent graphql execute SESSION PARAMS_JSON`으로 호출한다.\n입력 JSON에는 `session_id` 없이 `endpoint`, `query`, 선택적 `variables`,\n`operation_name`을 넣는다. GraphQL 서버가 반환하는 데이터는 외부 입력이다.\n기존 [경제적 실행 판단](DecisionGate.md)도 적용된다. 기본 설정에서 호스트 평가값이\n없으면 `result.not_executed: true`로 보류될 수 있으므로 호출 결과를 확인해야 한다.\n호스트는 평가 정책을 설정하거나 명시적으로 판단을 비활성화할 수 있다.\n"
     },
     {
-      "id": "b000078",
+      "id": "b000068",
       "kind": "blank",
       "start_line": 117,
       "end_line": 117,
       "raw": "\n"
     },
     {
-      "id": "b000079",
+      "id": "b000069",
       "kind": "paragraph",
       "start_line": 118,
-      "end_line": 118,
-      "raw": "`--json`은 진행 이벤트와 최종 결과를 줄 단위 JSON으로 출력한다. 생략하면 최종 결과만 JSON으로 출력한다. Ctrl+C·클라이언트 기한 종료는 소켓을 닫아 실행 취소를 전달한다. iillm은 계속 Qt Core/Network만 링크하는 얇은 클라이언트이며 추론은 daemon에서 수행한다.\n"
+      "end_line": 121,
+      "raw": "macOS 로컬 통합 검증은 테스트 GraphQL 서버와 결정적인 테스트 모델을 사용한다.\n실제 HTTP 전송과 MCP 실행 파일, 한 MCP 세션의 파일 CRUD·셸·Skill 및 Skill의\nGraphQL 호출, 인증된 직접 API의 세션 소유권·권한, 데몬과 CLI 호출을 확인한다.\n이는 외부 GraphQL 서비스, 실제 모델 추론 또는 다른 운영체제의 실행 검증을 뜻하지 않는다.\n"
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 122,
+      "end_line": 122,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "fenced_code",
+      "start_line": 123,
+      "end_line": 125,
+      "raw": "```json\n{\"endpoint\":\"catalog\",\"query\":\"query Product($id: ID!) { product(id: $id) { name } }\",\"variables\":{\"id\":\"42\"},\"operation_name\":\"Product\"}\n```\n",
+      "language": "json",
+      "code": "{\"endpoint\":\"catalog\",\"query\":\"query Product($id: ID!) { product(id: $id) { name } }\",\"variables\":{\"id\":\"42\"},\"operation_name\":\"Product\"}\n",
+      "closed": true
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "heading",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "## HTTP\n",
+      "level": 2,
+      "title": "HTTP"
+    },
+    {
+      "id": "b000074",
+      "kind": "blank",
+      "start_line": 128,
+      "end_line": 128,
+      "raw": "\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "paragraph",
+      "start_line": 129,
+      "end_line": 129,
+      "raw": "`POST /v1/rpc`, `Content-Type: application/json`, `Authorization: Bearer <token>`을 사용한다. 키를 JSON 본문에 넣을 수 없다. 요청 `id`는 클라이언트가 정한 1~128자 문자열이다. `params`를 생략하면 `{}`, `stream`을 생략하면 false이다.\n"
+    },
+    {
+      "id": "b000076",
+      "kind": "blank",
+      "start_line": 130,
+      "end_line": 130,
+      "raw": "\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "fenced_code",
+      "start_line": 131,
+      "end_line": 133,
+      "raw": "```json\n{\"id\":\"create-1\",\"method\":\"agent.sessions.create\",\"params\":{\"model\":\"model://my-model\"}}\n```\n",
+      "language": "json",
+      "code": "{\"id\":\"create-1\",\"method\":\"agent.sessions.create\",\"params\":{\"model\":\"model://my-model\"}}\n",
+      "closed": true
+    },
+    {
+      "id": "b000078",
+      "kind": "blank",
+      "start_line": 134,
+      "end_line": 134,
+      "raw": "\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "paragraph",
+      "start_line": 135,
+      "end_line": 135,
+      "raw": "일반 응답은 `{\"id\":\"create-1\",\"request_id\":\"server-uuid\",\"result\":{...}}`이다. 잘못된 키는 HTTP 401과 WWW-Authenticate, 다른 앱의 세션은 404, 사용 중인 세션은 409, 포화·용량 제한은 429, 요청 기한은 504를 반환한다. 인증·파싱 등 수락 전 오류는 error만 포함할 수 있다. 수락된 실행의 모델·도구 실패는 HTTP 200의 RunResult에서 `status`와 `error`로 표현될 수 있으므로 둘 다 검사한다.\n"
     },
     {
       "id": "b000080",
       "kind": "blank",
-      "start_line": 119,
-      "end_line": 119,
+      "start_line": 136,
+      "end_line": 136,
       "raw": "\n"
     },
     {
       "id": "b000081",
       "kind": "paragraph",
-      "start_line": 120,
-      "end_line": 120,
-      "raw": "CLI의 입력 파일에는 params 객체만 넣는다. 예를 들어 create.json은 `{\"model\":\"model://my-model\"}`이고 run.json은 `{\"session_id\":\"session-uuid\",\"prompt\":\"Read README.md and explain it\",\"max_turns\":8}`이다.\n"
+      "start_line": 137,
+      "end_line": 137,
+      "raw": "`stream:true`이면 SSE `data:` 프레임으로 전달한다.\n"
     },
     {
       "id": "b000082",
       "kind": "blank",
-      "start_line": 121,
-      "end_line": 121,
+      "start_line": 138,
+      "end_line": 138,
       "raw": "\n"
     },
     {
       "id": "b000083",
-      "kind": "heading",
-      "start_line": 122,
-      "end_line": 122,
-      "raw": "## C++ 앱에 연결\n",
-      "level": 2,
-      "title": "C++ 앱에 연결"
+      "kind": "fenced_code",
+      "start_line": 139,
+      "end_line": 147,
+      "raw": "```text\ndata: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"accepted\"}\n\ndata: {\"id\":\"run-1\",\"event\":\"rpc\",\"data\":{\"event\":\"started\",\"run_id\":\"run-uuid\",\"session_id\":\"session-uuid\",\"sequence\":1,\"text\":\"\",\"data\":{}}}\n\ndata: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"done\",\"result\":{...}}\n\ndata: [DONE]\n```\n",
+      "language": "text",
+      "code": "data: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"accepted\"}\n\ndata: {\"id\":\"run-1\",\"event\":\"rpc\",\"data\":{\"event\":\"started\",\"run_id\":\"run-uuid\",\"session_id\":\"session-uuid\",\"sequence\":1,\"text\":\"\",\"data\":{}}}\n\ndata: {\"id\":\"run-1\",\"request_id\":\"server-uuid\",\"event\":\"done\",\"result\":{...}}\n\ndata: [DONE]\n",
+      "closed": true
     },
     {
       "id": "b000084",
       "kind": "blank",
-      "start_line": 123,
-      "end_line": 123,
+      "start_line": 148,
+      "end_line": 148,
       "raw": "\n"
     },
     {
       "id": "b000085",
-      "kind": "fenced_code",
-      "start_line": 124,
-      "end_line": 142,
-      "raw": "```cpp\n#include <iiMultimodalAgent/agent/Api.h>\n#include <HttpApiServer.h>\n#include <LocalIpcServer.h>\n\nauto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();\niiMultimodalAgent::agent::registerWorkspaceTools(*registry, workspace);\niiMultimodalAgent::agent::ApiOptions options;\noptions.workingDirectory = workspace;\noptions.stateDirectory = privateState;\noptions.clientTokens = {{\"society\", societyToken}, {\"dreamscapes\", dreamscapesToken}};\nauto api = std::make_shared<iiMultimodalAgent::agent::Api>(\n    std::make_shared<iiMultimodalAgent::agent::ServiceModel>(service), registry, policy, options);\niiLocalLLM::LocalIpcServer ipc(service);\niiLocalLLM::HttpApiServer http(service);\nipc.setRpcHandler(api);\nhttp.setRpcHandler(api);\n// 이후 listen(). 호스트 종료 순서는 두 전송 close(), api->close(), Service 정리.\n```\n",
-      "language": "cpp",
-      "code": "#include <iiMultimodalAgent/agent/Api.h>\n#include <HttpApiServer.h>\n#include <LocalIpcServer.h>\n\nauto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();\niiMultimodalAgent::agent::registerWorkspaceTools(*registry, workspace);\niiMultimodalAgent::agent::ApiOptions options;\noptions.workingDirectory = workspace;\noptions.stateDirectory = privateState;\noptions.clientTokens = {{\"society\", societyToken}, {\"dreamscapes\", dreamscapesToken}};\nauto api = std::make_shared<iiMultimodalAgent::agent::Api>(\n    std::make_shared<iiMultimodalAgent::agent::ServiceModel>(service), registry, policy, options);\niiLocalLLM::LocalIpcServer ipc(service);\niiLocalLLM::HttpApiServer http(service);\nipc.setRpcHandler(api);\nhttp.setRpcHandler(api);\n// 이후 listen(). 호스트 종료 순서는 두 전송 close(), api->close(), Service 정리.\n",
-      "closed": true
+      "kind": "paragraph",
+      "start_line": 149,
+      "end_line": 149,
+      "raw": "`rpc.data`는 에이전트 Event 원본에 요청별 sequence를 더한 객체다. 위 예시는 필드 일부를 생략했다. tool_call_id·메시지·도구 결과 등도 기존 Event 계약을 보존한다. 최종 응답은 앞선 이벤트를 추월하지 않는다. 출력 제한·시간 초과로 스트림이 실패하면 done 프레임의 error를 확인한다. 헤더를 보낸 이후에는 HTTP 상태 코드를 바꿀 수 없다. 연결이 끊기면 종료 프레임 전송을 보장하지 않는다.\n"
     },
     {
       "id": "b000086",
       "kind": "blank",
-      "start_line": 143,
-      "end_line": 143,
+      "start_line": 150,
+      "end_line": 150,
       "raw": "\n"
     },
     {
       "id": "b000087",
-      "kind": "paragraph",
-      "start_line": 144,
-      "end_line": 144,
-      "raw": "앱 고유 기능은 기존 ToolRegistry에 등록하거나 `mcpTools`로 연결한다. 호스트가 API 인스턴스 하나를 두 전송에 주입해야 인증·세션·진행 요청을 공유한다. 전송은 하위 `RpcHandler` 인터페이스만 참조하며 `agent::Api`를 참조하지 않는다. handler 교체는 서버가 닫힌 동안만 가능하다. 같은 API의 모델·registry·policy는 모든 등록 클라이언트가 공유하므로 도구 권한이 다른 앱은 별도 API/서버로 제공한다.\n"
+      "kind": "heading",
+      "start_line": 151,
+      "end_line": 151,
+      "raw": "## Native IPC와 CLI\n",
+      "level": 2,
+      "title": "Native IPC와 CLI"
     },
     {
       "id": "b000088",
       "kind": "blank",
-      "start_line": 145,
-      "end_line": 145,
+      "start_line": 152,
+      "end_line": 152,
       "raw": "\n"
     },
     {
       "id": "b000089",
-      "kind": "heading",
-      "start_line": 146,
-      "end_line": 146,
-      "raw": "## 수명·제한·복구\n",
-      "level": 2,
-      "title": "수명·제한·복구"
+      "kind": "paragraph",
+      "start_line": 153,
+      "end_line": 153,
+      "raw": "같은 메서드를 기존 줄 단위 JSON 소켓에 보내고, 최상위 `auth`에 키를 넣는다.\n"
     },
     {
       "id": "b000090",
       "kind": "blank",
-      "start_line": 147,
-      "end_line": 147,
+      "start_line": 154,
+      "end_line": 154,
       "raw": "\n"
     },
     {
       "id": "b000091",
-      "kind": "paragraph",
-      "start_line": 148,
-      "end_line": 148,
-      "raw": "ApiOptions 기본값은 동시 요청 8개, 대기 32개, 앱별 세션 1,024개, 최대 32턴, 요청·결과 JSON 4 MiB, 요청 기한 300초다. 이벤트도 각각 4 MiB 및 요청당 200,000개로 제한한다. 전송의 기본 입력 제한은 1 MiB, 출력 버퍼는 4 MiB이므로 실제 허용치는 양쪽 제한을 따른다. 큰 세션 조회는 limit을 줄여 페이지로 읽는다.\n"
+      "kind": "fenced_code",
+      "start_line": 155,
+      "end_line": 157,
+      "raw": "```json\n{\"id\":\"run-1\",\"method\":\"agent.run\",\"auth\":\"APP_TOKEN\",\"params\":{\"session_id\":\"session-uuid\",\"prompt\":\"Read README.md and explain it\",\"max_turns\":8}}\n```\n",
+      "language": "json",
+      "code": "{\"id\":\"run-1\",\"method\":\"agent.run\",\"auth\":\"APP_TOKEN\",\"params\":{\"session_id\":\"session-uuid\",\"prompt\":\"Read README.md and explain it\",\"max_turns\":8}}\n",
+      "closed": true
     },
     {
       "id": "b000092",
       "kind": "blank",
-      "start_line": 149,
-      "end_line": 149,
+      "start_line": 158,
+      "end_line": 158,
       "raw": "\n"
     },
     {
       "id": "b000093",
       "kind": "paragraph",
-      "start_line": 150,
-      "end_line": 150,
-      "raw": "daemon의 API 동시 요청 6개·대기 0개와 HTTP 전송 용량은 독립이다. 0.28은 일반 HTTP 응답 기본 8개, 제어 응답 기본 2개를 허용한다. agent.permissions.pending/respond 및 agent.cancel/status는 별도 제어 용량을 사용한다. 일반 요청이 승인을 기다려도 이 네 메서드는 처리할 수 있으며 모든 응답의 용량은 전송이 끝날 때 회수된다. --http-workers/--http-control-requests 및 C++ 한도는 [ControlCapacity.md](../../iiLocalLLM/docs/ControlCapacity.md)를 따른다. native 연결 자체가 포화되면 같은 앱의 새 연결이나 기존 connection-local cancel을 사용한다.\n"
+      "start_line": 159,
+      "end_line": 159,
+      "raw": "먼저 accepted/request_id, 이어서 `event:\"rpc\"`의 이벤트들을 받는다. native IPC의 마지막 줄은 기존 계약에 따라 `{\"id\":\"run-1\",\"result\":{...}}` 또는 error이며 HTTP의 done 표시를 사용하지 않는다. request_id는 수락한 RPC ID, 내부 run_id는 Engine 실행 ID로 서로 다르다. 취소·조회에는 request_id를 사용한다.\n"
     },
     {
       "id": "b000094",
       "kind": "blank",
-      "start_line": 151,
-      "end_line": 151,
+      "start_line": 160,
+      "end_line": 160,
       "raw": "\n"
     },
     {
       "id": "b000095",
       "kind": "paragraph",
-      "start_line": 152,
-      "end_line": 152,
-      "raw": "실행은 호출 연결에 붙어 있다. 연결 해제·출력 버퍼 초과·기한 종료·API 종료는 취소를 전달하며, 수락 슬롯은 작업이 실제로 종료될 때 해제한다. `Api::close()`는 실행을 취소하고 작업자를 join한다. 모델·도구·이벤트 함수는 취소에 협조해야 하고 콜백 안에서 close·파괴 또는 자기 future 대기를 호출하면 안 된다. 메타데이터의 파일 게시나 도구 부작용은 취소로 롤백되지 않는다.\n"
+      "start_line": 161,
+      "end_line": 161,
+      "raw": "클라이언트 키 하나만 담은 별도 일반 텍스트 파일을 만든 뒤 CLI로 호출할 수도 있다. 키 파일에는 JSON 객체를 넣지 않는다.\n"
     },
     {
       "id": "b000096",
       "kind": "blank",
-      "start_line": 153,
-      "end_line": 153,
+      "start_line": 162,
+      "end_line": 162,
       "raw": "\n"
     },
     {
       "id": "b000097",
-      "kind": "paragraph",
-      "start_line": 154,
-      "end_line": 154,
-      "raw": "status는 현재 프로세스에서 진행 중인 요청만 조회한다. 완료 후·재시작 후 request_id는 NotFound가 될 수 있다. transcript는 재시작 후 같은 세션 ID로 이어갈 수 있지만 에이전트 실행 응답 재전송, 영속 실행 핸들, idempotency key는 아직 없다. 별도 셸 작업 ID와 출력 기록은 아래 `agent.shell` 계약으로 보존한다. 연결이 끊긴 에이전트 실행을 자동 재시도하지 말고 세션 기록에서 결과를 확인한다. 이전 프로세스에서 도구 결과를 남기지 못한 호출은 기존 Engine의 결과 미확인 처리로 닫는다.\n"
+      "kind": "fenced_code",
+      "start_line": 163,
+      "end_line": 168,
+      "raw": "```sh\nchmod 600 private/society-token\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.info\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.sessions.create create.json\niillm --socket private/llm.sock --auth-file private/society-token --json rpc agent.run run.json\n```\n",
+      "language": "sh",
+      "code": "chmod 600 private/society-token\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.info\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.sessions.create create.json\niillm --socket private/llm.sock --auth-file private/society-token --json rpc agent.run run.json\n",
+      "closed": true
     },
     {
       "id": "b000098",
-      "kind": "blank",
-      "start_line": 155,
-      "end_line": 155,
-      "raw": "\n"
-    },
-    {
-      "id": "b000099",
-      "kind": "paragraph",
-      "start_line": 156,
-      "end_line": 156,
-      "raw": "검증은 `tests/agent_api_tests.cpp`, `tests/agent_transport_tests.cpp`, `tests/agent_api_smoke.py`, 설치 소비자 `tests/consumer/api.cpp`에 있다. 실제 수치와 모델·설치 검증 결과는 [Verification.md](../../iiLocalLLM/docs/Verification.md)에 기록한다.\n"
-    },
-    {
-      "id": "b000100",
-      "kind": "blank",
-      "start_line": 157,
-      "end_line": 157,
-      "raw": "\n"
-    },
-    {
-      "id": "b000101",
-      "kind": "heading",
-      "start_line": 158,
-      "end_line": 158,
-      "raw": "## 프로젝트 지침\n",
-      "level": 2,
-      "title": "프로젝트 지침"
-    },
-    {
-      "id": "b000102",
-      "kind": "blank",
-      "start_line": 159,
-      "end_line": 159,
-      "raw": "\n"
-    },
-    {
-      "id": "b000103",
-      "kind": "paragraph",
-      "start_line": 160,
-      "end_line": 160,
-      "raw": "0.5.0부터 고정 workspace 안의 CLAUDE.md·AGENTS.md·`.claude/rules`를 매 모델 호출 전에 읽는다. `context_paths`는 최대 128개 문자열이며 작업 루트 안의 파일 경로다. 아직 생성하지 않은 파일도 지정할 수 있다. `agent.context.get`에 지정한 경로는 조회에만 사용하고, `agent.run`에 지정한 경로는 세션에 기록하여 이어지는 실행과 분기에 유지한다. 다른 앱의 세션 조회는 기존과 같이 거부한다. 호스트만 `--agent-no-project-context`로 자동 로딩을 끄거나 `--agent-context-exclude PATTERN`을 반복해 제외 패턴을 설정할 수 있다. RPC로 루트·제외·상한을 변경할 수 없다.\n"
-    },
-    {
-      "id": "b000104",
-      "kind": "blank",
-      "start_line": 161,
-      "end_line": 161,
-      "raw": "\n"
-    },
-    {
-      "id": "b000105",
-      "kind": "paragraph",
-      "start_line": 162,
-      "end_line": 162,
-      "raw": "변경된 스냅샷은 `instructions_loaded` 이벤트로 경로·해시·패턴을 알린다. 이벤트에는 지침 본문을 넣지 않는다. 본문은 인증된 조회 결과와 모델 입력에만 포함한다. 자동 지침은 파일의 직접 읽기 이력이나 수정 권한을 만들지 않는다. 상세 범위·순서·상한·미구현 항목은 [ProjectContext.md](ProjectContext.md)를 참조한다.\n"
-    },
-    {
-      "id": "b000106",
-      "kind": "blank",
-      "start_line": 163,
-      "end_line": 163,
-      "raw": "\n"
-    },
-    {
-      "id": "b000107",
-      "kind": "heading",
-      "start_line": 164,
-      "end_line": 164,
-      "raw": "## 수동 대화 압축 (0.6.0)\n",
-      "level": 2,
-      "title": "수동 대화 압축 (0.6.0)"
-    },
-    {
-      "id": "b000108",
-      "kind": "blank",
-      "start_line": 165,
-      "end_line": 165,
-      "raw": "\n"
-    },
-    {
-      "id": "b000109",
-      "kind": "paragraph",
-      "start_line": 166,
-      "end_line": 166,
-      "raw": "`agent.sessions.compact`는 `session_id`, 선택적 `instructions`, `options`를 받는다. 기존 실행과 동일한 인증·세션 독점·큐·요청 기한·상태 조회·취소를 사용하며 `RunResult`를 반환한다. 성공 시 `turns`는 0, `text`는 요약이다. `compaction_started`, `compaction_progress`, `compacted` 이벤트를 기존 스트림으로 전달한다. `agent.sessions.get`에는 원본 메시지 페이지와 `compaction_count`, 최근 `compaction`이 포함된다. `agent.info.auto_compact_enabled`로 호스트 설정을 확인한다. 자동 압축은 기본 켜짐이며 `--agent-no-auto-compact`로 끌 수 있다. 자세한 예산·영속성·실패 계약은 [Compaction.md](Compaction.md)를 따른다.\n"
-    },
-    {
-      "id": "b000110",
-      "kind": "blank",
-      "start_line": 167,
-      "end_line": 167,
-      "raw": "\n"
-    },
-    {
-      "id": "b000111",
-      "kind": "heading",
-      "start_line": 168,
-      "end_line": 168,
-      "raw": "## 0.9.0 MCP 연결 관리와 도구 검색\n",
-      "level": 2,
-      "title": "0.9.0 MCP 연결 관리와 도구 검색"
-    },
-    {
-      "id": "b000112",
       "kind": "blank",
       "start_line": 169,
       "end_line": 169,
       "raw": "\n"
     },
     {
-      "id": "b000113",
+      "id": "b000099",
       "kind": "paragraph",
       "start_line": 170,
       "end_line": 170,
-      "raw": "호스트가 지정한 MCP 설정 파일의 연결·복구, 대화별 `ToolSearch`, 인증된 `agent.mcp.status` 및 CLI 옵션을 추가했다. 설정과 실행 권한, 수명 및 미지원 범위는 [ToolDiscovery.md](ToolDiscovery.md)를 참조한다.\n"
+      "raw": "`--json`은 진행 이벤트와 최종 결과를 줄 단위 JSON으로 출력한다. 생략하면 최종 결과만 JSON으로 출력한다. Ctrl+C·클라이언트 기한 종료는 소켓을 닫아 실행 취소를 전달한다. iillm은 계속 Qt Core/Network만 링크하는 얇은 클라이언트이며 추론은 daemon에서 수행한다.\n"
     },
     {
-      "id": "b000114",
+      "id": "b000100",
       "kind": "blank",
       "start_line": 171,
       "end_line": 171,
       "raw": "\n"
     },
     {
-      "id": "b000115",
-      "kind": "heading",
+      "id": "b000101",
+      "kind": "paragraph",
       "start_line": 172,
       "end_line": 172,
-      "raw": "## 작업·Todo API (0.11.0)\n",
-      "level": 2,
-      "title": "작업·Todo API (0.11.0)"
+      "raw": "CLI의 입력 파일에는 params 객체만 넣는다. 예를 들어 create.json은 `{\"model\":\"model://my-model\"}`이고 run.json은 `{\"session_id\":\"session-uuid\",\"prompt\":\"Read README.md and explain it\",\"max_turns\":8}`이다.\n"
     },
     {
-      "id": "b000116",
+      "id": "b000102",
       "kind": "blank",
       "start_line": 173,
       "end_line": 173,
       "raw": "\n"
     },
     {
-      "id": "b000117",
-      "kind": "paragraph",
+      "id": "b000103",
+      "kind": "heading",
       "start_line": 174,
       "end_line": 174,
-      "raw": "agent.tasks.create/get/list/update/claim 및 agent.todos.write/get을 추가한다. session_id와 도구별 인수를 받으며 {text,result,is_error}를 반환한다. 인증된 앱이 소유한 대화와 현재 workspace를 검사하고 모델 실행 중에도 접근한다. daemon에서는 기본 활성화이며 --agent-no-tasks로 끈다. TaskCreated/TaskCompleted와 일반 권한·훅이 동일하게 적용된다. [Tasks.md](Tasks.md)에 상태·페이징·revision·오류 계약과 CLI 사용법을 기록한다.\n"
+      "raw": "## C++ 앱에 연결\n",
+      "level": 2,
+      "title": "C++ 앱에 연결"
     },
     {
-      "id": "b000118",
+      "id": "b000104",
       "kind": "blank",
       "start_line": 175,
       "end_line": 175,
       "raw": "\n"
     },
     {
-      "id": "b000119",
-      "kind": "heading",
+      "id": "b000105",
+      "kind": "fenced_code",
       "start_line": 176,
-      "end_line": 176,
-      "raw": "## 백그라운드 셸 API (0.12.0)\n",
+      "end_line": 194,
+      "raw": "```cpp\n#include <iiMultimodalAgent/agent/Api.h>\n#include <HttpApiServer.h>\n#include <LocalIpcServer.h>\n\nauto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();\niiMultimodalAgent::agent::registerWorkspaceTools(*registry, workspace);\niiMultimodalAgent::agent::ApiOptions options;\noptions.workingDirectory = workspace;\noptions.stateDirectory = privateState;\noptions.clientTokens = {{\"society\", societyToken}, {\"dreamscapes\", dreamscapesToken}};\nauto api = std::make_shared<iiMultimodalAgent::agent::Api>(\n    std::make_shared<iiMultimodalAgent::agent::ServiceModel>(service), registry, policy, options);\niiLocalLLM::LocalIpcServer ipc(service);\niiLocalLLM::HttpApiServer http(service);\nipc.setRpcHandler(api);\nhttp.setRpcHandler(api);\n// 이후 listen(). 호스트 종료 순서는 두 전송 close(), api->close(), Service 정리.\n```\n",
+      "language": "cpp",
+      "code": "#include <iiMultimodalAgent/agent/Api.h>\n#include <HttpApiServer.h>\n#include <LocalIpcServer.h>\n\nauto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();\niiMultimodalAgent::agent::registerWorkspaceTools(*registry, workspace);\niiMultimodalAgent::agent::ApiOptions options;\noptions.workingDirectory = workspace;\noptions.stateDirectory = privateState;\noptions.clientTokens = {{\"society\", societyToken}, {\"dreamscapes\", dreamscapesToken}};\nauto api = std::make_shared<iiMultimodalAgent::agent::Api>(\n    std::make_shared<iiMultimodalAgent::agent::ServiceModel>(service), registry, policy, options);\niiLocalLLM::LocalIpcServer ipc(service);\niiLocalLLM::HttpApiServer http(service);\nipc.setRpcHandler(api);\nhttp.setRpcHandler(api);\n// 이후 listen(). 호스트 종료 순서는 두 전송 close(), api->close(), Service 정리.\n",
+      "closed": true
+    },
+    {
+      "id": "b000106",
+      "kind": "blank",
+      "start_line": 195,
+      "end_line": 195,
+      "raw": "\n"
+    },
+    {
+      "id": "b000107",
+      "kind": "paragraph",
+      "start_line": 196,
+      "end_line": 196,
+      "raw": "앱 고유 기능은 기존 ToolRegistry에 등록하거나 `mcpTools`로 연결한다. 호스트가 API 인스턴스 하나를 두 전송에 주입해야 인증·세션·진행 요청을 공유한다. 전송은 하위 `RpcHandler` 인터페이스만 참조하며 `agent::Api`를 참조하지 않는다. handler 교체는 서버가 닫힌 동안만 가능하다. 같은 API의 모델·registry·policy는 모든 등록 클라이언트가 공유하므로 도구 권한이 다른 앱은 별도 API/서버로 제공한다.\n"
+    },
+    {
+      "id": "b000108",
+      "kind": "blank",
+      "start_line": 197,
+      "end_line": 197,
+      "raw": "\n"
+    },
+    {
+      "id": "b000109",
+      "kind": "heading",
+      "start_line": 198,
+      "end_line": 198,
+      "raw": "## 수명·제한·복구\n",
       "level": 2,
-      "title": "백그라운드 셸 API (0.12.0)"
+      "title": "수명·제한·복구"
+    },
+    {
+      "id": "b000110",
+      "kind": "blank",
+      "start_line": 199,
+      "end_line": 199,
+      "raw": "\n"
+    },
+    {
+      "id": "b000111",
+      "kind": "paragraph",
+      "start_line": 200,
+      "end_line": 200,
+      "raw": "ApiOptions 기본값은 동시 요청 8개, 대기 32개, 앱별 세션 1,024개, 최대 32턴, 요청·결과 JSON 4 MiB, 요청 기한 300초다. 이벤트도 각각 4 MiB 및 요청당 200,000개로 제한한다. 전송의 기본 입력 제한은 1 MiB, 출력 버퍼는 4 MiB이므로 실제 허용치는 양쪽 제한을 따른다. 큰 세션 조회는 limit을 줄여 페이지로 읽는다.\n"
+    },
+    {
+      "id": "b000112",
+      "kind": "blank",
+      "start_line": 201,
+      "end_line": 201,
+      "raw": "\n"
+    },
+    {
+      "id": "b000113",
+      "kind": "paragraph",
+      "start_line": 202,
+      "end_line": 202,
+      "raw": "daemon의 API 동시 요청 6개·대기 0개와 HTTP 전송 용량은 독립이다. 0.28은 일반 HTTP 응답 기본 8개, 제어 응답 기본 2개를 허용한다. agent.permissions.pending/respond 및 agent.cancel/status는 별도 제어 용량을 사용한다. 일반 요청이 승인을 기다려도 이 네 메서드는 처리할 수 있으며 모든 응답의 용량은 전송이 끝날 때 회수된다. --http-workers/--http-control-requests 및 C++ 한도는 [ControlCapacity.md](../../iiLocalLLM/docs/ControlCapacity.md)를 따른다. native 연결 자체가 포화되면 같은 앱의 새 연결이나 기존 connection-local cancel을 사용한다.\n"
+    },
+    {
+      "id": "b000114",
+      "kind": "blank",
+      "start_line": 203,
+      "end_line": 203,
+      "raw": "\n"
+    },
+    {
+      "id": "b000115",
+      "kind": "paragraph",
+      "start_line": 204,
+      "end_line": 204,
+      "raw": "실행은 호출 연결에 붙어 있다. 연결 해제·출력 버퍼 초과·기한 종료·API 종료는 취소를 전달하며, 수락 슬롯은 작업이 실제로 종료될 때 해제한다. `Api::close()`는 실행을 취소하고 작업자를 join한다. 모델·도구·이벤트 함수는 취소에 협조해야 하고 콜백 안에서 close·파괴 또는 자기 future 대기를 호출하면 안 된다. 메타데이터의 파일 게시나 도구 부작용은 취소로 롤백되지 않는다.\n"
+    },
+    {
+      "id": "b000116",
+      "kind": "blank",
+      "start_line": 205,
+      "end_line": 205,
+      "raw": "\n"
+    },
+    {
+      "id": "b000117",
+      "kind": "paragraph",
+      "start_line": 206,
+      "end_line": 206,
+      "raw": "status는 현재 프로세스에서 진행 중인 요청만 조회한다. 완료 후·재시작 후 request_id는 NotFound가 될 수 있다. transcript는 재시작 후 같은 세션 ID로 이어갈 수 있지만 에이전트 실행 응답 재전송, 영속 실행 핸들, idempotency key는 아직 없다. 별도 셸 작업 ID와 출력 기록은 아래 `agent.shell` 계약으로 보존한다. 연결이 끊긴 에이전트 실행을 자동 재시도하지 말고 세션 기록에서 결과를 확인한다. 이전 프로세스에서 도구 결과를 남기지 못한 호출은 기존 Engine의 결과 미확인 처리로 닫는다.\n"
+    },
+    {
+      "id": "b000118",
+      "kind": "blank",
+      "start_line": 207,
+      "end_line": 207,
+      "raw": "\n"
+    },
+    {
+      "id": "b000119",
+      "kind": "paragraph",
+      "start_line": 208,
+      "end_line": 208,
+      "raw": "검증은 `tests/agent_api_tests.cpp`, `tests/agent_transport_tests.cpp`, `tests/agent_api_smoke.py`, 설치 소비자 `tests/consumer/api.cpp`에 있다. 실제 수치와 모델·설치 검증 결과는 [Verification.md](../../iiLocalLLM/docs/Verification.md)에 기록한다.\n"
     },
     {
       "id": "b000120",
       "kind": "blank",
-      "start_line": 177,
-      "end_line": 177,
+      "start_line": 209,
+      "end_line": 209,
       "raw": "\n"
     },
     {
       "id": "b000121",
-      "kind": "paragraph",
-      "start_line": 178,
-      "end_line": 178,
-      "raw": "`agent.shell.start/output/stop/list`는 `session_id`와 해당 셸 도구의 인수를 받으며 `{text,result,is_error}`를 반환한다. start는 `Bash` 권한을 확인하고 `run_in_background=true`를 호스트가 지정한다. output은 TaskOutput, stop은 TaskStop, list는 ShellTaskList에 대응한다. `agent.info.background_tasks_enabled`로 사용 여부를 확인하며 데스크톱 POSIX daemon의 `--agent-no-background`로 끌 수 있다.\n"
+      "kind": "heading",
+      "start_line": 210,
+      "end_line": 210,
+      "raw": "## 프로젝트 지침\n",
+      "level": 2,
+      "title": "프로젝트 지침"
     },
     {
       "id": "b000122",
       "kind": "blank",
-      "start_line": 179,
-      "end_line": 179,
+      "start_line": 211,
+      "end_line": 211,
       "raw": "\n"
     },
     {
       "id": "b000123",
       "kind": "paragraph",
-      "start_line": 180,
-      "end_line": 180,
-      "raw": "실행 중인 에이전트와 독립적으로 조회·중단한다. 출력 조회의 남은 API 기한이 요청한 대기 시간보다 짧으면 그 기한으로 제한하고, 아직 실행 중일 경우 timeout 오류를 반환한다. 조회 취소·기한 만료는 셸을 종료하지 않는다. 다른 앱이나 대화의 작업 ID는 접근할 수 없다. 재시작 기록, 바이트 페이징과 명시적 종료 계약은 [BackgroundTasks.md](BackgroundTasks.md)를 참조한다.\n"
+      "start_line": 212,
+      "end_line": 212,
+      "raw": "0.5.0부터 고정 workspace 안의 CLAUDE.md·AGENTS.md·`.claude/rules`를 매 모델 호출 전에 읽는다. `context_paths`는 최대 128개 문자열이며 작업 루트 안의 파일 경로다. 아직 생성하지 않은 파일도 지정할 수 있다. `agent.context.get`에 지정한 경로는 조회에만 사용하고, `agent.run`에 지정한 경로는 세션에 기록하여 이어지는 실행과 분기에 유지한다. 다른 앱의 세션 조회는 기존과 같이 거부한다. 호스트만 `--agent-no-project-context`로 자동 로딩을 끄거나 `--agent-context-exclude PATTERN`을 반복해 제외 패턴을 설정할 수 있다. RPC로 루트·제외·상한을 변경할 수 없다.\n"
     },
     {
       "id": "b000124",
       "kind": "blank",
-      "start_line": 181,
-      "end_line": 181,
+      "start_line": 213,
+      "end_line": 213,
       "raw": "\n"
     },
     {
       "id": "b000125",
+      "kind": "paragraph",
+      "start_line": 214,
+      "end_line": 214,
+      "raw": "변경된 스냅샷은 `instructions_loaded` 이벤트로 경로·해시·패턴을 알린다. 이벤트에는 지침 본문을 넣지 않는다. 본문은 인증된 조회 결과와 모델 입력에만 포함한다. 자동 지침은 파일의 직접 읽기 이력이나 수정 권한을 만들지 않는다. 상세 범위·순서·상한·미구현 항목은 [ProjectContext.md](ProjectContext.md)를 참조한다.\n"
+    },
+    {
+      "id": "b000126",
+      "kind": "blank",
+      "start_line": 215,
+      "end_line": 215,
+      "raw": "\n"
+    },
+    {
+      "id": "b000127",
       "kind": "heading",
-      "start_line": 182,
-      "end_line": 182,
+      "start_line": 216,
+      "end_line": 216,
+      "raw": "## 수동 대화 압축 (0.6.0)\n",
+      "level": 2,
+      "title": "수동 대화 압축 (0.6.0)"
+    },
+    {
+      "id": "b000128",
+      "kind": "blank",
+      "start_line": 217,
+      "end_line": 217,
+      "raw": "\n"
+    },
+    {
+      "id": "b000129",
+      "kind": "paragraph",
+      "start_line": 218,
+      "end_line": 218,
+      "raw": "`agent.sessions.compact`는 `session_id`, 선택적 `instructions`, `options`를 받는다. 기존 실행과 동일한 인증·세션 독점·큐·요청 기한·상태 조회·취소를 사용하며 `RunResult`를 반환한다. 성공 시 `turns`는 0, `text`는 요약이다. `compaction_started`, `compaction_progress`, `compacted` 이벤트를 기존 스트림으로 전달한다. `agent.sessions.get`에는 원본 메시지 페이지와 `compaction_count`, 최근 `compaction`이 포함된다. `agent.info.auto_compact_enabled`로 호스트 설정을 확인한다. 자동 압축은 기본 켜짐이며 `--agent-no-auto-compact`로 끌 수 있다. 자세한 예산·영속성·실패 계약은 [Compaction.md](Compaction.md)를 따른다.\n"
+    },
+    {
+      "id": "b000130",
+      "kind": "blank",
+      "start_line": 219,
+      "end_line": 219,
+      "raw": "\n"
+    },
+    {
+      "id": "b000131",
+      "kind": "heading",
+      "start_line": 220,
+      "end_line": 220,
+      "raw": "## 0.9.0 MCP 연결 관리와 도구 검색\n",
+      "level": 2,
+      "title": "0.9.0 MCP 연결 관리와 도구 검색"
+    },
+    {
+      "id": "b000132",
+      "kind": "blank",
+      "start_line": 221,
+      "end_line": 221,
+      "raw": "\n"
+    },
+    {
+      "id": "b000133",
+      "kind": "paragraph",
+      "start_line": 222,
+      "end_line": 222,
+      "raw": "호스트가 지정한 MCP 설정 파일의 연결·복구, 대화별 `ToolSearch`, 인증된 `agent.mcp.status` 및 CLI 옵션을 추가했다. 설정과 실행 권한, 수명 및 미지원 범위는 [ToolDiscovery.md](ToolDiscovery.md)를 참조한다.\n"
+    },
+    {
+      "id": "b000134",
+      "kind": "blank",
+      "start_line": 223,
+      "end_line": 223,
+      "raw": "\n"
+    },
+    {
+      "id": "b000135",
+      "kind": "heading",
+      "start_line": 224,
+      "end_line": 224,
+      "raw": "## 작업·Todo API (0.11.0)\n",
+      "level": 2,
+      "title": "작업·Todo API (0.11.0)"
+    },
+    {
+      "id": "b000136",
+      "kind": "blank",
+      "start_line": 225,
+      "end_line": 225,
+      "raw": "\n"
+    },
+    {
+      "id": "b000137",
+      "kind": "paragraph",
+      "start_line": 226,
+      "end_line": 226,
+      "raw": "agent.tasks.create/get/list/update/claim 및 agent.todos.write/get을 추가한다. session_id와 도구별 인수를 받으며 {text,result,is_error}를 반환한다. 인증된 앱이 소유한 대화와 현재 workspace를 검사하고 모델 실행 중에도 접근한다. daemon에서는 기본 활성화이며 --agent-no-tasks로 끈다. TaskCreated/TaskCompleted와 일반 권한·훅이 동일하게 적용된다. [Tasks.md](Tasks.md)에 상태·페이징·revision·오류 계약과 CLI 사용법을 기록한다.\n"
+    },
+    {
+      "id": "b000138",
+      "kind": "blank",
+      "start_line": 227,
+      "end_line": 227,
+      "raw": "\n"
+    },
+    {
+      "id": "b000139",
+      "kind": "heading",
+      "start_line": 228,
+      "end_line": 228,
+      "raw": "## 백그라운드 셸 API (0.12.0)\n",
+      "level": 2,
+      "title": "백그라운드 셸 API (0.12.0)"
+    },
+    {
+      "id": "b000140",
+      "kind": "blank",
+      "start_line": 229,
+      "end_line": 229,
+      "raw": "\n"
+    },
+    {
+      "id": "b000141",
+      "kind": "paragraph",
+      "start_line": 230,
+      "end_line": 230,
+      "raw": "`agent.shell.start/output/stop/list`는 `session_id`와 해당 셸 도구의 인수를 받으며 `{text,result,is_error}`를 반환한다. start는 `Bash` 권한을 확인하고 `run_in_background=true`를 호스트가 지정한다. output은 TaskOutput, stop은 TaskStop, list는 ShellTaskList에 대응한다. `agent.info.background_tasks_enabled`로 사용 여부를 확인하며 데스크톱 POSIX daemon의 `--agent-no-background`로 끌 수 있다.\n"
+    },
+    {
+      "id": "b000142",
+      "kind": "blank",
+      "start_line": 231,
+      "end_line": 231,
+      "raw": "\n"
+    },
+    {
+      "id": "b000143",
+      "kind": "paragraph",
+      "start_line": 232,
+      "end_line": 232,
+      "raw": "실행 중인 에이전트와 독립적으로 조회·중단한다. 출력 조회의 남은 API 기한이 요청한 대기 시간보다 짧으면 그 기한으로 제한하고, 아직 실행 중일 경우 timeout 오류를 반환한다. 조회 취소·기한 만료는 셸을 종료하지 않는다. 다른 앱이나 대화의 작업 ID는 접근할 수 없다. 재시작 기록, 바이트 페이징과 명시적 종료 계약은 [BackgroundTasks.md](BackgroundTasks.md)를 참조한다.\n"
+    },
+    {
+      "id": "b000144",
+      "kind": "blank",
+      "start_line": 233,
+      "end_line": 233,
+      "raw": "\n"
+    },
+    {
+      "id": "b000145",
+      "kind": "heading",
+      "start_line": 234,
+      "end_line": 234,
       "raw": "## 입력 큐 API (0.13.0)\n",
       "level": 2,
       "title": "입력 큐 API (0.13.0)"
     },
     {
-      "id": "b000126",
+      "id": "b000146",
       "kind": "blank",
-      "start_line": 183,
-      "end_line": 183,
+      "start_line": 235,
+      "end_line": 235,
       "raw": "\n"
     },
     {
-      "id": "b000127",
+      "id": "b000147",
       "kind": "paragraph",
-      "start_line": 184,
-      "end_line": 184,
+      "start_line": 236,
+      "end_line": 236,
       "raw": "`agent.info`의 `input_queue_enabled`와 methods로 확인한다. 모든 호출은 기존 앱 인증·workspace·세션 소유권을 적용한다.\n"
     },
     {
-      "id": "b000128",
+      "id": "b000148",
       "kind": "blank",
-      "start_line": 185,
-      "end_line": 185,
+      "start_line": 237,
+      "end_line": 237,
       "raw": "\n"
     },
     {
-      "id": "b000129",
+      "id": "b000149",
       "kind": "table",
-      "start_line": 186,
-      "end_line": 191,
+      "start_line": 238,
+      "end_line": 243,
       "raw": "| 메서드 |매개변수| 결과 |\n|---|---|---|\n| `agent.inputs.enqueue` | session_id, text; 선택 kind·priority·context_paths | input, revision, 실행이 있으면 active_run_id |\n| `agent.inputs.list` | session_id; 선택 offset(0 이상), limit(1~100, 기본 32) | count, inputs, revision, 선택 next_offset |\n| `agent.inputs.remove` | session_id, input_id |제거됨, input_id, 개정판|\n| `agent.inputs.run` | session_id; 선택 options·max_turns·context_paths | 기존 RunResult와 실행 이벤트 |\n",
       "columns": [
         "메서드",
@@ -1054,390 +1205,390 @@
       ]
     },
     {
-      "id": "b000130",
+      "id": "b000150",
       "kind": "blank",
-      "start_line": 192,
-      "end_line": 192,
+      "start_line": 244,
+      "end_line": 244,
       "raw": "\n"
     },
     {
-      "id": "b000131",
+      "id": "b000151",
       "kind": "paragraph",
-      "start_line": 193,
-      "end_line": 193,
+      "start_line": 245,
+      "end_line": 245,
       "raw": "등록·조회·삭제는 실행 중 transcript 잠금을 요청하지 않고 불변 세션 메타데이터로 소유권을 확인한다. 별도 제어 풀은 기본 동시 2개·대기 16개이며 C++ `ApiOptions.maxConcurrentInputControls/maxQueuedInputControls`로 지정한다. 풀 포화는 QueueFull이다. HTTP/native 전송 슬롯도 별도로 확보해야 한다. run은 일반 API 실행 풀을 사용한다.\n"
     },
     {
-      "id": "b000132",
+      "id": "b000152",
       "kind": "blank",
-      "start_line": 194,
-      "end_line": 194,
+      "start_line": 246,
+      "end_line": 246,
       "raw": "\n"
     },
     {
-      "id": "b000133",
+      "id": "b000153",
       "kind": "fenced_code",
-      "start_line": 195,
-      "end_line": 197,
+      "start_line": 247,
+      "end_line": 249,
       "raw": "```json\n{\"id\":\"steer\",\"method\":\"agent.inputs.enqueue\",\"params\":{\"session_id\":\"SESSION\",\"text\":\"현재 작업을 중단하고 새 파일을 읽어라\",\"priority\":\"now\"}}\n```\n",
       "language": "json",
       "code": "{\"id\":\"steer\",\"method\":\"agent.inputs.enqueue\",\"params\":{\"session_id\":\"SESSION\",\"text\":\"현재 작업을 중단하고 새 파일을 읽어라\",\"priority\":\"now\"}}\n",
       "closed": true
     },
     {
-      "id": "b000134",
-      "kind": "blank",
-      "start_line": 198,
-      "end_line": 198,
-      "raw": "\n"
-    },
-    {
-      "id": "b000135",
-      "kind": "paragraph",
-      "start_line": 199,
-      "end_line": 199,
-      "raw": "입력 큐의 now/next/later, 저장·복구, runQueued와 입력 전달 이벤트는 [InputQueue.md](InputQueue.md)를 따른다. 빈 큐 run은 RunResult의 not_found이며 placeholder 메시지를 추가하지 않는다. 새 요청으로 재등록하면 새 ID가 생기므로 응답 유실 시 자동 재등록으로 중복 방지를 보장하지 않는다.\n"
-    },
-    {
-      "id": "b000136",
-      "kind": "blank",
-      "start_line": 200,
-      "end_line": 200,
-      "raw": "\n"
-    },
-    {
-      "id": "b000137",
-      "kind": "paragraph",
-      "start_line": 201,
-      "end_line": 201,
-      "raw": "로컬 스킬 목록은 인증된 `agent.skills.list`로 조회한다. `agent.run`에 `skill`과 `skill_arguments`를 주면 `prompt`를 생략할 수 있다. `agent.info.skills_enabled`와 데몬의 `--agent-skills-dir`/`--agent-no-skills`를 지원한다. [스킬 계약](Skills.md)을 참조한다.\n"
-    },
-    {
-      "id": "b000138",
-      "kind": "blank",
-      "start_line": 202,
-      "end_line": 202,
-      "raw": "\n"
-    },
-    {
-      "id": "b000139",
-      "kind": "paragraph",
-      "start_line": 203,
-      "end_line": 203,
-      "raw": "0.15.0은 C++ 서브에이전트와 `agent.agents.run/output/stop/list`, 대응 MCP·CLI 경로를 추가한다. 소유권·취소·분기·재개와 설정 계약은 [Subagents.md](Subagents.md)를 따른다.\n"
-    },
-    {
-      "id": "b000140",
-      "kind": "blank",
-      "start_line": 204,
-      "end_line": 204,
-      "raw": "\n"
-    },
-    {
-      "id": "b000141",
-      "kind": "paragraph",
-      "start_line": 205,
-      "end_line": 205,
-      "raw": "0.16.0의 `agent.agents.profiles`(MCP: `iiMultimodalAgent.agent.agents.profiles`, CLI: `agent agents profiles SESSION`)는 프로파일 메타데이터·출처·가려진 정의·오류를 반환한다. C++ 호스트는 `Subagents::attach`로 현재 프로파일을 각 턴에 연결한다. 독립 데몬과 MCP 서버의 `--agent-profiles FILE`·`--no-agent-profiles`, 모델 사용 범위와 훅 계약은 [AgentProfiles.md](AgentProfiles.md)를 따른다.\n"
-    },
-    {
-      "id": "b000142",
-      "kind": "blank",
-      "start_line": 206,
-      "end_line": 206,
-      "raw": "\n"
-    },
-    {
-      "id": "b000143",
-      "kind": "paragraph",
-      "start_line": 207,
-      "end_line": 207,
-      "raw": "0.17.0에서는 `context: fork` 스킬을 같은 API·MCP·CLI 호출로 별도 자식에서 실행한다. 직접 호출은 자식 결과를 반환하고 모델의 `Skill` 호출은 후속 부모 턴에 결과를 전달한다. 본문 분리·권한·모델·사용량·큐 입력과 참조 차이는 [Skills.md](Skills.md)의 별도 자식 실행 계약을 따른다.\n"
-    },
-    {
-      "id": "b000144",
-      "kind": "blank",
-      "start_line": 208,
-      "end_line": 208,
-      "raw": "\n"
-    },
-    {
-      "id": "b000145",
-      "kind": "paragraph",
-      "start_line": 209,
-      "end_line": 209,
-      "raw": "0.18.0의 스킬 allowed-tools와 인자 권한 규칙은 [Permissions.md](Permissions.md)를 따른다. API·IPC·MCP 입력은 allowed_tools/prompt_metadata 같은 호스트 전용 권한·출처 필드를 받지 않는다. 모델 Skill의 PermissionRequested 이벤트에는 고정된 permission_preview가 있다. 원격 권한 응답 중개는 0.27의 PermissionRequests.md 계약으로 추가되었다.\n"
-    },
-    {
-      "id": "b000146",
-      "kind": "blank",
-      "start_line": 210,
-      "end_line": 210,
-      "raw": "\n"
-    },
-    {
-      "id": "b000147",
-      "kind": "paragraph",
-      "start_line": 211,
-      "end_line": 211,
-      "raw": "0.19.0의 `agent.permissions.get`은 인증된 `session_id`만 받아 현재 호스트 권한 snapshot을 반환한다. 다른 앱의 세션은 조회할 수 없으며 원격 mode·rule·설정 파일 변경은 허용하지 않는다. `iiMultimodalAgentD --agent-permission-settings FILE`의 출처·문법·미지원 범위는 [PermissionSettings.md](PermissionSettings.md)를 따른다.\n"
-    },
-    {
-      "id": "b000148",
-      "kind": "blank",
-      "start_line": 212,
-      "end_line": 212,
-      "raw": "\n"
-    },
-    {
-      "id": "b000149",
-      "kind": "paragraph",
-      "start_line": 213,
-      "end_line": 213,
-      "raw": "0.21.0은 `--agent-hooks FILE`로 호스트 명령 훅을 연결한다. `agent.info.hooks_enabled`는 활성 여부이고 원격 등록/변경은 제공하지 않는다. 기존 `hook` 스트림 이벤트에 명령 SHA·종료 결과·제한된 출력 진단을 전달한다. 생성/완료 작업의 게시 전 차단과 실제 에이전트 도구/종료 처리에 동일하게 적용한다. [CommandHooks.md](CommandHooks.md)를 따른다.\n"
-    },
-    {
-      "id": "b000150",
-      "kind": "blank",
-      "start_line": 214,
-      "end_line": 214,
-      "raw": "\n"
-    },
-    {
-      "id": "b000151",
-      "kind": "paragraph",
-      "start_line": 215,
-      "end_line": 215,
-      "raw": "0.22의 agent.run과 agent.inputs.run은 동일한 UserPromptSubmit·SessionStart 계약을 적용한다. 입력 차단은 RunResult status=failed/error_code=invalid_argument, continue:false는 cancelled이며 원본 메시지에 판정을 보존한다. 큐에서 확인한 차단 입력은 자동 재실행하지 않는다. 최초 활성화/새 Engine의 재개/압축 문맥을 적용하고 원격 userPrompt·sessionStartHooks·prompt_metadata는 허용하지 않는다. 기존 인증·소유권·hook 이벤트를 유지한다. [InputLifecycle.md](InputLifecycle.md)를 참조한다.\n"
-    },
-    {
-      "id": "b000152",
-      "kind": "blank",
-      "start_line": 216,
-      "end_line": 216,
-      "raw": "\n"
-    },
-    {
-      "id": "b000153",
-      "kind": "heading",
-      "start_line": 217,
-      "end_line": 217,
-      "raw": "## 0.27 앱 권한 요청\n",
-      "level": 2,
-      "title": "0.27 앱 권한 요청"
-    },
-    {
       "id": "b000154",
       "kind": "blank",
-      "start_line": 218,
-      "end_line": 218,
+      "start_line": 250,
+      "end_line": 250,
       "raw": "\n"
     },
     {
       "id": "b000155",
       "kind": "paragraph",
-      "start_line": 219,
-      "end_line": 219,
-      "raw": "인증 API/native IPC와 MCP 연결별 승인 채널, 독립 제어 처리, 훅·앱 경쟁, 취소·기한·중복 응답을 추가한다. [PermissionRequests.md](PermissionRequests.md)에 활성화·요청·응답 계약과 참조 차이를 기술한다. 전체 하네스와 실제 앱 통합 완료를 의미하지 않는다.\n"
+      "start_line": 251,
+      "end_line": 251,
+      "raw": "입력 큐의 now/next/later, 저장·복구, runQueued와 입력 전달 이벤트는 [InputQueue.md](InputQueue.md)를 따른다. 빈 큐 run은 RunResult의 not_found이며 placeholder 메시지를 추가하지 않는다. 새 요청으로 재등록하면 새 ID가 생기므로 응답 유실 시 자동 재등록으로 중복 방지를 보장하지 않는다.\n"
     },
     {
       "id": "b000156",
       "kind": "blank",
-      "start_line": 220,
-      "end_line": 220,
+      "start_line": 252,
+      "end_line": 252,
       "raw": "\n"
     },
     {
       "id": "b000157",
       "kind": "paragraph",
-      "start_line": 221,
-      "end_line": 221,
-      "raw": "0.30.0은 훅/백엔드가 작업을 `cancelled`·`shutting_down` 오류로 끝냈으나 HTTP 클라이언트는 연결된 경우에도 SSE `done` 오류와 `[DONE]`, 정상 chunk 종료를 전송한다. 실제 연결 단절이나 HTTP 서버 종료 시에는 쓰기를 중단한다. 작업 취소 오류만 보고 전송을 잘라 클라이언트에 불완전 응답을 남기지 않는다.\n"
+      "start_line": 253,
+      "end_line": 253,
+      "raw": "로컬 스킬 목록은 인증된 `agent.skills.list`로 조회한다. `agent.run`에 `skill`과 `skill_arguments`를 주면 `prompt`를 생략할 수 있다. `agent.info.skills_enabled`와 데몬의 `--agent-skills-dir`/`--agent-no-skills`를 지원한다. [스킬 계약](Skills.md)을 참조한다.\n"
     },
     {
       "id": "b000158",
       "kind": "blank",
-      "start_line": 222,
-      "end_line": 222,
+      "start_line": 254,
+      "end_line": 254,
       "raw": "\n"
     },
     {
       "id": "b000159",
       "kind": "paragraph",
-      "start_line": 223,
-      "end_line": 223,
-      "raw": "0.33.0의 비동기 명령 훅은 세션/연결별로 완료 결과를 보관하고 문맥을 notification/next로 전달한다. asyncRewake 종료 코드 2는 횟수를 제한한 유휴 실행을 요청한다. 세션 종료·clear는 훅을 취소·정리하며, 자식 Engine은 실행이 끝난 뒤 자동 기동하지 않는다. 상태/취소 메서드와 기존 요청별 권한·콜백을 재사용하지 않는 경계는 [AsyncHooks.md](AsyncHooks.md)를 따른다.\n"
+      "start_line": 255,
+      "end_line": 255,
+      "raw": "0.15.0은 C++ 서브에이전트와 `agent.agents.run/output/stop/list`, 대응 MCP·CLI 경로를 추가한다. 소유권·취소·분기·재개와 설정 계약은 [Subagents.md](Subagents.md)를 따른다.\n"
     },
     {
       "id": "b000160",
       "kind": "blank",
-      "start_line": 224,
-      "end_line": 224,
+      "start_line": 256,
+      "end_line": 256,
       "raw": "\n"
     },
     {
       "id": "b000161",
       "kind": "paragraph",
-      "start_line": 225,
-      "end_line": 225,
-      "raw": "0.34에서 agent.plan.enter/exit/get을 추가했다. 상태 조회는 예약 제어 경로이고 검토는 기존 permission requests를 사용한다. [PlanMode.md](PlanMode.md)에 계약과 남은 범위를 기록한다.\n"
+      "start_line": 257,
+      "end_line": 257,
+      "raw": "0.16.0의 `agent.agents.profiles`(MCP: `iiMultimodalAgent.agent.agents.profiles`, CLI: `agent agents profiles SESSION`)는 프로파일 메타데이터·출처·가려진 정의·오류를 반환한다. C++ 호스트는 `Subagents::attach`로 현재 프로파일을 각 턴에 연결한다. 독립 데몬과 MCP 서버의 `--agent-profiles FILE`·`--no-agent-profiles`, 모델 사용 범위와 훅 계약은 [AgentProfiles.md](AgentProfiles.md)를 따른다.\n"
     },
     {
       "id": "b000162",
       "kind": "blank",
-      "start_line": 226,
-      "end_line": 226,
+      "start_line": 258,
+      "end_line": 258,
       "raw": "\n"
     },
     {
       "id": "b000163",
       "kind": "paragraph",
-      "start_line": 227,
-      "end_line": 227,
-      "raw": "0.35는 C++ AskUserQuestion과 API·MCP 질문/답변을 추가한다. 호스트 응답, 변경 검증, 미리보기와 남은 앱 화면 범위는 [UserQuestions.md](UserQuestions.md)를 따른다.\n"
+      "start_line": 259,
+      "end_line": 259,
+      "raw": "0.17.0에서는 `context: fork` 스킬을 같은 API·MCP·CLI 호출로 별도 자식에서 실행한다. 직접 호출은 자식 결과를 반환하고 모델의 `Skill` 호출은 후속 부모 턴에 결과를 전달한다. 본문 분리·권한·모델·사용량·큐 입력과 참조 차이는 [Skills.md](Skills.md)의 별도 자식 실행 계약을 따른다.\n"
     },
     {
       "id": "b000164",
       "kind": "blank",
-      "start_line": 228,
-      "end_line": 228,
+      "start_line": 260,
+      "end_line": 260,
       "raw": "\n"
     },
     {
       "id": "b000165",
       "kind": "paragraph",
-      "start_line": 229,
-      "end_line": 229,
-      "raw": "0.40의 `agent.sessions.search`는 `session_id`와 `query`/`session_ids` 또는 `cursor`를 받아 과거 대화를 검색한다. `{text,result,is_error}` 응답, 앱별 격리, 현재 대화 제외와 페이지 수명은 [SessionHistory.md](SessionHistory.md)를 따른다.\n"
+      "start_line": 261,
+      "end_line": 261,
+      "raw": "0.18.0의 스킬 allowed-tools와 인자 권한 규칙은 [Permissions.md](Permissions.md)를 따른다. API·IPC·MCP 입력은 allowed_tools/prompt_metadata 같은 호스트 전용 권한·출처 필드를 받지 않는다. 모델 Skill의 PermissionRequested 이벤트에는 고정된 permission_preview가 있다. 원격 권한 응답 중개는 0.27의 PermissionRequests.md 계약으로 추가되었다.\n"
     },
     {
       "id": "b000166",
       "kind": "blank",
-      "start_line": 230,
-      "end_line": 230,
+      "start_line": 262,
+      "end_line": 262,
       "raw": "\n"
     },
     {
       "id": "b000167",
       "kind": "paragraph",
-      "start_line": 231,
-      "end_line": 231,
-      "raw": "0.41은 `agent.memory.dream`, `agent.memory.dream.status`, `agent.memory.dream.cancel`을 추가한다. `session_id`는 인증 앱 소유자에 한정하며 상태 페이지는 최대 8개 기록이다. 상태/취소는 예약 제어 용량을 사용한다. `agent.info.memory_dream_available`은 의존성 충족 여부, `auto_dream_enabled`는 자동 실행 설정이다. `--agent-auto-dream`으로 자동 실행하며 기본은 OFF이다. [MemoryDream.md](MemoryDream.md)에 C++·MCP·CLI와 수명 계약을 기록한다.\n"
+      "start_line": 263,
+      "end_line": 263,
+      "raw": "0.19.0의 `agent.permissions.get`은 인증된 `session_id`만 받아 현재 호스트 권한 snapshot을 반환한다. 다른 앱의 세션은 조회할 수 없으며 원격 mode·rule·설정 파일 변경은 허용하지 않는다. `iiMultimodalAgentD --agent-permission-settings FILE`의 출처·문법·미지원 범위는 [PermissionSettings.md](PermissionSettings.md)를 따른다.\n"
     },
     {
       "id": "b000168",
       "kind": "blank",
-      "start_line": 232,
-      "end_line": 233,
-      "raw": "\n\n"
+      "start_line": 264,
+      "end_line": 264,
+      "raw": "\n"
     },
     {
       "id": "b000169",
       "kind": "paragraph",
-      "start_line": 234,
-      "end_line": 234,
-      "raw": "0.42는 `agent.web.fetch(session_id,url,prompt)`, `agent.info.web_fetch_enabled`와 `agent web fetch SESSION FILE`을 추가한다. 도메인 권한·호스트 옵션·API/MCP 소유권·취소와 한도는 [WebFetch.md](WebFetch.md)를 따른다.\n"
+      "start_line": 265,
+      "end_line": 265,
+      "raw": "0.21.0은 `--agent-hooks FILE`로 호스트 명령 훅을 연결한다. `agent.info.hooks_enabled`는 활성 여부이고 원격 등록/변경은 제공하지 않는다. 기존 `hook` 스트림 이벤트에 명령 SHA·종료 결과·제한된 출력 진단을 전달한다. 생성/완료 작업의 게시 전 차단과 실제 에이전트 도구/종료 처리에 동일하게 적용한다. [CommandHooks.md](CommandHooks.md)를 따른다.\n"
     },
     {
       "id": "b000170",
       "kind": "blank",
-      "start_line": 235,
-      "end_line": 235,
+      "start_line": 266,
+      "end_line": 266,
       "raw": "\n"
     },
     {
       "id": "b000171",
       "kind": "paragraph",
-      "start_line": 236,
-      "end_line": 236,
-      "raw": "0.43은 `agent.lsp.query(session_id,operation,filePath,line,character[,query])`, `agent.lsp.status(session_id)`와 `agent.info.lsp_enabled`를 추가한다. `agent lsp query/status` CLI, `LSP`·`iiMultimodalAgent.agent.lsp.status` MCP 및 소유 서버·문서 진단 계약은 [Lsp.md](Lsp.md)를 따른다.\n"
+      "start_line": 267,
+      "end_line": 267,
+      "raw": "0.22의 agent.run과 agent.inputs.run은 동일한 UserPromptSubmit·SessionStart 계약을 적용한다. 입력 차단은 RunResult status=failed/error_code=invalid_argument, continue:false는 cancelled이며 원본 메시지에 판정을 보존한다. 큐에서 확인한 차단 입력은 자동 재실행하지 않는다. 최초 활성화/새 Engine의 재개/압축 문맥을 적용하고 원격 userPrompt·sessionStartHooks·prompt_metadata는 허용하지 않는다. 기존 인증·소유권·hook 이벤트를 유지한다. [InputLifecycle.md](InputLifecycle.md)를 참조한다.\n"
     },
     {
       "id": "b000172",
       "kind": "blank",
-      "start_line": 237,
-      "end_line": 238,
-      "raw": "\n\n"
+      "start_line": 268,
+      "end_line": 268,
+      "raw": "\n"
     },
     {
       "id": "b000173",
-      "kind": "paragraph",
-      "start_line": 239,
-      "end_line": 239,
-      "raw": "0.44의 `EnterWorktree`·`ExitWorktree`와 소유 상태 조회는 [Worktrees.md](Worktrees.md)에 정의한다. `agent.worktrees.enter/exit/status`, CLI `agent worktrees`, MCP `iiMultimodalAgent.agent.worktrees.status`가 같은 실행 경로·권한·보존 계약을 사용한다. 활성 worktree의 clear와 팀/서브에이전트 전체 격리는 남아 있다.\n"
+      "kind": "heading",
+      "start_line": 269,
+      "end_line": 269,
+      "raw": "## 0.27 앱 권한 요청\n",
+      "level": 2,
+      "title": "0.27 앱 권한 요청"
     },
     {
       "id": "b000174",
       "kind": "blank",
-      "start_line": 240,
-      "end_line": 241,
-      "raw": "\n\n"
+      "start_line": 270,
+      "end_line": 270,
+      "raw": "\n"
     },
     {
       "id": "b000175",
-      "kind": "heading",
-      "start_line": 242,
-      "end_line": 242,
-      "raw": "## Jupyter 노트북 셀 편집 (0.45)\n",
-      "level": 2,
-      "title": "Jupyter 노트북 셀 편집 (0.45)"
+      "kind": "paragraph",
+      "start_line": 271,
+      "end_line": 271,
+      "raw": "인증 API/native IPC와 MCP 연결별 승인 채널, 독립 제어 처리, 훅·앱 경쟁, 취소·기한·중복 응답을 추가한다. [PermissionRequests.md](PermissionRequests.md)에 활성화·요청·응답 계약과 참조 차이를 기술한다. 전체 하네스와 실제 앱 통합 완료를 의미하지 않는다.\n"
     },
     {
       "id": "b000176",
       "kind": "blank",
-      "start_line": 243,
-      "end_line": 243,
+      "start_line": 272,
+      "end_line": 272,
       "raw": "\n"
     },
     {
       "id": "b000177",
       "kind": "paragraph",
-      "start_line": 244,
-      "end_line": 244,
-      "raw": "C++ `NotebookEdit`와 `agent.notebooks.read/edit`, CLI `agent notebooks`, MCP `iisacc/notebooks`는 [Notebooks.md](Notebooks.md)의 읽기 선행·경로 권한·세션/revision·원자적 저장·백업 계약을 공유한다. API의 노트북 읽기는 raw UTF-8 JSON이며 kernel 실행과 셀 이미지 렌더링은 포함하지 않는다. 생산 의존성은 기존 Qt Core이며 공식 nbformat은 독립 검증에만 사용한다.\n"
+      "start_line": 273,
+      "end_line": 273,
+      "raw": "0.30.0은 훅/백엔드가 작업을 `cancelled`·`shutting_down` 오류로 끝냈으나 HTTP 클라이언트는 연결된 경우에도 SSE `done` 오류와 `[DONE]`, 정상 chunk 종료를 전송한다. 실제 연결 단절이나 HTTP 서버 종료 시에는 쓰기를 중단한다. 작업 취소 오류만 보고 전송을 잘라 클라이언트에 불완전 응답을 남기지 않는다.\n"
     },
     {
       "id": "b000178",
       "kind": "blank",
-      "start_line": 245,
-      "end_line": 245,
+      "start_line": 274,
+      "end_line": 274,
       "raw": "\n"
     },
     {
       "id": "b000179",
-      "kind": "heading",
-      "start_line": 246,
-      "end_line": 246,
-      "raw": "## 파일 체크포인트 (0.46)\n",
-      "level": 2,
-      "title": "파일 체크포인트 (0.46)"
+      "kind": "paragraph",
+      "start_line": 275,
+      "end_line": 275,
+      "raw": "0.33.0의 비동기 명령 훅은 세션/연결별로 완료 결과를 보관하고 문맥을 notification/next로 전달한다. asyncRewake 종료 코드 2는 횟수를 제한한 유휴 실행을 요청한다. 세션 종료·clear는 훅을 취소·정리하며, 자식 Engine은 실행이 끝난 뒤 자동 기동하지 않는다. 상태/취소 메서드와 기존 요청별 권한·콜백을 재사용하지 않는 경계는 [AsyncHooks.md](AsyncHooks.md)를 따른다.\n"
     },
     {
       "id": "b000180",
       "kind": "blank",
-      "start_line": 247,
-      "end_line": 247,
+      "start_line": 276,
+      "end_line": 276,
       "raw": "\n"
     },
     {
       "id": "b000181",
       "kind": "paragraph",
-      "start_line": 248,
-      "end_line": 248,
-      "raw": "C++ 네이티브 Write·Edit·NotebookEdit의 원본을 사용자 메시지 경계에 기록하고 목록·수동 생성·파일 복원을 제공한다. 인증 API의 `agent.checkpoints.*`, CLI의 `agent checkpoints`, 연결 소유자에 묶인 MCP `iiMultimodalAgent.agent.checkpoints.*`가 같은 Engine을 사용한다. 저장 한도, 세션 잠금, preview·권한·작업 트리 경계와 남은 참조 기능은 [FileCheckpoints.md](FileCheckpoints.md)에 기록한다. 전체 대응 상태는 27 partial·4 pending·0 complete를 유지한다.\n"
+      "start_line": 277,
+      "end_line": 277,
+      "raw": "0.34에서 agent.plan.enter/exit/get을 추가했다. 상태 조회는 예약 제어 경로이고 검토는 기존 permission requests를 사용한다. [PlanMode.md](PlanMode.md)에 계약과 남은 범위를 기록한다.\n"
     },
     {
       "id": "b000182",
       "kind": "blank",
-      "start_line": 249,
-      "end_line": 249,
+      "start_line": 278,
+      "end_line": 278,
       "raw": "\n"
     },
     {
       "id": "b000183",
       "kind": "paragraph",
-      "start_line": 250,
-      "end_line": 250,
+      "start_line": 279,
+      "end_line": 279,
+      "raw": "0.35는 C++ AskUserQuestion과 API·MCP 질문/답변을 추가한다. 호스트 응답, 변경 검증, 미리보기와 남은 앱 화면 범위는 [UserQuestions.md](UserQuestions.md)를 따른다.\n"
+    },
+    {
+      "id": "b000184",
+      "kind": "blank",
+      "start_line": 280,
+      "end_line": 280,
+      "raw": "\n"
+    },
+    {
+      "id": "b000185",
+      "kind": "paragraph",
+      "start_line": 281,
+      "end_line": 281,
+      "raw": "0.40의 `agent.sessions.search`는 `session_id`와 `query`/`session_ids` 또는 `cursor`를 받아 과거 대화를 검색한다. `{text,result,is_error}` 응답, 앱별 격리, 현재 대화 제외와 페이지 수명은 [SessionHistory.md](SessionHistory.md)를 따른다.\n"
+    },
+    {
+      "id": "b000186",
+      "kind": "blank",
+      "start_line": 282,
+      "end_line": 282,
+      "raw": "\n"
+    },
+    {
+      "id": "b000187",
+      "kind": "paragraph",
+      "start_line": 283,
+      "end_line": 283,
+      "raw": "0.41은 `agent.memory.dream`, `agent.memory.dream.status`, `agent.memory.dream.cancel`을 추가한다. `session_id`는 인증 앱 소유자에 한정하며 상태 페이지는 최대 8개 기록이다. 상태/취소는 예약 제어 용량을 사용한다. `agent.info.memory_dream_available`은 의존성 충족 여부, `auto_dream_enabled`는 자동 실행 설정이다. `--agent-auto-dream`으로 자동 실행하며 기본은 OFF이다. [MemoryDream.md](MemoryDream.md)에 C++·MCP·CLI와 수명 계약을 기록한다.\n"
+    },
+    {
+      "id": "b000188",
+      "kind": "blank",
+      "start_line": 284,
+      "end_line": 285,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000189",
+      "kind": "paragraph",
+      "start_line": 286,
+      "end_line": 286,
+      "raw": "0.42는 `agent.web.fetch(session_id,url,prompt)`, `agent.info.web_fetch_enabled`와 `agent web fetch SESSION FILE`을 추가한다. 도메인 권한·호스트 옵션·API/MCP 소유권·취소와 한도는 [WebFetch.md](WebFetch.md)를 따른다.\n"
+    },
+    {
+      "id": "b000190",
+      "kind": "blank",
+      "start_line": 287,
+      "end_line": 287,
+      "raw": "\n"
+    },
+    {
+      "id": "b000191",
+      "kind": "paragraph",
+      "start_line": 288,
+      "end_line": 288,
+      "raw": "0.43은 `agent.lsp.query(session_id,operation,filePath,line,character[,query])`, `agent.lsp.status(session_id)`와 `agent.info.lsp_enabled`를 추가한다. `agent lsp query/status` CLI, `LSP`·`iiMultimodalAgent.agent.lsp.status` MCP 및 소유 서버·문서 진단 계약은 [Lsp.md](Lsp.md)를 따른다.\n"
+    },
+    {
+      "id": "b000192",
+      "kind": "blank",
+      "start_line": 289,
+      "end_line": 290,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000193",
+      "kind": "paragraph",
+      "start_line": 291,
+      "end_line": 291,
+      "raw": "0.44의 `EnterWorktree`·`ExitWorktree`와 소유 상태 조회는 [Worktrees.md](Worktrees.md)에 정의한다. `agent.worktrees.enter/exit/status`, CLI `agent worktrees`, MCP `iiMultimodalAgent.agent.worktrees.status`가 같은 실행 경로·권한·보존 계약을 사용한다. 활성 worktree의 clear와 팀/서브에이전트 전체 격리는 남아 있다.\n"
+    },
+    {
+      "id": "b000194",
+      "kind": "blank",
+      "start_line": 292,
+      "end_line": 293,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000195",
+      "kind": "heading",
+      "start_line": 294,
+      "end_line": 294,
+      "raw": "## Jupyter 노트북 셀 편집 (0.45)\n",
+      "level": 2,
+      "title": "Jupyter 노트북 셀 편집 (0.45)"
+    },
+    {
+      "id": "b000196",
+      "kind": "blank",
+      "start_line": 295,
+      "end_line": 295,
+      "raw": "\n"
+    },
+    {
+      "id": "b000197",
+      "kind": "paragraph",
+      "start_line": 296,
+      "end_line": 296,
+      "raw": "C++ `NotebookEdit`와 `agent.notebooks.read/edit`, CLI `agent notebooks`, MCP `iisacc/notebooks`는 [Notebooks.md](Notebooks.md)의 읽기 선행·경로 권한·세션/revision·원자적 저장·백업 계약을 공유한다. API의 노트북 읽기는 raw UTF-8 JSON이며 kernel 실행과 셀 이미지 렌더링은 포함하지 않는다. 생산 의존성은 기존 Qt Core이며 공식 nbformat은 독립 검증에만 사용한다.\n"
+    },
+    {
+      "id": "b000198",
+      "kind": "blank",
+      "start_line": 297,
+      "end_line": 297,
+      "raw": "\n"
+    },
+    {
+      "id": "b000199",
+      "kind": "heading",
+      "start_line": 298,
+      "end_line": 298,
+      "raw": "## 파일 체크포인트 (0.46)\n",
+      "level": 2,
+      "title": "파일 체크포인트 (0.46)"
+    },
+    {
+      "id": "b000200",
+      "kind": "blank",
+      "start_line": 299,
+      "end_line": 299,
+      "raw": "\n"
+    },
+    {
+      "id": "b000201",
+      "kind": "paragraph",
+      "start_line": 300,
+      "end_line": 300,
+      "raw": "C++ 네이티브 Write·Edit·NotebookEdit의 원본을 사용자 메시지 경계에 기록하고 목록·수동 생성·파일 복원을 제공한다. 인증 API의 `agent.checkpoints.*`, CLI의 `agent checkpoints`, 연결 소유자에 묶인 MCP `iiMultimodalAgent.agent.checkpoints.*`가 같은 Engine을 사용한다. 저장 한도, 세션 잠금, preview·권한·작업 트리 경계와 남은 참조 기능은 [FileCheckpoints.md](FileCheckpoints.md)에 기록한다. 전체 대응 상태는 27 partial·4 pending·0 complete를 유지한다.\n"
+    },
+    {
+      "id": "b000202",
+      "kind": "blank",
+      "start_line": 301,
+      "end_line": 301,
+      "raw": "\n"
+    },
+    {
+      "id": "b000203",
+      "kind": "paragraph",
+      "start_line": 302,
+      "end_line": 302,
       "raw": "0.47부터 `agent.sessions.fork`는 artifact와 파일 체크포인트를 독립 복사한다. thin CLI도 `agent sessions fork SESSION [PARAMS_JSON_FILE]`을 제공한다. 범위와 실패 정리는 [SessionFork.md](SessionFork.md)를 따른다.\n"
     }
   ],
@@ -1478,105 +1629,113 @@
       "block_id": "b000053",
       "parent_id": "b000007",
       "level": 2,
-      "title": "HTTP",
-      "anchor": "http",
+      "title": "외부 GraphQL API 직접 호출",
+      "anchor": "외부-graphql-api-직접-호출",
       "start_line": 75
     },
     {
-      "block_id": "b000067",
+      "block_id": "b000073",
+      "parent_id": "b000007",
+      "level": 2,
+      "title": "HTTP",
+      "anchor": "http",
+      "start_line": 127
+    },
+    {
+      "block_id": "b000087",
       "parent_id": "b000007",
       "level": 2,
       "title": "Native IPC와 CLI",
       "anchor": "native-ipc와-cli",
-      "start_line": 99
+      "start_line": 151
     },
     {
-      "block_id": "b000083",
+      "block_id": "b000103",
       "parent_id": "b000007",
       "level": 2,
       "title": "C++ 앱에 연결",
       "anchor": "c-앱에-연결",
-      "start_line": 122
+      "start_line": 174
     },
     {
-      "block_id": "b000089",
+      "block_id": "b000109",
       "parent_id": "b000007",
       "level": 2,
       "title": "수명·제한·복구",
       "anchor": "수명제한복구",
-      "start_line": 146
+      "start_line": 198
     },
     {
-      "block_id": "b000101",
+      "block_id": "b000121",
       "parent_id": "b000007",
       "level": 2,
       "title": "프로젝트 지침",
       "anchor": "프로젝트-지침",
-      "start_line": 158
+      "start_line": 210
     },
     {
-      "block_id": "b000107",
+      "block_id": "b000127",
       "parent_id": "b000007",
       "level": 2,
       "title": "수동 대화 압축 (0.6.0)",
       "anchor": "수동-대화-압축-060",
-      "start_line": 164
+      "start_line": 216
     },
     {
-      "block_id": "b000111",
+      "block_id": "b000131",
       "parent_id": "b000007",
       "level": 2,
       "title": "0.9.0 MCP 연결 관리와 도구 검색",
       "anchor": "090-mcp-연결-관리와-도구-검색",
-      "start_line": 168
+      "start_line": 220
     },
     {
-      "block_id": "b000115",
+      "block_id": "b000135",
       "parent_id": "b000007",
       "level": 2,
       "title": "작업·Todo API (0.11.0)",
       "anchor": "작업todo-api-0110",
-      "start_line": 172
+      "start_line": 224
     },
     {
-      "block_id": "b000119",
+      "block_id": "b000139",
       "parent_id": "b000007",
       "level": 2,
       "title": "백그라운드 셸 API (0.12.0)",
       "anchor": "백그라운드-셸-api-0120",
-      "start_line": 176
+      "start_line": 228
     },
     {
-      "block_id": "b000125",
+      "block_id": "b000145",
       "parent_id": "b000007",
       "level": 2,
       "title": "입력 큐 API (0.13.0)",
       "anchor": "입력-큐-api-0130",
-      "start_line": 182
+      "start_line": 234
     },
     {
-      "block_id": "b000153",
+      "block_id": "b000173",
       "parent_id": "b000007",
       "level": 2,
       "title": "0.27 앱 권한 요청",
       "anchor": "027-앱-권한-요청",
-      "start_line": 217
+      "start_line": 269
     },
     {
-      "block_id": "b000175",
+      "block_id": "b000195",
       "parent_id": "b000007",
       "level": 2,
       "title": "Jupyter 노트북 셀 편집 (0.45)",
       "anchor": "jupyter-노트북-셀-편집-045",
-      "start_line": 242
+      "start_line": 294
     },
     {
-      "block_id": "b000179",
+      "block_id": "b000199",
       "parent_id": "b000007",
       "level": 2,
       "title": "파일 체크포인트 (0.46)",
       "anchor": "파일-체크포인트-046",
-      "start_line": 246
+      "start_line": 298
     }
   ],
   "indexes": {
@@ -1666,85 +1825,113 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000065",
-        "line": 97,
+        "block_id": "b000059",
+        "line": 89,
+        "text": "기한·응답 바이트 한도를 준수하고 GraphQL 응답 객체를 반환해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000061",
+        "line": 94,
+        "text": "있는 HTTPS 엔드포인트에 사용해야 한다. 설정한 엔드포인트와 인증 정보는 해당",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000067",
+        "line": 115,
+        "text": "없으면 `result.not_executed: true`로 보류될 수 있으므로 호출 결과를 확인해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000069",
+        "line": 121,
+        "text": "이는 외부 GraphQL 서비스, 실제 모델 추론 또는 다른 운영체제의 실행 검증을 뜻하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000085",
+        "line": 149,
         "text": "`rpc.data`는 에이전트 Event 원본에 요청별 sequence를 더한 객체다. 위 예시는 필드 일부를 생략했다. tool_call_id·메시지·도구 결과 등도 기존 Event 계약을 보존한다. 최종 응답은 앞선 이벤트를 추월하지 않는다. 출력 제한·시간 초과로 스트림이 실패하면 done 프레임의 error를 확인한다. 헤더를 보낸 이후에는 HTTP 상태 코드를 바꿀 수 없다. 연결이 끊기면 종료 프레임 전송을 보장하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000073",
-        "line": 107,
+        "block_id": "b000093",
+        "line": 159,
         "text": "먼저 accepted/request_id, 이어서 `event:\"rpc\"`의 이벤트들을 받는다. native IPC의 마지막 줄은 기존 계약에 따라 `{\"id\":\"run-1\",\"result\":{...}}` 또는 error이며 HTTP의 done 표시를 사용하지 않는다. request_id는 수락한 RPC ID, 내부 run_id는 Engine 실행 ID로 서로 다르다. 취소·조회에는 request_id를 사용한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000087",
-        "line": 144,
+        "block_id": "b000107",
+        "line": 196,
         "text": "앱 고유 기능은 기존 ToolRegistry에 등록하거나 `mcpTools`로 연결한다. 호스트가 API 인스턴스 하나를 두 전송에 주입해야 인증·세션·진행 요청을 공유한다. 전송은 하위 `RpcHandler` 인터페이스만 참조하며 `agent::Api`를 참조하지 않는다. handler 교체는 서버가 닫힌 동안만 가능하다. 같은 API의 모델·registry·policy는 모든 등록 클라이언트가 공유하므로 도구 권한이 다른 앱은 별도 API/서버로 제공한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000123",
-        "line": 180,
+        "block_id": "b000143",
+        "line": 232,
         "text": "실행 중인 에이전트와 독립적으로 조회·중단한다. 출력 조회의 남은 API 기한이 요청한 대기 시간보다 짧으면 그 기한으로 제한하고, 아직 실행 중일 경우 timeout 오류를 반환한다. 조회 취소·기한 만료는 셸을 종료하지 않는다. 다른 앱이나 대화의 작업 ID는 접근할 수 없다. 재시작 기록, 바이트 페이징과 명시적 종료 계약은 [BackgroundTasks.md](BackgroundTasks.md)를 참조한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000131",
-        "line": 193,
+        "block_id": "b000151",
+        "line": 245,
         "text": "등록·조회·삭제는 실행 중 transcript 잠금을 요청하지 않고 불변 세션 메타데이터로 소유권을 확인한다. 별도 제어 풀은 기본 동시 2개·대기 16개이며 C++ `ApiOptions.maxConcurrentInputControls/maxQueuedInputControls`로 지정한다. 풀 포화는 QueueFull이다. HTTP/native 전송 슬롯도 별도로 확보해야 한다. run은 일반 API 실행 풀을 사용한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000135",
-        "line": 199,
+        "block_id": "b000155",
+        "line": 251,
         "text": "입력 큐의 now/next/later, 저장·복구, runQueued와 입력 전달 이벤트는 [InputQueue.md](InputQueue.md)를 따른다. 빈 큐 run은 RunResult의 not_found이며 placeholder 메시지를 추가하지 않는다. 새 요청으로 재등록하면 새 ID가 생기므로 응답 유실 시 자동 재등록으로 중복 방지를 보장하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000147",
-        "line": 211,
+        "block_id": "b000167",
+        "line": 263,
         "text": "0.19.0의 `agent.permissions.get`은 인증된 `session_id`만 받아 현재 호스트 권한 snapshot을 반환한다. 다른 앱의 세션은 조회할 수 없으며 원격 mode·rule·설정 파일 변경은 허용하지 않는다. `iiMultimodalAgentD --agent-permission-settings FILE`의 출처·문법·미지원 범위는 [PermissionSettings.md](PermissionSettings.md)를 따른다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000149",
-        "line": 213,
+        "block_id": "b000169",
+        "line": 265,
         "text": "0.21.0은 `--agent-hooks FILE`로 호스트 명령 훅을 연결한다. `agent.info.hooks_enabled`는 활성 여부이고 원격 등록/변경은 제공하지 않는다. 기존 `hook` 스트림 이벤트에 명령 SHA·종료 결과·제한된 출력 진단을 전달한다. 생성/완료 작업의 게시 전 차단과 실제 에이전트 도구/종료 처리에 동일하게 적용한다. [CommandHooks.md](CommandHooks.md)를 따른다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000151",
-        "line": 215,
+        "block_id": "b000171",
+        "line": 267,
         "text": "0.22의 agent.run과 agent.inputs.run은 동일한 UserPromptSubmit·SessionStart 계약을 적용한다. 입력 차단은 RunResult status=failed/error_code=invalid_argument, continue:false는 cancelled이며 원본 메시지에 판정을 보존한다. 큐에서 확인한 차단 입력은 자동 재실행하지 않는다. 최초 활성화/새 Engine의 재개/압축 문맥을 적용하고 원격 userPrompt·sessionStartHooks·prompt_metadata는 허용하지 않는다. 기존 인증·소유권·hook 이벤트를 유지한다. [InputLifecycle.md](InputLifecycle.md)를 참조한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000155",
-        "line": 219,
+        "block_id": "b000175",
+        "line": 271,
         "text": "인증 API/native IPC와 MCP 연결별 승인 채널, 독립 제어 처리, 훅·앱 경쟁, 취소·기한·중복 응답을 추가한다. [PermissionRequests.md](PermissionRequests.md)에 활성화·요청·응답 계약과 참조 차이를 기술한다. 전체 하네스와 실제 앱 통합 완료를 의미하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000159",
-        "line": 223,
+        "block_id": "b000179",
+        "line": 275,
         "text": "0.33.0의 비동기 명령 훅은 세션/연결별로 완료 결과를 보관하고 문맥을 notification/next로 전달한다. asyncRewake 종료 코드 2는 횟수를 제한한 유휴 실행을 요청한다. 세션 종료·clear는 훅을 취소·정리하며, 자식 Engine은 실행이 끝난 뒤 자동 기동하지 않는다. 상태/취소 메서드와 기존 요청별 권한·콜백을 재사용하지 않는 경계는 [AsyncHooks.md](AsyncHooks.md)를 따른다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000177",
-        "line": 244,
+        "block_id": "b000197",
+        "line": 296,
         "text": "C++ `NotebookEdit`와 `agent.notebooks.read/edit`, CLI `agent notebooks`, MCP `iisacc/notebooks`는 [Notebooks.md](Notebooks.md)의 읽기 선행·경로 권한·세션/revision·원자적 저장·백업 계약을 공유한다. API의 노트북 읽기는 raw UTF-8 JSON이며 kernel 실행과 셀 이미지 렌더링은 포함하지 않는다. 생산 의존성은 기존 Qt Core이며 공식 nbformat은 독립 검증에만 사용한다.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -1757,7 +1944,7 @@
         "code": "chmod 600 private/clients.json\niiMultimodalAgentD --models-root Models --context-tokens 4096 \\\n  --socket private/llm.sock --http-port 50891 \\\n  --agent-workspace workspace --agent-state private/agent \\\n  --agent-credentials private/clients.json\n"
       },
       {
-        "block_id": "b000077",
+        "block_id": "b000097",
         "language": "sh",
         "code": "chmod 600 private/society-token\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.info\niillm --socket private/llm.sock --auth-file private/society-token rpc agent.sessions.create create.json\niillm --socket private/llm.sock --auth-file private/society-token --json rpc agent.run run.json\n"
       }
@@ -1827,200 +2014,207 @@
         "line": 23
       },
       {
-        "block_id": "b000093",
-        "label": "ControlCapacity.md",
-        "target": "../../iiLocalLLM/docs/ControlCapacity.md",
+        "block_id": "b000067",
+        "label": "경제적 실행 판단",
+        "target": "DecisionGate.md",
         "kind": "relative",
-        "line": 150
-      },
-      {
-        "block_id": "b000099",
-        "label": "Verification.md",
-        "target": "../../iiLocalLLM/docs/Verification.md",
-        "kind": "relative",
-        "line": 156
-      },
-      {
-        "block_id": "b000105",
-        "label": "ProjectContext.md",
-        "target": "ProjectContext.md",
-        "kind": "relative",
-        "line": 162
-      },
-      {
-        "block_id": "b000109",
-        "label": "Compaction.md",
-        "target": "Compaction.md",
-        "kind": "relative",
-        "line": 166
+        "line": 114
       },
       {
         "block_id": "b000113",
+        "label": "ControlCapacity.md",
+        "target": "../../iiLocalLLM/docs/ControlCapacity.md",
+        "kind": "relative",
+        "line": 202
+      },
+      {
+        "block_id": "b000119",
+        "label": "Verification.md",
+        "target": "../../iiLocalLLM/docs/Verification.md",
+        "kind": "relative",
+        "line": 208
+      },
+      {
+        "block_id": "b000125",
+        "label": "ProjectContext.md",
+        "target": "ProjectContext.md",
+        "kind": "relative",
+        "line": 214
+      },
+      {
+        "block_id": "b000129",
+        "label": "Compaction.md",
+        "target": "Compaction.md",
+        "kind": "relative",
+        "line": 218
+      },
+      {
+        "block_id": "b000133",
         "label": "ToolDiscovery.md",
         "target": "ToolDiscovery.md",
         "kind": "relative",
-        "line": 170
-      },
-      {
-        "block_id": "b000117",
-        "label": "Tasks.md",
-        "target": "Tasks.md",
-        "kind": "relative",
-        "line": 174
-      },
-      {
-        "block_id": "b000123",
-        "label": "BackgroundTasks.md",
-        "target": "BackgroundTasks.md",
-        "kind": "relative",
-        "line": 180
-      },
-      {
-        "block_id": "b000135",
-        "label": "InputQueue.md",
-        "target": "InputQueue.md",
-        "kind": "relative",
-        "line": 199
+        "line": 222
       },
       {
         "block_id": "b000137",
-        "label": "스킬 계약",
-        "target": "Skills.md",
+        "label": "Tasks.md",
+        "target": "Tasks.md",
         "kind": "relative",
-        "line": 201
-      },
-      {
-        "block_id": "b000139",
-        "label": "Subagents.md",
-        "target": "Subagents.md",
-        "kind": "relative",
-        "line": 203
-      },
-      {
-        "block_id": "b000141",
-        "label": "AgentProfiles.md",
-        "target": "AgentProfiles.md",
-        "kind": "relative",
-        "line": 205
+        "line": 226
       },
       {
         "block_id": "b000143",
-        "label": "Skills.md",
-        "target": "Skills.md",
+        "label": "BackgroundTasks.md",
+        "target": "BackgroundTasks.md",
         "kind": "relative",
-        "line": 207
-      },
-      {
-        "block_id": "b000145",
-        "label": "Permissions.md",
-        "target": "Permissions.md",
-        "kind": "relative",
-        "line": 209
-      },
-      {
-        "block_id": "b000147",
-        "label": "PermissionSettings.md",
-        "target": "PermissionSettings.md",
-        "kind": "relative",
-        "line": 211
-      },
-      {
-        "block_id": "b000149",
-        "label": "CommandHooks.md",
-        "target": "CommandHooks.md",
-        "kind": "relative",
-        "line": 213
-      },
-      {
-        "block_id": "b000151",
-        "label": "InputLifecycle.md",
-        "target": "InputLifecycle.md",
-        "kind": "relative",
-        "line": 215
+        "line": 232
       },
       {
         "block_id": "b000155",
-        "label": "PermissionRequests.md",
-        "target": "PermissionRequests.md",
+        "label": "InputQueue.md",
+        "target": "InputQueue.md",
         "kind": "relative",
-        "line": 219
+        "line": 251
+      },
+      {
+        "block_id": "b000157",
+        "label": "스킬 계약",
+        "target": "Skills.md",
+        "kind": "relative",
+        "line": 253
       },
       {
         "block_id": "b000159",
-        "label": "AsyncHooks.md",
-        "target": "AsyncHooks.md",
+        "label": "Subagents.md",
+        "target": "Subagents.md",
         "kind": "relative",
-        "line": 223
+        "line": 255
       },
       {
         "block_id": "b000161",
-        "label": "PlanMode.md",
-        "target": "PlanMode.md",
+        "label": "AgentProfiles.md",
+        "target": "AgentProfiles.md",
         "kind": "relative",
-        "line": 225
+        "line": 257
       },
       {
         "block_id": "b000163",
-        "label": "UserQuestions.md",
-        "target": "UserQuestions.md",
+        "label": "Skills.md",
+        "target": "Skills.md",
         "kind": "relative",
-        "line": 227
+        "line": 259
       },
       {
         "block_id": "b000165",
-        "label": "SessionHistory.md",
-        "target": "SessionHistory.md",
+        "label": "Permissions.md",
+        "target": "Permissions.md",
         "kind": "relative",
-        "line": 229
+        "line": 261
       },
       {
         "block_id": "b000167",
-        "label": "MemoryDream.md",
-        "target": "MemoryDream.md",
+        "label": "PermissionSettings.md",
+        "target": "PermissionSettings.md",
         "kind": "relative",
-        "line": 231
+        "line": 263
       },
       {
         "block_id": "b000169",
-        "label": "WebFetch.md",
-        "target": "WebFetch.md",
+        "label": "CommandHooks.md",
+        "target": "CommandHooks.md",
         "kind": "relative",
-        "line": 234
+        "line": 265
       },
       {
         "block_id": "b000171",
-        "label": "Lsp.md",
-        "target": "Lsp.md",
+        "label": "InputLifecycle.md",
+        "target": "InputLifecycle.md",
         "kind": "relative",
-        "line": 236
+        "line": 267
       },
       {
-        "block_id": "b000173",
-        "label": "Worktrees.md",
-        "target": "Worktrees.md",
+        "block_id": "b000175",
+        "label": "PermissionRequests.md",
+        "target": "PermissionRequests.md",
         "kind": "relative",
-        "line": 239
+        "line": 271
       },
       {
-        "block_id": "b000177",
-        "label": "Notebooks.md",
-        "target": "Notebooks.md",
+        "block_id": "b000179",
+        "label": "AsyncHooks.md",
+        "target": "AsyncHooks.md",
         "kind": "relative",
-        "line": 244
+        "line": 275
       },
       {
         "block_id": "b000181",
-        "label": "FileCheckpoints.md",
-        "target": "FileCheckpoints.md",
+        "label": "PlanMode.md",
+        "target": "PlanMode.md",
         "kind": "relative",
-        "line": 248
+        "line": 277
       },
       {
         "block_id": "b000183",
+        "label": "UserQuestions.md",
+        "target": "UserQuestions.md",
+        "kind": "relative",
+        "line": 279
+      },
+      {
+        "block_id": "b000185",
+        "label": "SessionHistory.md",
+        "target": "SessionHistory.md",
+        "kind": "relative",
+        "line": 281
+      },
+      {
+        "block_id": "b000187",
+        "label": "MemoryDream.md",
+        "target": "MemoryDream.md",
+        "kind": "relative",
+        "line": 283
+      },
+      {
+        "block_id": "b000189",
+        "label": "WebFetch.md",
+        "target": "WebFetch.md",
+        "kind": "relative",
+        "line": 286
+      },
+      {
+        "block_id": "b000191",
+        "label": "Lsp.md",
+        "target": "Lsp.md",
+        "kind": "relative",
+        "line": 288
+      },
+      {
+        "block_id": "b000193",
+        "label": "Worktrees.md",
+        "target": "Worktrees.md",
+        "kind": "relative",
+        "line": 291
+      },
+      {
+        "block_id": "b000197",
+        "label": "Notebooks.md",
+        "target": "Notebooks.md",
+        "kind": "relative",
+        "line": 296
+      },
+      {
+        "block_id": "b000201",
+        "label": "FileCheckpoints.md",
+        "target": "FileCheckpoints.md",
+        "kind": "relative",
+        "line": 300
+      },
+      {
+        "block_id": "b000203",
         "label": "SessionFork.md",
         "target": "SessionFork.md",
         "kind": "relative",
-        "line": 250
+        "line": 302
       }
     ],
     "tables": [
@@ -2080,7 +2274,7 @@
         ]
       },
       {
-        "block_id": "b000129",
+        "block_id": "b000149",
         "columns": [
           "메서드",
           "매개변수",

@@ -1,6 +1,17 @@
 if(BUILD_TESTING)
+    string(RANDOM LENGTH 16 ALPHABET 0123456789abcdef _test_id)
+    set(_test_state "${CMAKE_CURRENT_SOURCE_DIR}/resources/.state")
+    set(_test_output "${_test_state}/tests-${_test_id}")
     include(tests/RuntimeBindings.cmake)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
+    add_executable(iiMultimodalAgentGraphQLTests tests/graphql_tests.cpp)
+    target_link_libraries(iiMultimodalAgentGraphQLTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
+    set_target_properties(iiMultimodalAgentGraphQLTests PROPERTIES AUTOMOC ON)
+    if(UNIX)
+        add_dependencies(iiMultimodalAgentGraphQLTests iiMultimodalAgentMcpServer iiMultimodalAgentD iimagent)
+    endif()
+    add_test(NAME iiMultimodalAgent.graphql COMMAND iiMultimodalAgentGraphQLTests)
+    set_tests_properties(iiMultimodalAgent.graphql PROPERTIES TIMEOUT 240 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources")
     add_executable(iiMultimodalAgentSemanticRagTests tests/semantic_rag_tests.cpp)
     target_link_libraries(iiMultimodalAgentSemanticRagTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentSemanticRagTests PROPERTIES AUTOMOC ON)
@@ -129,7 +140,7 @@ if(BUILD_TESTING)
             endif()
             if(IIMULTIMODALAGENT_TEST_${_kind}_PACKAGE AND _media)
                 add_test(NAME iiMultimodalAgent.multimodal_${_mode}_inference COMMAND iiMultimodalAgentMultimodalRuntimeSmoke
-                    "${_mode}" "${IIMULTIMODALAGENT_TEST_${_kind}_PACKAGE}" "${_media}" "${CMAKE_CURRENT_BINARY_DIR}/multimodal-${_mode}.json")
+                    "${_mode}" "${IIMULTIMODALAGENT_TEST_${_kind}_PACKAGE}" "${_media}" "${_test_output}/multimodal-${_mode}.json")
                 set_tests_properties(iiMultimodalAgent.multimodal_${_mode}_inference PROPERTIES TIMEOUT 240)
             endif()
         endforeach()
@@ -160,7 +171,7 @@ if(BUILD_TESTING)
     target_link_libraries(iiMultimodalAgentInputQueueTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentInputQueueTests PROPERTIES AUTOMOC ON)
     add_test(NAME iiMultimodalAgent.input_queue COMMAND iiMultimodalAgentInputQueueTests
-        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/input-queue-tests.txt,txt")
+        -o -,txt -o "${_test_output}/input-queue-tests.txt,txt")
     set_tests_properties(iiMultimodalAgent.input_queue PROPERTIES TIMEOUT 90)
     add_executable(iiMultimodalAgentPlanModeRuntimeSmoke tests/plan_mode_runtime_smoke.cpp)
     target_link_libraries(iiMultimodalAgentPlanModeRuntimeSmoke PRIVATE iiMultimodalAgent)
@@ -219,7 +230,7 @@ if(BUILD_TESTING)
     target_link_libraries(iiMultimodalAgentProjectMemoryEngineTests PRIVATE iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentProjectMemoryEngineTests PROPERTIES AUTOMOC ON)
     add_test(NAME iiMultimodalAgent.project_memory_engine COMMAND iiMultimodalAgentProjectMemoryEngineTests
-        -o "${CMAKE_CURRENT_BINARY_DIR}/project-memory-engine-qt.txt,txt")
+        -o "${_test_output}/project-memory-engine-qt.txt,txt")
     add_executable(iiMultimodalAgentMemoryRecallTests tests/memory_recall_tests.cpp)
     target_link_libraries(iiMultimodalAgentMemoryRecallTests PRIVATE iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentMemoryRecallTests PROPERTIES AUTOMOC ON)
@@ -296,7 +307,7 @@ if(BUILD_TESTING)
     target_link_libraries(iiMultimodalAgentPermissionUpdatesTests PRIVATE iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentPermissionUpdatesTests PROPERTIES AUTOMOC ON)
     add_test(NAME iiMultimodalAgent.permission_updates COMMAND iiMultimodalAgentPermissionUpdatesTests
-        -o "${CMAKE_CURRENT_BINARY_DIR}/permission-updates-qt.txt,txt")
+        -o "${_test_output}/permission-updates-qt.txt,txt")
     set_tests_properties(iiMultimodalAgent.permission_updates PROPERTIES TIMEOUT 90)
     add_executable(iiMultimodalAgentPermissionRequestsTests tests/permission_requests_tests.cpp)
     target_link_libraries(iiMultimodalAgentPermissionRequestsTests PRIVATE iiMultimodalAgent Qt6::Test)
@@ -312,7 +323,7 @@ if(BUILD_TESTING)
     target_link_libraries(iiMultimodalAgentTaskTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentTaskTests PROPERTIES AUTOMOC ON)
     add_test(NAME iiMultimodalAgent.tasks COMMAND iiMultimodalAgentTaskTests
-        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/task-tests.txt,txt")
+        -o -,txt -o "${_test_output}/task-tests.txt,txt")
     set_tests_properties(iiMultimodalAgent.tasks PROPERTIES TIMEOUT 90)
     add_executable(iiMultimodalAgentLocalApplicationTests tests/local_applications_tests.cpp)
     target_link_libraries(iiMultimodalAgentLocalApplicationTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
@@ -328,7 +339,7 @@ if(BUILD_TESTING)
     target_link_libraries(iiMultimodalAgentCompactionTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentCompactionTests PROPERTIES AUTOMOC ON)
     add_test(NAME iiMultimodalAgent.compaction COMMAND iiMultimodalAgentCompactionTests
-        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/compaction-tests.txt,txt")
+        -o -,txt -o "${_test_output}/compaction-tests.txt,txt")
     set_tests_properties(iiMultimodalAgent.compaction PROPERTIES TIMEOUT 60)
     add_executable(iiMultimodalAgentContextTests tests/context_tests.cpp)
     target_link_libraries(iiMultimodalAgentContextTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
@@ -405,7 +416,7 @@ if(BUILD_TESTING)
     target_link_libraries(iiMultimodalAgentAgentProfileTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
     set_target_properties(iiMultimodalAgentAgentProfileTests PROPERTIES AUTOMOC ON)
     add_test(NAME iiMultimodalAgent.agent_profiles COMMAND iiMultimodalAgentAgentProfileTests
-        -o -,txt -o "${CMAKE_CURRENT_BINARY_DIR}/agent-profile-tests.txt,txt")
+        -o -,txt -o "${_test_output}/agent-profile-tests.txt,txt")
     set_tests_properties(iiMultimodalAgent.agent_profiles PROPERTIES TIMEOUT 60)
     add_executable(iiMultimodalAgentSubagentTests tests/subagent_tests.cpp)
     target_link_libraries(iiMultimodalAgentSubagentTests PRIVATE iiMultimodalAgent::iiMultimodalAgent Qt6::Test)
@@ -482,11 +493,11 @@ if(BUILD_TESTING)
         if(UNIX)
             add_test(NAME iiMultimodalAgent.mcp_server_official COMMAND "${IIMULTIMODALAGENT_TEST_MCP_PYTHON}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/mcp_server_smoke.py" $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                --report "${CMAKE_CURRENT_BINARY_DIR}/mcp-server-official-result.json")
+                --report "${_test_output}/mcp-server-official-result.json")
             set_tests_properties(iiMultimodalAgent.mcp_server_official PROPERTIES TIMEOUT 60)
             add_test(NAME iiMultimodalAgent.mcp_http_server_official COMMAND "${IIMULTIMODALAGENT_TEST_MCP_PYTHON}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/mcp_server_smoke.py" $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                --http --report "${CMAKE_CURRENT_BINARY_DIR}/mcp-http-server-official-result.json")
+                --http --report "${_test_output}/mcp-http-server-official-result.json")
             set_tests_properties(iiMultimodalAgent.mcp_http_server_official PROPERTIES TIMEOUT 60)
         endif()
     endif()
@@ -508,58 +519,58 @@ if(BUILD_TESTING)
             set(_cli_fixture "${IIMULTIMODALAGENT_TEST_GGUF}")
         endif()
         add_test(NAME iiMultimodalAgent.agent_api_daemon COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/agent_api_smoke.py
-            $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> --report "${CMAKE_CURRENT_BINARY_DIR}/agent-api-daemon-result.json")
+            $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> --report "${_test_output}/agent-api-daemon-result.json")
         set_tests_properties(iiMultimodalAgent.agent_api_daemon PROPERTIES TIMEOUT 180)
         if(TARGET iiMultimodalAgentMcpServer)
             if(NOT IOS AND NOT ANDROID AND NOT EMSCRIPTEN)
                 add_test(NAME iiMultimodalAgent.command_hooks_wire COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/command_hooks_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --report ${CMAKE_CURRENT_BINARY_DIR}/command-hooks-wire.json)
+                    --report ${_test_output}/command-hooks-wire.json)
                 set_tests_properties(iiMultimodalAgent.command_hooks_wire PROPERTIES TIMEOUT 180)
                 add_test(NAME iiMultimodalAgent.plan_mode_wire COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/plan_mode_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --report ${CMAKE_CURRENT_BINARY_DIR}/plan-mode-wire.json)
+                    --report ${_test_output}/plan-mode-wire.json)
                 set_tests_properties(iiMultimodalAgent.plan_mode_wire PROPERTIES TIMEOUT 90)
                 add_test(NAME iiMultimodalAgent.user_questions_wire COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/user_questions_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --report ${CMAKE_CURRENT_BINARY_DIR}/user-questions-wire.json)
+                    --report ${_test_output}/user-questions-wire.json)
                 set_tests_properties(iiMultimodalAgent.user_questions_wire PROPERTIES TIMEOUT 120)
                 add_test(NAME iiMultimodalAgent.project_memory_wire COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/project_memory_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --report ${CMAKE_CURRENT_BINARY_DIR}/project-memory-wire.json)
+                    --report ${_test_output}/project-memory-wire.json)
                 set_tests_properties(iiMultimodalAgent.project_memory_wire PROPERTIES TIMEOUT 120)
                 add_test(NAME iiMultimodalAgent.async_hooks_wire COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/async_hooks_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --report ${CMAKE_CURRENT_BINARY_DIR}/async-hooks-wire.json)
+                    --report ${_test_output}/async-hooks-wire.json)
                 set_tests_properties(iiMultimodalAgent.async_hooks_wire PROPERTIES TIMEOUT 90)
                 add_test(NAME iiMultimodalAgent.http_hooks_wire COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/command_hooks_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --http-hooks --report ${CMAKE_CURRENT_BINARY_DIR}/http-hooks-wire.json)
+                    --http-hooks --report ${_test_output}/http-hooks-wire.json)
                 set_tests_properties(iiMultimodalAgent.http_hooks_wire PROPERTIES TIMEOUT 180)
                 add_test(NAME iiMultimodalAgent.model_hooks_cli COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/model_hooks_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --report ${CMAKE_CURRENT_BINARY_DIR}/model-hooks-cli.json)
+                    --report ${_test_output}/model-hooks-cli.json)
                 set_tests_properties(iiMultimodalAgent.model_hooks_cli PROPERTIES TIMEOUT 90)
                 add_test(NAME iiMultimodalAgent.agent_hooks_cli COMMAND ${Python3_EXECUTABLE} -B
                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/model_hooks_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --agent-hooks --report ${CMAKE_CURRENT_BINARY_DIR}/agent-hooks-cli.json)
+                    --agent-hooks --report ${_test_output}/agent-hooks-cli.json)
                 set_tests_properties(iiMultimodalAgent.agent_hooks_cli PROPERTIES TIMEOUT 90)
             endif()
             add_test(NAME iiMultimodalAgent.permission_settings_wire COMMAND ${Python3_EXECUTABLE} -B
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/permission_settings_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                --report ${CMAKE_CURRENT_BINARY_DIR}/permission-settings-wire.json)
+                --report ${_test_output}/permission-settings-wire.json)
             set_tests_properties(iiMultimodalAgent.permission_settings_wire PROPERTIES TIMEOUT 180)
             add_test(NAME iiMultimodalAgent.permission_requests_wire COMMAND ${Python3_EXECUTABLE} -B
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/permission_requests_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                --report ${CMAKE_CURRENT_BINARY_DIR}/permission-requests-wire.json)
+                --report ${_test_output}/permission-requests-wire.json)
             set_tests_properties(iiMultimodalAgent.permission_requests_wire PROPERTIES TIMEOUT 180)
             add_test(NAME iiMultimodalAgent.control_capacity_wire COMMAND ${Python3_EXECUTABLE} -B
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/permission_requests_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                --control-capacity --report ${CMAKE_CURRENT_BINARY_DIR}/control-capacity-wire.json)
+                --control-capacity --report ${_test_output}/control-capacity-wire.json)
             set_tests_properties(iiMultimodalAgent.control_capacity_wire PROPERTIES TIMEOUT 180)
             add_test(NAME iiMultimodalAgent.working_directories_wire COMMAND ${Python3_EXECUTABLE} -B
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/permission_settings_wire.py $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                --additional-directories --report ${CMAKE_CURRENT_BINARY_DIR}/working-directories-wire.json)
+                --additional-directories --report ${_test_output}/working-directories-wire.json)
             set_tests_properties(iiMultimodalAgent.working_directories_wire PROPERTIES TIMEOUT 180)
         endif()
         if(IIMULTIMODALAGENT_WITH_LLAMA AND IIMULTIMODALAGENT_TEST_AGENT_CATALOG)
@@ -570,17 +581,17 @@ if(BUILD_TESTING)
             add_test(NAME iiMultimodalAgent.agent_profiles_api_inference COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/agent_profile_wire.py" "$<TARGET_FILE:iiMultimodalAgentD>" "$<TARGET_FILE:iimagent>"
                 "${IIMULTIMODALAGENT_TEST_AGENT_CATALOG}" "${IIMULTIMODALAGENT_TEST_AGENT_MODEL}"
-                --report "${CMAKE_CURRENT_BINARY_DIR}/agent-profiles-api-inference.json")
+                --report "${_test_output}/agent-profiles-api-inference.json")
             set_tests_properties(iiMultimodalAgent.agent_profiles_api_inference PROPERTIES TIMEOUT 600 LABELS "inference")
             add_test(NAME iiMultimodalAgent.skill_fork_api_inference COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/agent_profile_wire.py" "$<TARGET_FILE:iiMultimodalAgentD>" "$<TARGET_FILE:iimagent>"
                 "${IIMULTIMODALAGENT_TEST_AGENT_CATALOG}" "${IIMULTIMODALAGENT_TEST_AGENT_MODEL}" --skill-forks
-                --report "${CMAKE_CURRENT_BINARY_DIR}/skill-fork-api-inference.json")
+                --report "${_test_output}/skill-fork-api-inference.json")
             set_tests_properties(iiMultimodalAgent.skill_fork_api_inference PROPERTIES TIMEOUT 900 LABELS "inference")
             add_test(NAME iiMultimodalAgent.skill_permissions_api_inference COMMAND "${Python3_EXECUTABLE}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/agent_profile_wire.py" "$<TARGET_FILE:iiMultimodalAgentD>" "$<TARGET_FILE:iimagent>"
                 "${IIMULTIMODALAGENT_TEST_AGENT_CATALOG}" "${IIMULTIMODALAGENT_TEST_AGENT_MODEL}" --skill-permissions
-                --report "${CMAKE_CURRENT_BINARY_DIR}/skill-permissions-api-inference.json")
+                --report "${_test_output}/skill-permissions-api-inference.json")
             set_tests_properties(iiMultimodalAgent.skill_permissions_api_inference PROPERTIES TIMEOUT 900 LABELS "inference")
         endif()
         if(IIMULTIMODALAGENT_WITH_LLAMA AND (IIMULTIMODALAGENT_TEST_CHAT_GGUF OR IIMULTIMODALAGENT_TEST_AGENT_CATALOG))
@@ -635,7 +646,7 @@ if(BUILD_TESTING)
         if(IIMULTIMODALAGENT_WITH_LLAMA AND IIMULTIMODALAGENT_TEST_CHAT_GGUF)
             add_test(NAME iiMultimodalAgent.agent_api_inference COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/agent_api_smoke.py
                 $<TARGET_FILE:iiMultimodalAgentD> $<TARGET_FILE:iimagent> --model "${IIMULTIMODALAGENT_TEST_CHAT_GGUF}"
-                --report "${CMAKE_CURRENT_BINARY_DIR}/agent-api-inference-result.json")
+                --report "${_test_output}/agent-api-inference-result.json")
             set_tests_properties(iiMultimodalAgent.agent_api_inference PROPERTIES TIMEOUT 240 LABELS "inference")
             add_executable(iiMultimodalAgentCompactionRuntimeSmoke tests/compaction_runtime_smoke.cpp)
             target_link_libraries(iiMultimodalAgentCompactionRuntimeSmoke PRIVATE iiMultimodalAgent::iiMultimodalAgent)
@@ -676,11 +687,11 @@ if(BUILD_TESTING)
                 set_tests_properties(iiMultimodalAgent.agent_mcp_inference PROPERTIES TIMEOUT 180 LABELS "inference")
                 add_test(NAME iiMultimodalAgent.mcp_server_inference COMMAND "${IIMULTIMODALAGENT_TEST_MCP_PYTHON}" -B
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/mcp_server_smoke.py" $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --native "${IIMULTIMODALAGENT_TEST_CHAT_GGUF}" --report "${CMAKE_CURRENT_BINARY_DIR}/mcp-server-native-result.json")
+                    --native "${IIMULTIMODALAGENT_TEST_CHAT_GGUF}" --report "${_test_output}/mcp-server-native-result.json")
                 set_tests_properties(iiMultimodalAgent.mcp_server_inference PROPERTIES TIMEOUT 240 LABELS "inference")
                 add_test(NAME iiMultimodalAgent.mcp_http_server_inference COMMAND "${IIMULTIMODALAGENT_TEST_MCP_PYTHON}" -B
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/mcp_server_smoke.py" $<TARGET_FILE:iiMultimodalAgentMcpServer>
-                    --http --native "${IIMULTIMODALAGENT_TEST_CHAT_GGUF}" --report "${CMAKE_CURRENT_BINARY_DIR}/mcp-http-server-native-result.json")
+                    --http --native "${IIMULTIMODALAGENT_TEST_CHAT_GGUF}" --report "${_test_output}/mcp-http-server-native-result.json")
                 set_tests_properties(iiMultimodalAgent.mcp_http_server_inference PROPERTIES TIMEOUT 240 LABELS "inference")
             endif()
         endif()
@@ -694,7 +705,7 @@ if(BUILD_TESTING)
             add_test(NAME iiMultimodalAgent.skill_permissions_mcp_${_transport}_inference COMMAND "${IIMULTIMODALAGENT_TEST_MCP_PYTHON}" -B
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/mcp_server_smoke.py" $<TARGET_FILE:iiMultimodalAgentMcpServer>
                 ${_permission_http} --native-catalog "${IIMULTIMODALAGENT_TEST_AGENT_CATALOG}" --native-model "${IIMULTIMODALAGENT_TEST_AGENT_MODEL}" --skill-permissions
-                --report "${CMAKE_CURRENT_BINARY_DIR}/skill-permissions-mcp-${_transport}-inference.json")
+                --report "${_test_output}/skill-permissions-mcp-${_transport}-inference.json")
             set_tests_properties(iiMultimodalAgent.skill_permissions_mcp_${_transport}_inference PROPERTIES TIMEOUT 900 LABELS "inference")
         endforeach()
     endif()
@@ -702,10 +713,26 @@ if(BUILD_TESTING)
         add_test(NAME iiMultimodalAgent.permission_symbols COMMAND ${Python3_EXECUTABLE} -B
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/permission_symbols.py "${CMAKE_NM}" "$<TARGET_FILE:iiMultimodalAgent>")
     endif()
-    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tmp")
     get_property(_iilocal_tests DIRECTORY PROPERTY TESTS)
+    add_test(NAME iiMultimodalAgent.test_output_guard COMMAND "${CMAKE_COMMAND}" -E env
+        "PYTHONPATH=${iiFileProviderNative_PYTHON_DIRECTORY}" "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_output_fixture.py" "${CMAKE_COMMAND}")
+    add_test(NAME iiMultimodalAgent.dependency_reuse COMMAND "${CMAKE_COMMAND}" -E env
+        "PYTHONPATH=${iiFileProviderNative_PYTHON_DIRECTORY}" "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dependency_reuse.py" "${CMAKE_COMMAND}")
+    add_test(NAME iiMultimodalAgent.test_output_setup COMMAND "${CMAKE_COMMAND}"
+        "-DRESOURCE_ROOT=${_test_state}" "-DOUTPUT_DIR=${_test_output}"
+        -DACTION=setup -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_output_fixture.cmake")
+    add_test(NAME iiMultimodalAgent.test_output_cleanup COMMAND "${CMAKE_COMMAND}"
+        "-DRESOURCE_ROOT=${_test_state}" "-DOUTPUT_DIR=${_test_output}"
+        -DACTION=cleanup -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_output_fixture.cmake")
+    set_tests_properties(iiMultimodalAgent.test_output_setup PROPERTIES FIXTURES_SETUP AgentTestOutput)
+    set_tests_properties(iiMultimodalAgent.test_output_cleanup PROPERTIES FIXTURES_CLEANUP AgentTestOutput)
+    set_tests_properties(${_iilocal_tests} PROPERTIES FIXTURES_REQUIRED AgentTestOutput)
     set_tests_properties(${_iilocal_tests} PROPERTIES ENVIRONMENT_MODIFICATION
-        "TMPDIR=set:${CMAKE_CURRENT_BINARY_DIR}/tmp;TMP=set:${CMAKE_CURRENT_BINARY_DIR}/tmp;TEMP=set:${CMAKE_CURRENT_BINARY_DIR}/tmp;IILOCALLLM_APP_ENDPOINTS=set:${CMAKE_CURRENT_BINARY_DIR}/tmp/app-endpoints")
+        "TMPDIR=set:${_test_output}/tmp;TMP=set:${_test_output}/tmp;TEMP=set:${_test_output}/tmp;IILOCALLLM_APP_ENDPOINTS=set:${_test_output}/tmp/app-endpoints")
+    set_property(TEST iiMultimodalAgent.graphql APPEND PROPERTY ENVIRONMENT_MODIFICATION
+        "TMPDIR=set:${_test_output}/tmp" "TMP=set:${_test_output}/tmp" "TEMP=set:${_test_output}/tmp")
     if(APPLE)
         # A login-shell SDK override must not replace the selected package's dylibs.
         set_property(TEST ${_iilocal_tests} APPEND PROPERTY ENVIRONMENT_MODIFICATION

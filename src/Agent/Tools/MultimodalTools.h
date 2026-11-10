@@ -49,6 +49,13 @@ struct MultimodalServices {
 // The caller installs this batch once (or uses ToolRegistry::replace).
 [[nodiscard]] IIMULTIMODALAGENT_EXPORT QList<Tool>
 multimodalTools(MultimodalServices services);
+// Optional host executor reports its own resolved settings. The legacy
+// ImageExecutor remains supported but its applied settings are unreported.
+using ReportingImageExecutor = std::function<iiLocalDiffusion::NativeImageExecution(
+    const iiLocalDiffusion::NativeGenerationRequest&, const CancellationToken&,
+    const iiLocalDiffusion::NativeProgressCallback&)>;
+[[nodiscard]] IIMULTIMODALAGENT_EXPORT QList<Tool>
+multimodalTools(MultimodalServices services, ReportingImageExecutor imageExecutor);
 [[nodiscard]] IIMULTIMODALAGENT_EXPORT QJsonObject
 multimodalCapabilities(const MultimodalServices& services);
 

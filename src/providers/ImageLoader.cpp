@@ -29,7 +29,7 @@ std::filesystem::path providerPath() {
 }
 }
 
-ImageEntry imageEntry() {
+ImageEntryV2 imageEntry() {
     // Keep the native adapter resident: its backend caches and worker lifetime
     // can outlive one tool call. No model- or wire-controlled library search.
     static const auto entry=[] {
@@ -37,14 +37,14 @@ ImageEntry imageEntry() {
 #if defined(_WIN32)
         const auto module=LoadLibraryExW(path.c_str(),nullptr,LOAD_WITH_ALTERED_SEARCH_PATH);
         if(!module)throw Error(ErrorCode::RuntimeUnavailable,"Cannot load the packaged native image adapter");
-        const auto symbol=GetProcAddress(module,"iimagent_native_image_v1");
+        const auto symbol=GetProcAddress(module,"iimagent_native_image_v2");
 #else
         const auto module=dlopen(path.c_str(),RTLD_NOW|RTLD_LOCAL);
         if(!module)throw Error(ErrorCode::RuntimeUnavailable,QStringLiteral("Cannot load the packaged native image adapter: ")+QString::fromUtf8(dlerror()));
-        const auto symbol=dlsym(module,"iimagent_native_image_v1");
+        const auto symbol=dlsym(module,"iimagent_native_image_v2");
 #endif
         if(!symbol)throw Error(ErrorCode::RuntimeUnavailable,"Native image adapter ABI is unavailable");
-        return reinterpret_cast<ImageEntry>(symbol);
+        return reinterpret_cast<ImageEntryV2>(symbol);
     }();
     return entry;
 }

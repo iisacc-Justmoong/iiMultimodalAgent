@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:fd9248e6538da4519eba0d5500ee5a0d8d85134b727872d6208a741f47bbc32d",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/BuildLayout.md",
+    "sha256": "6a48e731779f76903448472b9dafa33a2d40d8fd1bc65dac0d8afd4114e5f543",
+    "bytes": 1135,
+    "line_count": 9,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "빌드와 테스트 자원 배치",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 빌드와 테스트 자원 배치\n",
+      "level": 1,
+      "title": "빌드와 테스트 자원 배치"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "컴파일 결과는 `build/`에 둔다. jsoncons, md4c, libyaml, Lexbor, tree-sitter 소스는 `resources/dependencies/`에 둔다. 이미 있는 소스는 그대로 재사용하고 불완전한 디렉터리는 덮어쓰지 않고 구성을 중단한다. 아직 없는 의존성은 기존의 고정 URL과 해시를 사용하는 CMake FetchContent가 준비한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "CTest 출력과 임시 파일은 `resources/.state/`에 구성마다 고유한 경로로 두고 CTest fixture가 실행 전 준비하며 완료 후 정리한다. 한 구성에서 여러 CTest 프로세스를 동시에 실행하지 않는다. 하나의 CTest 실행 내 병렬 테스트는 지원한다. 강제 종료로 남은 작업 공간은 소유 여부를 확인한 뒤 정리한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "네이티브 모델과 실제 에이전트·앱 실행은 단위 테스트 및 컴파일 검증과 별도로 기록한다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "공식 MCP 검증을 위한 외부 Python 환경의 바이트코드 준비는 기본 빌드에 포함되지 않는다. 필요한 경우 `iiMultimodalAgentMcpDependencyArtifacts` 타깃을 명시적으로 선택한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "빌드와 테스트 자원 배치",
+      "anchor": "빌드와-테스트-자원-배치",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 5,
+        "text": "CTest 출력과 임시 파일은 `resources/.state/`에 구성마다 고유한 경로로 두고 CTest fixture가 실행 전 준비하며 완료 후 정리한다. 한 구성에서 여러 CTest 프로세스를 동시에 실행하지 않는다. 하나의 CTest 실행 내 병렬 테스트는 지원한다. 강제 종료로 남은 작업 공간은 소유 여부를 확인한 뒤 정리한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

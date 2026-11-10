@@ -5,6 +5,7 @@
 #include <iiMultimodalAgent/agent/Subagents.h>
 #include <iiMultimodalAgent/agent/Teams.h>
 #include <iiMultimodalAgent/agent/PermissionSettings.h>
+#include <iiMultimodalAgent/agent/GraphQL.h>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QFile>
 #include <QtCore/QDir>
@@ -79,10 +80,55 @@ public:
         return {history.join('|'), {}, {}};
     }
 };
+class SkillGraphQLModel final : public a::Model {
+public:
+    a::ModelReply generate(const a::ModelRequest& r,const CancellationToken& token,const TextCallback&) override {
+        token.throwIfCancelled();
+        if(!r.messages.isEmpty() && r.messages.last().role==a::MessageRole::Tool)
+            return {"SKILL_QUERY "+r.messages.last().text};
+        for(const auto& message:r.messages)
+            if(message.role==a::MessageRole::User && message.text.contains("INTEGRATED_SKILL ok"))
+                return {{},{{"skill-query","GraphQL",{{"endpoint","fixture"},{"query","query { item }"}}}}};
+        return {"unexpected"};
+    }
+};
 }
 class McpServerTests : public QObject {
     Q_OBJECT
 private slots:
+    void graphqlCrudShellAndSkillShareTheMcpSession() {
+        QTemporaryDir root;const auto work=root.filePath("work");QVERIFY(QDir().mkpath(work+"/.claude/skills/inspect"));
+        QFile skill(work+"/.claude/skills/inspect/SKILL.md");QVERIFY(skill.open(QIODevice::WriteOnly));
+        skill.write("---\ndescription: Inspect\ndisable-model-invocation: true\n---\nINTEGRATED_SKILL $ARGUMENTS");skill.close();
+        auto registry=std::make_shared<a::ToolRegistry>();a::registerWorkspaceTools(*registry,work);
+        a::GraphQLOptions graph;graph.endpoints.insert("fixture",{QUrl("http://127.0.0.1/graphql"),"Bearer secret"});
+        int requests=0;registry->add(a::graphQLTool(graph,[&](const auto& endpoint,const auto& payload,const auto&,int,int){
+            ++requests;if(endpoint.authorization!="Bearer secret" || payload["query"]!="query { item }")throw std::runtime_error("Invalid GraphQL request");
+            return QJsonObject{{"data",QJsonObject{{"item","ok"}}}};
+        }));
+        auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);auto model=std::make_shared<SkillGraphQLModel>();
+        a::EngineOptions eo{.decision={.enabled=false}};eo.sessionsDirectory=root.filePath("sessions");eo.toolSearch.enabled=false;
+        auto engine=std::make_shared<a::Engine>(model,registry,policy,eo);
+        a::McpServerOptions config;config.workingDirectory=work;config.engine=engine;config.model="fixture";
+        m::ServerSession server(a::mcpServerOptions(registry,policy,config));initialize(server);
+        QVERIFY(!call(server,2,"Write",{{"path","file.txt"},{"content","first"}})["isError"].toBool());
+        QVERIFY(!call(server,3,"Read",{{"path","file.txt"}})["isError"].toBool());
+        QVERIFY(!call(server,4,"Edit",{{"path","file.txt"},{"old_string","first"},{"new_string","second"}})["isError"].toBool());
+        const auto result=call(server,5,"GraphQL",{{"endpoint","fixture"},{"query","query { item }"}});
+        QVERIFY2(!result["isError"].toBool(),qPrintable(QJsonDocument(result).toJson()));
+        QCOMPARE(result["structuredContent"].toObject()["data"].toObject()["item"],"ok");QCOMPARE(requests,1);
+#ifdef Q_OS_UNIX
+        const auto shell=call(server,6,"Bash",{{"command","printf integrated-cli"}});
+        QVERIFY2(!shell["isError"].toBool(),qPrintable(QJsonDocument(shell).toJson()));
+#endif
+        QCOMPARE(call(server,7,"iiLocalLLM.agent.skills.list")["structuredContent"].toObject()["skills"].toArray().size(),1);
+        const auto invoked=call(server,8,"iiLocalLLM.agent.run",{{"skill","inspect"},{"skill_arguments","ok"}});
+        QVERIFY2(invoked["structuredContent"].toObject()["text"].toString().contains("SKILL_QUERY"),qPrintable(QJsonDocument(invoked).toJson()));
+        QCOMPARE(requests,2);
+        const auto removed=call(server,9,"Delete",{{"path","file.txt"}});
+        QVERIFY2(!removed["isError"].toBool(),qPrintable(QJsonDocument(removed).toJson()));
+        QVERIFY(!QFileInfo::exists(work+"/file.txt"));server.close();
+    }
     void procedureControlIsConnectionBoundAndAvailableDuringAgentRun() {
         QTemporaryDir root;const auto workspace=root.filePath("workspace");QDir().mkpath(workspace);
         auto model=std::make_shared<HistoryModel>();auto registry=std::make_shared<a::ToolRegistry>();auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);

@@ -12,6 +12,11 @@
 #include <mutex>
 
 namespace iiMultimodalAgent::agent {
+class PermissionNotifications final : public QObject {
+    Q_OBJECT
+signals:
+    void changed(const QString& requestId);
+};
 namespace {
 using Clock=std::chrono::steady_clock;
 void require(bool value,const QString& message,ErrorCode code=ErrorCode::InvalidArgument) {if(!value)throw Error(code,message);}
@@ -48,6 +53,7 @@ struct PermissionRequests::Impl {
     PermissionRequestsOptions options;
     QString channel=QUuid::createUuid().toString(QUuid::WithoutBraces);
     std::mutex mutex;std::condition_variable changed;bool closed=false;
+    PermissionNotifications notifications;
     quint64 sequence=0;qint64 pendingBytes=0;
     QHash<QString,std::shared_ptr<Entry>> pending;
     QHash<QString,History> history;std::deque<QString> order;
@@ -66,7 +72,7 @@ struct PermissionRequests::Impl {
         if(!classification.isEmpty())entry->resolution["decision_classification"]=classification;
         pendingBytes-=entry->bytes;pending.remove(entry->id);history.insert(entry->id,{entry->resolution,fingerprint});order.push_back(entry->id);
         while(order.size()>size_t(options.maxHistory)){history.remove(order.front());order.pop_front();}
-        changed.notify_all();return true;
+        changed.notify_all();emit notifications.changed(entry->id);return true;
     }
     void expire() {
         const auto time=Clock::now();const auto entries=pending.values();
@@ -94,6 +100,7 @@ PermissionRequests::Ticket PermissionRequests::begin(const ToolCall& call,const 
     require(entry->bytes<=d->options.maxRequestBytes,"Permission request exceeds size limit",ErrorCode::ResourceLimit);
     require(d->pending.size()<d->options.maxPending&&d->pendingBytes+entry->bytes<=d->options.maxPendingBytes,"Permission request capacity reached",ErrorCode::QueueFull);
     d->pending.insert(entry->id,entry);d->pendingBytes+=entry->bytes;
+    emit d->notifications.changed(entry->id);
     Ticket ticket;ticket.request=entry->request;ticket.entry=std::move(entry);return ticket;
 }
 PermissionResponse PermissionRequests::wait(const Ticket& ticket,const CancellationToken& token,QJsonObject* resolution) {
@@ -122,6 +129,18 @@ QJsonObject PermissionRequests::pending(qint64 after,int limit,int maxBytes) {
     QJsonObject result{{"requests",values},{"closed",d->closed},{"pending_count",d->pending.size()}};
     if(more)result["next_cursor"]=double(cursor);return result;
 }
+std::optional<QJsonObject> PermissionRequests::pendingRequest(const QString& id) {
+    require(validId(id),"Invalid permission request ID");
+    std::lock_guard lock(d->mutex);d->expire();
+    const auto found=d->pending.constFind(id);
+    if(found==d->pending.cend())return {};
+    return (*found)->request;
+}
+QMetaObject::Connection PermissionRequests::observe(QObject* context,std::function<void(const QString&)> callback) {
+    require(context&&bool(callback),"A notification context and callback are required");
+    return QObject::connect(&d->notifications,&PermissionNotifications::changed,context,
+        [callback=std::move(callback)](const QString& id){callback(id);},Qt::QueuedConnection);
+}
 QJsonObject PermissionRequests::respond(const QString& id,const QJsonObject& object) {
     require(validId(id),"Invalid permission request ID");
     require(encoded(object).size()<=d->options.maxRequestBytes,"Permission response exceeds size limit",ErrorCode::ResourceLimit);
@@ -141,6 +160,7 @@ QJsonObject PermissionRequests::respond(const QString& id,const QJsonObject& obj
     d->finish(entry,response,"answered","client",fingerprint,object.value("decisionClassification").toString());
     auto result=entry->resolution;result["accepted"]=true;result["replayed"]=false;return result;
 }
+
 bool PermissionRequests::settle(const Ticket& ticket,const PermissionResponse& response,const QString& source) {
     require(ticket.entry&&ticket.entry->channel==d->channel,"Permission ticket belongs to another channel");detail::validatePermissionResponse(response);
     std::lock_guard lock(d->mutex);d->expire();return d->finish(ticket.entry,response,"answered",source);
@@ -154,3 +174,5 @@ void PermissionRequests::close() {
     while(!d->pending.isEmpty())d->finish(d->pending.begin().value(),{PermissionBehavior::Deny,"Permission channel closed"},"closed","channel");
 }
 }
+
+#include "PermissionRequests.moc"

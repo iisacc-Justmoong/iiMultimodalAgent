@@ -60,7 +60,7 @@ QStringList methods() { return {"agent.info", "agent.plugins.list", "agent.sessi
     "agent.plan.get", "agent.plan.enter", "agent.plan.exit", "agent.questions.ask",
     "agent.memory.get", "agent.memory.read", "agent.memory.write", "agent.memory.edit", "agent.memory.glob", "agent.memory.grep", "agent.memory.forget", "agent.memory.recall",
     "agent.memory.extract", "agent.memory.extraction.status", "agent.memory.extraction.cancel", "agent.sessions.search",
-    "agent.memory.dream", "agent.memory.dream.status", "agent.memory.dream.cancel", "agent.web.fetch", "agent.lsp.query", "agent.lsp.status", "agent.worktrees.status", "agent.worktrees.enter", "agent.worktrees.exit", "agent.notebooks.read", "agent.notebooks.edit",
+    "agent.memory.dream", "agent.memory.dream.status", "agent.memory.dream.cancel", "agent.web.fetch", "agent.graphql.execute", "agent.lsp.query", "agent.lsp.status", "agent.worktrees.status", "agent.worktrees.enter", "agent.worktrees.exit", "agent.notebooks.read", "agent.notebooks.edit",
     "agent.checkpoints.list", "agent.checkpoints.create", "agent.checkpoints.rewind"}; }
 bool dreamControl(const QString& method){return method=="agent.memory.dream.status"||method=="agent.memory.dream.cancel";}
 bool extractionControl(const QString& method){return method=="agent.memory.extraction.status"||method=="agent.memory.extraction.cancel";}
@@ -209,7 +209,7 @@ public:
                 {"user_questions_enabled",bool(client->engine->userQuestionTool())},{"project_memory_enabled",client->engine->projectMemoryEnabled()},
                 {"memory_recall_enabled",client->engine->memoryRecallEnabled()},{"memory_extraction_enabled",client->engine->memoryExtractionEnabled()},
                 {"session_history_enabled",bool(client->engine->sessionSearchTool())},{"memory_dream_available",client->engine->memoryDreamAvailable()},
-                {"file_checkpoints_enabled",client->engine->fileCheckpointsEnabled()},{"notebooks_enabled",client->engine->notebookToolsEnabled()},{"worktrees_enabled",client->engine->worktreesEnabled()},{"lsp_enabled",bool(client->engine->lspTool())},{"web_fetch_enabled",bool(client->engine->webFetchTool())},{"auto_dream_enabled",client->engine->automaticMemoryDream()}};
+                {"file_checkpoints_enabled",client->engine->fileCheckpointsEnabled()},{"notebooks_enabled",client->engine->notebookToolsEnabled()},{"worktrees_enabled",client->engine->worktreesEnabled()},{"lsp_enabled",bool(client->engine->lspTool())},{"web_fetch_enabled",bool(client->engine->webFetchTool())},{"graphql_enabled",client->engine->graphQLAvailable()},{"auto_dream_enabled",client->engine->automaticMemoryDream()}};
         }
         if(method=="agent.checkpoints.list"||method=="agent.checkpoints.create"){
             fields(p,{"session_id"});const auto id=text(p,"session_id");
@@ -222,7 +222,7 @@ public:
             require(client->engine->sessionMetadata(id).workingDirectory==options.workingDirectory,"Session belongs to a different workspace",ErrorCode::NotFound);
             return method=="agent.worktrees.status"?client->engine->worktreeStatus(id,job->token):client->engine->lspStatus(id,job->token);
         }
-        if(method=="agent.web.fetch"||method=="agent.lsp.query"||method=="agent.worktrees.enter"||method=="agent.worktrees.exit"||method=="agent.notebooks.read"||method=="agent.notebooks.edit"||method=="agent.checkpoints.rewind") {
+        if(method=="agent.web.fetch"||method=="agent.graphql.execute"||method=="agent.lsp.query"||method=="agent.worktrees.enter"||method=="agent.worktrees.exit"||method=="agent.notebooks.read"||method=="agent.notebooks.edit"||method=="agent.checkpoints.rewind") {
             if(method=="agent.checkpoints.rewind"){fields(p,{"session_id","message_id","dry_run"});(void)text(p,"message_id");require(!p.contains("dry_run")||p["dry_run"].isBool(),"dry_run must be boolean");}
             const auto id=text(p,"session_id");auto arguments=p;arguments.remove("session_id");
             require(client->engine->sessionMetadata(id).workingDirectory==options.workingDirectory,"Session belongs to a different workspace",ErrorCode::NotFound);
@@ -231,6 +231,7 @@ public:
                 if(method.startsWith("agent.notebooks."))return client->engine->runNotebookTool(id,method.endsWith("read")?"Read":"NotebookEdit",arguments,job->token,[callback](const Event& event){if(callback)callback(toJson(event));});
                 if(method.startsWith("agent.worktrees."))return client->engine->runWorktreeTool(id,method.endsWith("enter")?"EnterWorktree":"ExitWorktree",arguments,job->token,[callback](const Event& event){if(callback)callback(toJson(event));});
                 if(method=="agent.lsp.query")return client->engine->runLsp(id,arguments,job->token,[callback](const Event& event){if(callback)callback(toJson(event));});
+                if(method=="agent.graphql.execute")return client->engine->runGraphQL(id,arguments,job->token,[callback](const Event& event){if(callback)callback(toJson(event));});
                 return client->engine->runWebFetch(id,arguments,job->token,[callback](const Event& event){if(callback)callback(toJson(event));});
             });
             bool timedOut=false;while(future.wait_for(10ms)!=std::future_status::ready){timedOut|=Clock::now()>=job->deadline;if(timedOut)job->token.cancel();}

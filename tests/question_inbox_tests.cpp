@@ -2,6 +2,7 @@
 #include <iiMultimodalAgent/agent/UserQuestions.h>
 #include <iiMultimodalAgent/agent/McpServer.h>
 #include <QtCore/QTemporaryDir>
+#include <QtCore/QTimer>
 #include <QtTest/QtTest>
 #include <future>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
@@ -25,6 +26,13 @@ QString id(a::QuestionInbox& box){return box.requests().first().toMap()["request
 class QuestionInboxTests:public QObject {
     Q_OBJECT
 private slots:
+    void idleInboxDoesNotPoll() {
+        a::QuestionInbox box;
+        QVERIFY(box.findChildren<QTimer*>().isEmpty());
+        QSignalSpy changed(&box,&a::QuestionInbox::requestsChanged);
+        QTest::qWait(150);
+        QCOMPARE(changed.size(),0);
+    }
     void mcpQuestionWaitDoesNotLockAppMutations() {
         Fixture f;a::QuestionInbox box;
         a::Tool mutation;mutation.definition={"navigate","Mutate app state",{{"type","object"}},{},false,false};
@@ -78,6 +86,25 @@ private slots:
         auto broker=std::make_shared<a::PermissionRequests>();{
             a::QuestionInbox box(broker);QVERIFY(box.requests().isEmpty());
         }QVERIFY(!broker->pending()["closed"].toBool());
+    }
+    void sharedChannelPublishesChangesToEachView() {
+        Fixture f;auto broker=std::make_shared<a::PermissionRequests>();
+        auto first=std::make_unique<a::QuestionInbox>(broker);a::QuestionInbox second(broker);
+        auto pending=f.run(first->hook());
+        QTRY_COMPARE(first->requests().size(),1);QTRY_COMPARE(second.requests().size(),1);
+        a::QuestionInbox late(broker);QCOMPARE(late.requests().size(),1);
+        const auto key=id(second);QCOMPARE(id(*first),key);
+        first.reset();
+        QVERIFY(second.submit(key,{{"Which renderer?","Native"}}));
+        QCOMPARE(second.requests().size(),0);QVERIFY(!pending.get().isError);
+        QTRY_COMPARE(late.requests().size(),0);QTest::qWait(20);QCOMPARE(second.requests().size(),0);
+        QVERIFY(!broker->pending()["closed"].toBool());
+    }
+    void viewCanRetireDuringChangeNotification() {
+        Fixture f;auto box=std::make_unique<a::QuestionInbox>();auto pending=f.run(box->hook());
+        QTRY_COMPARE(box->requests().size(),1);const auto key=id(*box);
+        QObject::connect(box.get(),&a::QuestionInbox::requestsChanged,box.get(),[&]{box.reset();});
+        QVERIFY(box->submit(key,{}));QVERIFY(!box);QVERIFY(!pending.get().isError);
     }
 };
 QTEST_GUILESS_MAIN(QuestionInboxTests)

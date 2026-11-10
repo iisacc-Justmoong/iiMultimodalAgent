@@ -72,6 +72,58 @@ iiMultimodalAgentD --models-root Models --context-tokens 4096 \
 
 분기는 지정한 메시지까지 포함하고, 생략하면 전체 transcript를 복사한다. 원본 세션과 별개의 UUID·기록 파일을 사용한다. 실행 중이거나 아직 결과가 없는 도구 호출 경계는 거부한다. **artifact가 있는 세션은 `runtime_unavailable`로 거부한다.** 현재 기본 분기는 artifact 파일 복제·참조 변환이나 workspace 파일 복원까지 수행하지 않는다. parent_session_id는 응답 값이며 영속 분기 계보 기능은 아직 없다. 새 transcript는 크기·프로토콜 검증을 거쳐 한 번에 게시하며 실패한 복사본을 세션 목록에 남기지 않는다.
 
+## 외부 GraphQL API 직접 호출
+
+호스트가 `GraphQL` 도구를 등록하면 에이전트와 인증된 API 클라이언트가 외부
+GraphQL 서버의 query 또는 mutation을 호출할 수 있다. 이 기능은 기존 에이전트의
+HTTP/native IPC 전송을 GraphQL 서버로 바꾸지 않는다. 외부 API에는 GraphQL-over-HTTP
+POST 요청을 보낸다. iiNetwork에 직접 링크하지 않는 호스트는 C++ `GraphQLExecutor`
+콜백으로 자체 전송을 주입할 수 있다.
+
+```cpp
+auto registry = std::make_shared<iiMultimodalAgent::agent::ToolRegistry>();
+registry->add(iiMultimodalAgent::agent::graphQLTool(graphqlOptions, hostGraphQLExecutor));
+```
+
+콜백을 생략하면 내장 HTTP 전송을 사용한다. 호스트 콜백은 취소와 전달받은
+기한·응답 바이트 한도를 준수하고 GraphQL 응답 객체를 반환해야 한다.
+
+데몬의 `--agent-graphql-config` 또는 MCP 서버의 `--graphql-config`는 workspace 밖의
+소유자 전용 JSON 파일을 받는다. 각 엔드포인트의 URL과 선택적 Authorization 헤더는
+호스트가 정한다. HTTP도 명시적으로 설정할 수 있으므로 기밀 인증 정보는 TLS가
+있는 HTTPS 엔드포인트에 사용해야 한다. 설정한 엔드포인트와 인증 정보는 해당
+호스트의 도구 사용을 허용받은 클라이언트가 공유한다.
+
+```json
+{"endpoints":{"catalog":{"url":"https://api.example.com/graphql","authorization":"Bearer HOST_SECRET"}},"timeout_ms":30000,"max_response_bytes":1048576}
+```
+
+`GraphQL` 도구는 `endpoint` ID, `query`, 선택적 `variables` 객체 및 `operation_name`을
+받는다. 임의 URL이나 인증 헤더는 도구 인자로 받을 수 없다. 기본 권한은 Ask이며
+mutation을 포함하므로 plan 모드에서 차단된다. 호스트가 예를 들어 `--agent-allow GraphQL`
+또는 MCP의 `--allow GraphQL`을 설정할 수 있다. 훅에는 쿼리와 변수가 전달되므로
+비밀 값은 호스트 인증 설정에서 관리한다. 자동 리다이렉트·쿠키·프록시는 사용하지
+않으며 요청 크기, 응답 크기, 기한과 취소를 제한한다. 서버의 GraphQL `errors`는
+도구 오류로 표시하면서 부분 `data`를 함께 보존한다.
+
+인증된 API는 세션 소유권과 동일한 도구 권한·훅을 적용하는
+`agent.graphql.execute`를 제공하며 `agent.info.graphql_enabled`가 등록 여부를 표시한다.
+`iimagent --auth-file TOKEN agent graphql execute SESSION PARAMS_JSON`으로 호출한다.
+입력 JSON에는 `session_id` 없이 `endpoint`, `query`, 선택적 `variables`,
+`operation_name`을 넣는다. GraphQL 서버가 반환하는 데이터는 외부 입력이다.
+기존 [경제적 실행 판단](DecisionGate.md)도 적용된다. 기본 설정에서 호스트 평가값이
+없으면 `result.not_executed: true`로 보류될 수 있으므로 호출 결과를 확인해야 한다.
+호스트는 평가 정책을 설정하거나 명시적으로 판단을 비활성화할 수 있다.
+
+macOS 로컬 통합 검증은 테스트 GraphQL 서버와 결정적인 테스트 모델을 사용한다.
+실제 HTTP 전송과 MCP 실행 파일, 한 MCP 세션의 파일 CRUD·셸·Skill 및 Skill의
+GraphQL 호출, 인증된 직접 API의 세션 소유권·권한, 데몬과 CLI 호출을 확인한다.
+이는 외부 GraphQL 서비스, 실제 모델 추론 또는 다른 운영체제의 실행 검증을 뜻하지 않는다.
+
+```json
+{"endpoint":"catalog","query":"query Product($id: ID!) { product(id: $id) { name } }","variables":{"id":"42"},"operation_name":"Product"}
+```
+
 ## HTTP
 
 `POST /v1/rpc`, `Content-Type: application/json`, `Authorization: Bearer <token>`을 사용한다. 키를 JSON 본문에 넣을 수 없다. 요청 `id`는 클라이언트가 정한 1~128자 문자열이다. `params`를 생략하면 `{}`, `stream`을 생략하면 false이다.

@@ -19,6 +19,8 @@ C++23 multimodal agent orchestration, extracted from iiLocalLLM 0.55.1.
 The initial package version is **0.1.0**. It owns the agent harness, session
 persistence, tools, permissions, hooks, memory, background work, subagents, teams,
 MCP client/server, authenticated API, and iiDecision admission/model routing.
+Host-configured GraphQL endpoints are available to the agent, direct API clients,
+the CLI and MCP through the same permission-controlled tool. See [agent API](docs/AgentAPI.md).
 
 | Module | Responsibility |
 | --- | --- |
@@ -86,6 +88,7 @@ options.sessionsDirectory = "/private/agent/sessions";
 options.multimodal.outputDirectory = "/existing/generated/files";
 options.multimodal.image = iiLocalDiffusion::NativeGenerationRequest{};
 options.multimodal.image->modelPath = "/models/image-model.iildmodel";
+options.multimodal.image->width = options.multimodal.image->height = options.multimodal.image->steps = 0; // Use backend defaults.
 options.multimodal.imageModels["moss"] = "/models/moss-image"; // Optional host-approved ID.
 options.multimodal.audio = hostLoadedAudioGenerator;
 options.multimodal.speech = hostSpeechSynthesizer;
@@ -99,9 +102,11 @@ Configured providers register `GenerateImage`, `GenerateAudio` and `Speak`.
 hosts can also implement `Model` directly. `Api` gives each authenticated client
 a private generated-media directory. Direct MCP hosts may add
 `multimodalTools(services)` to their registry.
-`GenerateImage` selects host-approved model IDs and derives bounded image defaults
-from package metadata. Explicit request parameters take precedence; family detection
-does not imply that the chosen executor supports the model architecture.
+`GenerateImage` selects host-approved model IDs, preserves explicit parameters,
+and leaves unspecified dimensions and steps to the image backend. The result and
+PNG record reported applied settings; legacy custom executors that do not report
+their settings are identified as unreported. Model support remains the selected
+executor's responsibility.
 
 Default iiDecision policy defers work without trusted probability/value/cost
 assessments. Permissions remain a separate requirement. Supply host profiles or
@@ -119,6 +124,8 @@ Related implementation contracts: [Native tool turns](docs/NativeToolTurns.md), 
 See [MCP startup and lightweight IPC client](docs/McpPeerStartup.md) for managed dependency preparation and client runtime boundaries.
 
 Source files and adjacent headers are organized by responsibility under `src/`; the installed `iiMultimodalAgent/...` include paths remain stable. See [source layout](docs/SourceLayout.md).
+
+Compilation outputs stay in `build/`; third-party source trees are reused from `resources/dependencies/`. Test outputs use a disposable directory under `resources/.state/` and are cleaned after CTest. See [build layout](docs/BuildLayout.md).
 
 <!-- workspace-docs:readme:start -->
 ## Documentation entry points
