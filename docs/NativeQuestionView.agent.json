@@ -1,0 +1,379 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:ca15d2be61eb761fc68775ad66797f9757842061d9065e0ab40739acdbc8cc6f",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiMultimodalAgent",
+    "name": "iiMultimodalAgent",
+    "root": "SDK/iiMultimodalAgent",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/NativeQuestionView.md",
+    "sha256": "97a58f38196599b339f07c72dc7ffa2c2accbb004ee23ff5673b51bf93f1bda4",
+    "bytes": 11998,
+    "line_count": 150,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "LVUI 사용자 질문 화면 계약",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# LVUI 사용자 질문 화면 계약\n",
+      "level": 1,
+      "title": "LVUI 사용자 질문 화면 계약"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 8,
+      "raw": "LVUI 화면은 [System의 iiMultimodalAgent 시안](https://www.figma.com/design/PFMgQb3BVbrTbzPPsoWsRp/System?node-id=34-285)을\n기준으로 한다. 뷰에는 질문 표시와 바인딩만 두고, 대기 요청·선택·직접 입력·메모와\n전송 명령은 C++ 뷰모델이 소유한다. `NativeQuestionBridge`가 `QuestionInbox`의 변경\n이벤트를 받아 해당 요청을 전달하고 답변 또는 거절 명령을 기존 검증 경로에 연결한다. 모델은 Qt,\nLVUI, iiGUI와 다른 SDK 기능 모듈에 의존하지 않는다. 반응형 값과 명시적 쿼리는\niiSDKCore를 사용한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 10,
+      "end_line": 19,
+      "raw": "첫 요청이 동일하고 본문도 같으면 뒤에 요청이 추가되어도 현재 질문 객체와 초안을\n유지한다. 현재 요청의 교체·취소·만료 또는 질문 본문 변경 시 이전 행은 퇴역하고\n초안을 지운다. 퇴역 행의 늦은 명령은 새 요청에 영향을 주지 않는다. 단일 선택은\n직접 입력과 상호 배타적이고 다중 선택은 함께 보낸다. 선택한 답은 원래 옵션 순서로\n조합하며, 단일 선택이고 직접 입력이 없을 때만 그 선택지의 미리보기를 주석에 넣는다.\n질문 문자열은 `__proto__`를 포함해 항상 데이터로 취급한다.\n선택값을 관찰하는 콜백이 질문을 교체하면 퇴역한 행의 나머지 입력 갱신을 중단한다.\n문자열 관찰자가 모델을 해제하거나 새 번역으로 재진입하면 이전 갱신은 중단한다.\n쿼리 처리 도중 해당 쿼리 포트를 소유한 모델을 파괴하는 것은 허용되지 않으므로,\n호스트는 쿼리가 반환된 뒤 모델을 해제해야 한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 27,
+      "raw": "공유 라이브러리의 C 경계와 Python `QuestionModel`은 같은 뷰모델과 쿼리를 사용한다.\n요청 스냅샷과 개별 변경을 명시적으로 전달하고, 질문·선택 상태를 조회해 답변을\n편집하거나 호스트의 제출·거절 콜백을 실행한다. 행 세대는 현재 질문이 교체될 때\n변경되며, 이전 세대의 입력은 새 요청에 적용하지 않고 거부한다. 뒤에 대기 요청만\n추가되는 경우에는 현재 행과 입력을 보존한다. 관측 알림은 변경된 상태에만 반응하고\n폴링이나 작업 스레드를 만들지 않는다. 모든 호출·콜백·모델 임대 해제는 소유\n스레드에서 수행하고 임대는 생성 뷰와 진행 중인 쿼리보다 오래 유지한다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 35,
+      "raw": "설치 패키지의 `IIMULTIMODALAGENT_PYTHON_DIR`에서\n`iiquestion_presentation.QuestionModel`을 가져올 수 있다. 공유 에이전트 라이브러리와\n그 기존 런타임 의존성이 필요하며, 별도의 Qt 없는 에이전트 패키지를 설치한다는 뜻은\n아니다. Core가 다른 검색 경로에 있으면 같은 ABI의 디렉터리를 `core_library_dir` 또는\n`IIQUESTION_CORE_LIBRARY_DIR`로 지정한다. 생성 뷰와 같은 모델을 사용하는 네이티브\n호스트는 `lease_model()`의 `pointer`와 임대를 함께 전달하고 뷰를 분리한 뒤 임대를\n닫는다. Python 콜백 안에서는 임대 해제를 거부한다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 37,
+      "end_line": 49,
+      "raw": "```python\nfrom iiquestion_presentation import QuestionModel\n\nwith QuestionModel(core_library_dir=\"/path/to/matching/iiSDKCore/lib\") as model:\n    model.set_actions(lambda kind, request_id, answers, annotations:\n                      submit_to_host(kind, request_id, answers, annotations))\n    model.update([{\"id\": \"request-1\", \"questions\": [{\n        \"text\": \"Choose a renderer\", \"header\": \"Renderer\", \"multiple\": False,\n        \"options\": [{\"label\": \"Native\"}, {\"label\": \"Other\"}]}]}])\n    view = model.snapshot()\n    model.select(view[\"generation\"], 0, 0, True)\n    model.command(\"submit\")\n```\n",
+      "language": "python",
+      "code": "from iiquestion_presentation import QuestionModel\n\nwith QuestionModel(core_library_dir=\"/path/to/matching/iiSDKCore/lib\") as model:\n    model.set_actions(lambda kind, request_id, answers, annotations:\n                      submit_to_host(kind, request_id, answers, annotations))\n    model.update([{\"id\": \"request-1\", \"questions\": [{\n        \"text\": \"Choose a renderer\", \"header\": \"Renderer\", \"multiple\": False,\n        \"options\": [{\"label\": \"Native\"}, {\"label\": \"Other\"}]}]}])\n    view = model.snapshot()\n    model.select(view[\"generation\"], 0, 0, True)\n    model.command(\"submit\")\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 51,
+      "end_line": 67,
+      "raw": "`update`는 대기열 전체의 명시적 스냅샷이고 `change`는 한 요청의 추가·수정·제거다.\n`read_requests()`는 호출 시에만 대기열을 읽는다. `observe` 콜백은 속성, 행·선택지\n인덱스와 현재 세대를 받는다. `snapshot()`에서 받은 세대를 `select`, `preview`,\n`edit_other`, `edit_notes`에 전달해야 하며, 바뀐 세대는 거부된다. `submit`은\n질문 문자열을 키로 하는 답변과 주석을 전달하고 `skip`은 같은 제출 콜백에 빈 답변을,\n`decline`은 별도 거절 종류를 전달한다. 호스트가 수락하면 콜백은 `True`를 반환한다.\nPython 콜백 오류는 Python이 시작한 바깥 호출에서 복귀할 때 다시 전달하며, 외부 C++\n호스트가 시작한 호출의 오류는 쿼리가 반환된 뒤 `raise_callback_errors()`로 확인한다.\n한 스냅샷은 최대 64개 요청, 각 요청은 최대 4개 질문, 각 질문은 최대 4개 선택지를\n받으며, 모델의 기존 검증 조건도 그대로 적용된다.\n질문과 답변은 유효한 UTF-8만 받는다. 선택지는 레이블을 접근성 이름으로 노출하고,\n직접 답변·메모 입력에는 질문을 포함하는 개별 현지화 접근성 이름을 제공한다.\n여러 질문이나 긴 선택지로 본문이 화면을 넘으면 시트 본문을 사용자 스크롤로 이동해\n마지막 질문과 전송 버튼까지 접근할 수 있어야 한다. 스크롤은 명시적인 입력에서만\n처리하며 이동 전 입력과 선택은 그대로 유지한다.\n시트는 플랫폼에 따라 데스크톱 중앙형 또는 모바일 하단형을 사용하도록 명시한다.\nFigma의 컴포넌트 기본 변형인 모바일 전용 표시를 모든 플랫폼에 강제하지 않는다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 69,
+      "end_line": 72,
+      "raw": "값이 변경될 때만 관련 바인딩을 갱신한다. 큐 전체 재조회나 시간 기반 폴링은 하지\n않으며, 개별 요청 변경은 해당 요청만 전달한다. 호스트는 최초 스냅샷과 이벤트 누락\n복구를 명시적으로 전달한다. 질문 검증과\n최종 요청 확정은 기존 `QuestionInbox`와 `userQuestionTool`이 계속 담당한다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 73,
+      "end_line": 73,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "heading",
+      "start_line": 74,
+      "end_line": 74,
+      "raw": "## 호스트 구성\n",
+      "level": 2,
+      "title": "호스트 구성"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 81,
+      "raw": "앱은 `IIMULTIMODALAGENT_VIEWS_DIR/UserQuestionsSheet.lvui`를 LVUI로 AOT 생성하고\n같은 모델을 브리지와 생성된 뷰의 `NativeQuestionBackend` 팩터리에 전달한다. 모델과\n`QuestionInbox`, 브리지는 각각의 소유 스레드에서 사용하고, 팩터리와 뷰 수명 동안\n모델을 유지한다. 브리지는 수신함을 소유하지 않는다. 수신함이 파괴되면 화면의 요청이\n비워지며, 브리지가 파괴된 뒤의 늦은 제출은 실패한다. 언어 문자열은 호스트가\n`setStrings()`로 제공할 수 있다.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "fenced_code",
+      "start_line": 83,
+      "end_line": 90,
+      "raw": "```cpp\nnamespace view = iiMultimodalAgent::agent::presentation;\nauto model = std::make_shared<view::NativeQuestionViewModel>();\nview::NativeQuestionBridge bridge(inbox, model);\nauto factories = lvui::native::BackendFactories{}\n    .with<view::NativeQuestionBackend>([model] { return view::NativeQuestionBackend(model); });\n// Pass factories to the generated UserQuestionsSheet::build at the app's mount.\n```\n",
+      "language": "cpp",
+      "code": "namespace view = iiMultimodalAgent::agent::presentation;\nauto model = std::make_shared<view::NativeQuestionViewModel>();\nview::NativeQuestionBridge bridge(inbox, model);\nauto factories = lvui::native::BackendFactories{}\n    .with<view::NativeQuestionBackend>([model] { return view::NativeQuestionBackend(model); });\n// Pass factories to the generated UserQuestionsSheet::build at the app's mount.\n",
+      "closed": true
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 92,
+      "end_line": 94,
+      "raw": "사용자 Escape는 현재 요청만 거절한다. 요청 취소·만료 등으로 모델이 시트를 닫는\n경우에는 새 요청을 거절하지 않는다. 레거시 QML은 `src/Legacy/qml`과 설치 패키지의\n`IIMULTIMODALAGENT_LEGACY_QML_DIR`에 분리했다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "## 검증 범위와 남은 통합\n",
+      "level": 2,
+      "title": "검증 범위와 남은 통합"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 98,
+      "end_line": 112,
+      "raw": "2026-11-14 macOS에서 모델, `QuestionInbox` 브리지 및 AOT 생성된 뷰의 헤드리스\n선택·입력·대기열·취소 검사를 수행했다. 별도 스테이징 패키지의 LVUI 파일과\n설치된 C++ 모델을 함께 사용하는 소비자도 검사했다. 실제 앱이나 GUI 창은 실행하지 않았다.\nSociety와 Dreamscapes macOS 소스에는 수신함에 연결된 iiGUI 표면이 추가되어 있으며,\n호스트 실패 시 레거시 화면으로 전환한다. Dreamscapes는 라이선스 상태도 확인한다.\n다른 플랫폼과 실제 앱 창 표시의 검증은 남아 있다. 선택지의 포커스와\n호버에 따른 미리보기 전환, 설명 영역 클릭과 긴 질문·설명의 폭 기반 줄바꿈은 macOS\n헤드리스 검사에서 확인했다. 선택 컨트롤은 키보드와 접근성 활성화 경로를 제공한다.\n2026-11-15 추가 검사에서는 데스크톱 중앙 배치와 360×260 창의 질문 4개를 검사했다.\n가짜 수신함이 거절된 요청을 제거한 뒤 다음 요청을 열고, 휠 스크롤·이전 선택 보존·\n전송을 확인했다. 소스 뷰와 설치 스테이징의 생성 뷰 모두 검사했으며 실제 창은 열지 않았다.\niiGUI Web 텍스트의 폭 기반 줄바꿈은 이후 소스에 추가되었다. WebAssembly와 모의\nCanvas 검사에서 측정과 그리기의 줄이 일치했지만 실제 브라우저의 글꼴·레이아웃과\n이 질문 화면의 Web 앱 마운트는 검증하지 않았다. 따라서 이 화면의 앱 전환이 끝났다고\n보지 않는다.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 113,
+      "end_line": 113,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 114,
+      "end_line": 117,
+      "raw": "구형 QML 질문 시트의 테스트와 그 안에 선언된 호스트는\n`tests/Legacy/question_sheet_tests.cpp`에 격리했다. 기존 레거시 테스트 타깃과\n하네스 검사 목록도 이 경로를 참조한다.\n2026-11-15 변경된 경로로 다시 빌드한 질문 시트와 준비·정리 검사가 통과했다.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 119,
+      "end_line": 125,
+      "raw": "설치 스테이징의 에이전트 모델과 iiGUI 소비자는 `TaskToken` 레이아웃이 일치하는\nCore 빌드로 재구성했으며, 검사 중 로드된 Core 라이브러리 경로를 확인했다. 현재\n환경에는 같은 Core 버전 번호로 다른 ABI를 가진 설치본도 있으므로 혼용하면 안 된다.\n이 확인은 다른 모델·네트워크 의존성 전체의 ABI 검증이나 실제 서비스 검증이 아니다.\n실제로 다른 Core 헤더를 선택한 별도 모델 소비자는 실행 중 중단되었고, 모델과 같은\nCore 패키지로 다시 구성해 해당 소비자 검사를 통과했다. 버전 번호가 같다는 이유만으로\n서로 다른 Core 빌드를 결합할 수는 없다.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 127,
+      "end_line": 134,
+      "raw": "2026-11-15 C·Python 경계의 상태·부분 변경·대기열·선택·답변·거절·오류·스레드·\n행 세대와 임대 수명을 검사했다. 실제 설치 스테이징의 C·Python 소비자와 같은 C 모델을\n연결한 AOT 생성 LVUI의 헤드리스 소비자도 통과했다. 처음에는 현재 LVUI 컴파일러와\n이전 설치 헤더를 섞어 컴파일이 실패했으며, 같은 스테이징의 컴파일러·헤더로 다시\n구성해 통과했다. 모델과 C 경계만 Core에 연결한 별도 테스트에 AddressSanitizer와\nUndefinedBehaviorSanitizer를 적용했지만 Core 라이브러리는 계측하지 않았다. C 경계의\nWindows x86-64 객체 교차 컴파일은 통과했으며 Windows 링크·실행과 실제 앱 창은\n검증하지 않았다. 시스템 설치본은 갱신하지 않았다.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 135,
+      "end_line": 135,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 136,
+      "end_line": 145,
+      "raw": "소스 트리의 LVUI 소비자도 위 설치 소비자와 같은 C 경계의 헤더와 구현을 함께\n빌드하도록 고쳤다. macOS 헤드리스 검사가 통과했고, 같은 소스 뷰와 현재 LVUI·iiGUI·\nCore를 iPhoneOS 18 arm64 소비자로 AOT 컴파일하고 링크했다. 이 iOS 검사는 전체\n에이전트 라이브러리나 Society 앱이 아니라 질문 모델과 C 경계를 따로 조합한 것이다.\n기기 실행, 네트워크 서비스 및 실제 입력·화면 표시는 검증하지 않았다.\n동일한 소스 소비자는 Android NDK 30 arm64/API 24에서도 AOT 컴파일하고 링크했다.\nAndroid 앱 패키지나 기기는 실행하지 않았고 전체 에이전트 패키지의 Android 링크를\n검증한 것은 아니다.\niOS와 Android 소비자 모두 생성된 질문 뷰와 iiGUI 호스트 마운트 코드가 같이\n링크되는 것도 확인했다. 실제 화면 마운트 및 입력 검사는 별도로 남아 있다.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 146,
+      "end_line": 146,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 147,
+      "end_line": 150,
+      "raw": "생성된 질문 화면을 외부 소유 `iiGUI::PaintView`와 테스트용 프레임 장치로\n구성해 질문 상태와 건너뛰기 입력이 모델에 전달되고, 호스트 요청에 따라\n그려지며 종료 시 뷰 수명이 해제되는지 검사했다. 테스트 장치는 실제 GPU나\n운영체제 표시 표면이 아니다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "LVUI 사용자 질문 화면 계약",
+      "anchor": "lvui-사용자-질문-화면-계약",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000017",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "호스트 구성",
+      "anchor": "호스트-구성",
+      "start_line": 74
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "검증 범위와 남은 통합",
+      "anchor": "검증-범위와-남은-통합",
+      "start_line": 96
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 7,
+        "text": "LVUI, iiGUI와 다른 SDK 기능 모듈에 의존하지 않는다. 반응형 값과 명시적 쿼리는",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 19,
+        "text": "호스트는 쿼리가 반환된 뒤 모델을 해제해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 67,
+        "text": "Figma의 컴포넌트 기본 변형인 모바일 전용 표시를 모든 플랫폼에 강제하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 79,
+        "text": "모델을 유지한다. 브리지는 수신함을 소유하지 않는다. 수신함이 파괴되면 화면의 요청이",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000023",
+        "line": 93,
+        "text": "경우에는 새 요청을 거절하지 않는다. 레거시 QML은 `src/Legacy/qml`과 설치 패키지의",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "System의 iiMultimodalAgent 시안",
+        "target": "https://www.figma.com/design/PFMgQb3BVbrTbzPPsoWsRp/System?node-id=34-285",
+        "kind": "external",
+        "line": 3
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

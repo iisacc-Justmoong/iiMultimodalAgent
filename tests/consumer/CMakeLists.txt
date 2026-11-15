@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiMultimodalAgentConsumer LANGUAGES CXX)
 find_package(iiMultimodalAgent 0.1 CONFIG REQUIRED)
+if(NOT EXISTS "${IIMULTIMODALAGENT_VIEWS_DIR}/UserQuestionsSheet.lvui" OR
+   EXISTS "${IIMULTIMODALAGENT_VIEWS_DIR}/UserQuestionsSheet.qml" OR
+   NOT EXISTS "${IIMULTIMODALAGENT_LEGACY_QML_DIR}/UserQuestionsSheet.qml" OR
+   NOT IIMULTIMODALAGENT_QML_DIR STREQUAL IIMULTIMODALAGENT_LEGACY_QML_DIR)
+    message(FATAL_ERROR "Native and legacy question views were not packaged separately")
+endif()
 if(NOT TARGET iiMultimodalAgent::NativeImages)
     message(FATAL_ERROR "The installed agent package must expose its native image runtime to bundle deployers")
 endif()
@@ -16,6 +22,10 @@ endforeach()
 add_executable(agent_consumer agent.cpp)
 target_link_libraries(agent_consumer PRIVATE iiMultimodalAgent::iiMultimodalAgent)
 add_test(NAME iiMultimodalAgent.installed_agent COMMAND agent_consumer)
+add_executable(agent_question_model_consumer ../native_question_view_model.cpp)
+target_compile_features(agent_question_model_consumer PRIVATE cxx_std_23)
+target_link_libraries(agent_question_model_consumer PRIVATE iiMultimodalAgent::iiMultimodalAgent)
+add_test(NAME iiMultimodalAgent.installed_question_model COMMAND agent_question_model_consumer)
 option(IIMULTIMODALAGENT_TEST_BUNDLED_VOICE "Run the installed native speech model" OFF)
 if(IIMULTIMODALAGENT_TEST_BUNDLED_VOICE)
     add_executable(speech_consumer ../speech_tool_smoke.cpp)

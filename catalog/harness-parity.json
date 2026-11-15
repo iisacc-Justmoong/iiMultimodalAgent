@@ -511,7 +511,7 @@
         "src/iiMultimodalAgent/agent/QuestionInbox.cpp",
         "qml/UserQuestionsSheet.qml",
         "tests/question_inbox_tests.cpp",
-        "tests/question_sheet_tests.cpp",
+        "tests/Legacy/question_sheet_tests.cpp",
         "docs/QuestionUI.md",
         "src/iiMultimodalAgent/agent/ProjectMemory.h",
         "src/iiMultimodalAgent/agent/ProjectMemory.cpp",
@@ -943,7 +943,7 @@
         "src/iiMultimodalAgent/agent/QuestionInbox.cpp",
         "qml/UserQuestionsSheet.qml",
         "tests/question_inbox_tests.cpp",
-        "tests/question_sheet_tests.cpp",
+        "tests/Legacy/question_sheet_tests.cpp",
         "docs/QuestionUI.md"
       ],
       "remaining": "C++ QuestionInbox and the LVRS question sheet support choice/free text/notes, partial responses, queue/focus preservation, cancellation and local MCP app UI wiring. Rich preview rendering, attachments, interview mode, full interactive CLI/chat/approval interfaces and mobile/Windows app routing remain. Qualification boundaries are recorded in QuestionUI.md and Verification.md."
@@ -1005,7 +1005,7 @@
         "src/iiMultimodalAgent/agent/QuestionInbox.cpp",
         "qml/UserQuestionsSheet.qml",
         "tests/question_inbox_tests.cpp",
-        "tests/question_sheet_tests.cpp",
+        "tests/Legacy/question_sheet_tests.cpp",
         "docs/QuestionUI.md"
       ],
       "remaining": "Actual macOS Society and Dreamscapes endpoints dispatch to their Qt controllers. Society navigation and eager native Qwen status consumption, plus Dreamscapes model selection, fixture generation, job IDs and cancellation were exercised. Congregation/Thinking Space, mobile/Windows discovery, native image quality and broad autonomous app workflows remain."
@@ -1048,7 +1048,7 @@
         "src/iiMultimodalAgent/agent/QuestionInbox.cpp",
         "qml/UserQuestionsSheet.qml",
         "tests/question_inbox_tests.cpp",
-        "tests/question_sheet_tests.cpp",
+        "tests/Legacy/question_sheet_tests.cpp",
         "docs/QuestionUI.md",
         "src/iiMultimodalAgent/agent/ProjectMemory.h",
         "src/iiMultimodalAgent/agent/ProjectMemory.cpp",

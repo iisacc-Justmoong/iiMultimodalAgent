@@ -21,7 +21,7 @@
       "document_id": "urn:iisacc:document:94bdbe9425666052ab7b82e3cfa1180e6010a29ca1325a54538a833af352f230",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "087d5b7113a13326e890d8d23fff963b92a78ea3509087fca4158b2ed55df74f",
+      "source_sha256": "1af745458cf2d41bef5ab493d43818580fdff1bdf333d38c339256481db50cb1",
       "role": "overview"
     },
     {
@@ -256,6 +256,13 @@
       "role": "guide"
     },
     {
+      "document_id": "urn:iisacc:document:ca15d2be61eb761fc68775ad66797f9757842061d9065e0ab40739acdbc8cc6f",
+      "source": "docs/NativeQuestionView.md",
+      "agent_json": "docs/NativeQuestionView.agent.json",
+      "source_sha256": "97a58f38196599b339f07c72dc7ffa2c2accbb004ee23ff5673b51bf93f1bda4",
+      "role": "guide"
+    },
+    {
       "document_id": "urn:iisacc:document:4840aa882f3393c7ffa74b3cd6a9073cf035f9f5707d4da4cb527578e0b6ab80",
       "source": "docs/NativeToolTurns.md",
       "agent_json": "docs/NativeToolTurns.agent.json",
@@ -357,14 +364,14 @@
       "document_id": "urn:iisacc:document:68929ced38576b5a9a5e0c88b28bcfef0d5beec44f0d2d1bfd5234d1eeea2469",
       "source": "docs/QuestionUI.md",
       "agent_json": "docs/QuestionUI.agent.json",
-      "source_sha256": "98d678225a0fb2d315b07c0913a27a4aeec48cb6de709c77ad58c681cd344fdd",
+      "source_sha256": "a7a80859de4e9c183d51aca1a476a918f5cbab83d478370df8ef3e006e35e81c",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:97414493707374b4caafaf74d3290b0c378957f1798eb022ddf8e70f8cb3e795",
       "source": "docs/README.md",
       "agent_json": "docs/README.agent.json",
-      "source_sha256": "45b683f48b8715c9513b1c23feac99578acddb2cdf85d84502f4784af6b191f9",
+      "source_sha256": "8bc73f434514ac1a5225151447b75430eaca3e0e040712d95e5fc9ccb102e23b",
       "role": "overview"
     },
     {

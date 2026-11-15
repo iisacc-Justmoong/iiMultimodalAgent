@@ -67,6 +67,12 @@ set(_agent_sources
     src/Agent/Context/PromptState.h
     src/Agent/Collaboration/QuestionInbox.cpp
     src/Agent/Collaboration/QuestionInbox.h
+    src/Agent/Collaboration/NativeQuestionViewModel.cpp
+    src/Agent/Collaboration/NativeQuestionViewModel.h
+    src/Agent/Collaboration/NativeQuestionPresentationC.cpp
+    src/Agent/Collaboration/NativeQuestionPresentationC.h
+    src/Agent/Collaboration/NativeQuestionBridge.cpp
+    src/Agent/Collaboration/NativeQuestionBridge.h
     src/Agent/Session/SessionHistory.cpp
     src/Agent/Session/SessionHistory.h
     src/Agent/Session/SessionStore.cpp

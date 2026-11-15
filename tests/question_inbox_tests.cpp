@@ -1,4 +1,5 @@
 #include <iiMultimodalAgent/agent/QuestionInbox.h>
+#include <iiMultimodalAgent/agent/NativeQuestionBridge.h>
 #include <iiMultimodalAgent/agent/UserQuestions.h>
 #include <iiMultimodalAgent/agent/McpServer.h>
 #include <QtCore/QTemporaryDir>
@@ -26,6 +27,77 @@ QString id(a::QuestionInbox& box){return box.requests().first().toMap()["request
 class QuestionInboxTests:public QObject {
     Q_OBJECT
 private slots:
+    void nativeViewModelReceivesDeltasAndSendsValidatedReplies() {
+        Fixture f; a::QuestionInbox box;
+        auto model=std::make_shared<a::presentation::NativeQuestionViewModel>();
+        a::presentation::NativeQuestionBridge bridge(&box,model);
+        auto first=f.run(box.hook(),"native-first");
+        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        auto row=model->rows.get().front();
+        row->editOther("Direct answer");
+        auto second=f.run(box.hook(),"native-second");
+        QTRY_VERIFY(model->hasWaiting.get());
+        QCOMPARE(model->rows.get().front(),row);
+        QCOMPARE(row->other.get(),std::string("Direct answer"));
+        model->submit();
+        QTRY_COMPARE(box.requests().size(),1);
+        QCOMPARE(first.get().data["answers"].toObject()["Which renderer?"],"Direct answer");
+        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        QVERIFY(!row->active());
+        model->rows.get().front()->options.front()->toggled(true);
+        model->submit();
+        QTRY_VERIFY(box.requests().isEmpty());
+        QCOMPARE(second.get().data["answers"].toObject()["Which renderer?"],"Qt");
+        QVERIFY(!model->open.get());
+    }
+    void nativeViewModelRecoversAMissedRequestEvent() {
+        Fixture f; a::QuestionInbox box;
+        auto model=std::make_shared<a::presentation::NativeQuestionViewModel>();
+        a::presentation::NativeQuestionBridge bridge(&box,model);
+        auto first=f.run(box.hook(),"recovery-first");
+        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        const auto firstId=box.requests().first().toMap()["request_id"].toString().toStdString();
+        QVERIFY(model->change.send({firstId,std::nullopt,0})); // Simulate a missed notification.
+        auto second=f.run(box.hook(),"recovery-second");
+        QTRY_VERIFY(model->hasWaiting.get());
+        QCOMPARE(model->read.send({})->requests.size(),std::size_t(2));
+        model->skip(); QTRY_COMPARE(box.requests().size(),1);
+        model->decline(); QTRY_VERIFY(box.requests().isEmpty());
+        QVERIFY(!first.get().isError); QVERIFY(second.get().isError);
+    }
+    void retiredNativeBridgeCannotSubmit() {
+        Fixture f; a::QuestionInbox box;
+        auto model=std::make_shared<a::presentation::NativeQuestionViewModel>();
+        auto bridge=std::make_unique<a::presentation::NativeQuestionBridge>(&box,model);
+        auto pending=f.run(box.hook(),"retired");
+        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        bridge.reset();
+        model->submit(); QCOMPARE(box.requests().size(),1);
+        QVERIFY(box.reject(id(box))); QVERIFY(pending.get().isError);
+    }
+    void changedRequestCanBeQueriedWithoutReadingTheWholeQueue() {
+        Fixture f; a::QuestionInbox box;
+        QSignalSpy deltas(&box, &a::QuestionInbox::requestDelta);
+        QSignalSpy reconciled(&box, &a::QuestionInbox::requestsReconciled);
+        auto first=f.run(box.hook(),"first");
+        QTRY_COMPARE(deltas.size(),1);
+        const auto firstId=deltas.last().at(0).toString();
+        const auto selected=box.requestSnapshot(firstId);
+        QCOMPARE(selected.position,0);
+        QCOMPARE(selected.request["request_id"].toString(),firstId);
+        auto second=f.run(box.hook(),"second");
+        QTRY_COMPARE(deltas.size(),2);
+        const auto secondId=deltas.last().at(0).toString();
+        QCOMPARE(box.requestSnapshot(secondId).position,1);
+        QVERIFY(box.submit(firstId,{}));
+        QTRY_COMPARE(deltas.size(),3);
+        QCOMPARE(box.requestSnapshot(firstId).position,-1);
+        QCOMPARE(box.requestSnapshot(secondId).position,0);
+        box.refresh();
+        QCOMPARE(reconciled.size(),1); // Explicit recovery is reported without a fake change.
+        QVERIFY(box.reject(secondId));
+        QVERIFY(!first.get().isError); QVERIFY(second.get().isError);
+    }
     void idleInboxDoesNotPoll() {
         a::QuestionInbox box;
         QVERIFY(box.findChildren<QTimer*>().isEmpty());

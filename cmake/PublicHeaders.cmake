@@ -4,6 +4,7 @@ install(FILES src/Agent/Extensions/Procedures.h src/Agent/Permissions/DecisionGa
 install(FILES src/Agent/Collaboration/TaskStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Runtime/InputQueue.h src/Agent/Extensions/Skills.h src/Agent/Collaboration/Subagents.h src/Agent/Collaboration/Teams.h src/Agent/Extensions/AgentProfiles.h src/Agent/Permissions/PermissionRules.h src/Agent/Permissions/PermissionSettings.h src/Agent/Permissions/PermissionRequests.h src/Agent/Hooks/CommandHooks.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Hooks/AsyncHooks.h src/Agent/Planning/PlanMode.h src/Agent/Collaboration/UserQuestions.h src/Agent/Collaboration/QuestionInbox.h src/Agent/Memory/ProjectMemory.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
+install(FILES src/Agent/Collaboration/NativeQuestionViewModel.h src/Agent/Collaboration/NativeQuestionPresentationC.h src/Agent/Collaboration/NativeQuestionBridge.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Memory/MemoryRecall.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Memory/Rag.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)
 install(FILES src/Agent/Memory/SemanticRag.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiMultimodalAgent/agent)

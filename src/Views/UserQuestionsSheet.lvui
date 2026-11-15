@@ -1,0 +1,46 @@
+import vm iiMultimodalAgent.agent.presentation.NativeQuestionBackend
+
+Window {
+    Sheet(id: "agentQuestionsSheet", open: vm.open, title: vm.title, presentation: .automatic,
+          description: vm.description, showCloseButton: false,
+          dismissOnBackground: false, dismissOnEscape: true, dismissOnDrag: false,
+          motionEnabled: vm.motionEnabled, onCanceled: vm.decline) {
+        VStack(alignment: .stretch, spacing: Metric.space16) {
+            Label(id: "waiting", text: vm.waiting, visible: vm.hasWaiting, style: .description)
+            for (question in vm.rows, key: question.id, id: "questions") {
+                VStack(alignment: .stretch, spacing: Metric.space8) {
+                    Label(id: "questionHeader", text: question.header, style: .caption)
+                    Label(id: "questionText", text: question.text, style: .body)
+                    for (option in question.options, key: option.id, id: "options") {
+                        EventListener(id: "optionInteractive", sizeToContent: true,
+                                      onHovered: option.showPreview, onFocused: option.showPreview,
+                                      onClick: option.clicked) {
+                            VStack(alignment: .stretch, spacing: Metric.space4) {
+                                if (question.multiple) {
+                                    CheckBox(id: "option", text: option.label, accessibilityName: option.label, checked: option.checked,
+                                             onToggled: option.toggled)
+                                } else {
+                                    RadioButton(id: "choice", text: option.label, accessibilityName: option.label, checked: option.checked,
+                                                group: question.id, onToggled: option.toggled)
+                                }
+                                Label(id: "optionDescription", text: option.description,
+                                      visible: option.description != "", style: .description)
+                            }
+                        }
+                    }
+                    Label(id: "preview", text: question.preview, visible: question.preview != "", style: .description)
+                    TextEditor(id: "other", text: question.other, placeholder: vm.otherPlaceholder, accessibilityName: question.otherAccessibility,
+                               wrapEnabled: true, height: Metric.space46, onEdited: question.editOther)
+                    TextEditor(id: "notes", text: question.notes, placeholder: vm.notesPlaceholder, accessibilityName: question.notesAccessibility,
+                               wrapEnabled: true, height: Metric.space46, onEdited: question.editNotes)
+                }
+            }
+            Label(id: "error", text: vm.error, visible: vm.hasError, style: .description)
+            HStack(alignment: .center, spacing: Metric.space12) {
+                PushButton(id: "decline", text: vm.declineText, onClick: vm.decline)
+                PushButton(id: "skip", text: vm.skipText, onClick: vm.skip)
+                PushButton(id: "submit", text: vm.sendText, onClick: vm.submit)
+            }
+        }
+    }
+}

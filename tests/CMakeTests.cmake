@@ -1,4 +1,39 @@
 if(BUILD_TESTING)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/tests/question-c-consumer/main.c" PROPERTIES LANGUAGE CXX)
+    add_executable(iiMultimodalAgentQuestionCAbiTests tests/question-c-consumer/main.c)
+    target_link_libraries(iiMultimodalAgentQuestionCAbiTests PRIVATE iiMultimodalAgent::iiMultimodalAgent)
+    add_test(NAME iiMultimodalAgent.question_presentation_c COMMAND iiMultimodalAgentQuestionCAbiTests)
+    set_tests_properties(iiMultimodalAgent.question_presentation_c PROPERTIES TIMEOUT 30)
+    if(NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN AND TARGET iiSDKCore::iiSDKCore)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        add_test(NAME iiMultimodalAgent.question_presentation_python COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_question_presentation_python.py"
+            "$<TARGET_FILE:iiMultimodalAgent>" "$<TARGET_FILE_DIR:iiSDKCore::iiSDKCore>")
+        set_tests_properties(iiMultimodalAgent.question_presentation_python PROPERTIES TIMEOUT 30
+            ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+        add_test(NAME iiMultimodalAgent.question_presentation_installed COMMAND "${CMAKE_COMMAND}"
+            "-DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}" "-DBUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/question-python-installed-consumer" "-DPYTHON=${Python3_EXECUTABLE}"
+            "-DCORE_DIR=$<TARGET_FILE_DIR:iiSDKCore::iiSDKCore>" "-DCORE_PACKAGE_DIR=${iiSDKCore_DIR}"
+            "-DGENERATOR=${CMAKE_GENERATOR}" "-DBUILD_CONFIG=$<CONFIG>" "-DINSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR}"
+            "-DINSTALL_DATADIR=${CMAKE_INSTALL_DATADIR}" "-DCTEST_EXECUTABLE=${CMAKE_CTEST_COMMAND}"
+            "-DQT_PACKAGE_DIR=${Qt6_DIR}" "-DLOCAL_LLM_DIR=${iiLocalLLM_DIR}" "-DDECISION_DIR=${iiDecision_DIR}"
+            "-DLOCAL_DIFFUSION_DIR=${iiLocalDiffusion_DIR}" "-DAUDIO_DIR=${iiAudioGen_DIR}" "-DVOICE_DIR=${iiVoiceOver_DIR}"
+            "-DFILE_PROVIDER_DIR=${iiFileProvider_DIR}" "-DFILE_PROVIDER_NATIVE_DIR=${iiFileProviderNative_DIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/question_presentation_install.cmake")
+        set_tests_properties(iiMultimodalAgent.question_presentation_installed PROPERTIES TIMEOUT 90)
+    endif()
+    add_executable(iiMultimodalAgentNativeQuestionModelTests tests/native_question_view_model.cpp)
+    target_link_libraries(iiMultimodalAgentNativeQuestionModelTests PRIVATE iiMultimodalAgent::iiMultimodalAgent)
+    if(APPLE)
+        target_link_options(iiMultimodalAgentNativeQuestionModelTests BEFORE PRIVATE
+            "LINKER:-rpath,$<TARGET_FILE_DIR:iiMultimodalAgent>")
+    endif()
+    add_test(NAME iiMultimodalAgent.native_question_model COMMAND iiMultimodalAgentNativeQuestionModelTests)
+    if(APPLE)
+        set_tests_properties(iiMultimodalAgent.native_question_model PROPERTIES ENVIRONMENT_MODIFICATION
+            "DYLD_LIBRARY_PATH=unset:;DYLD_FALLBACK_LIBRARY_PATH=unset:;DYLD_FRAMEWORK_PATH=unset:;DYLD_FALLBACK_FRAMEWORK_PATH=unset:")
+    endif()
     string(RANDOM LENGTH 16 ALPHABET 0123456789abcdef _test_id)
     set(_test_state "${CMAKE_CURRENT_SOURCE_DIR}/resources/.state")
     set(_test_output "${_test_state}/tests-${_test_id}")
@@ -208,11 +243,11 @@ if(BUILD_TESTING)
     if(IIMULTIMODALAGENT_TEST_LVRS_DIR)
         find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Quick QuickControls2)
         find_package(LVRS CONFIG REQUIRED PATHS "${IIMULTIMODALAGENT_TEST_LVRS_DIR}/lib/cmake/LVRS" NO_DEFAULT_PATH)
-        add_executable(iiMultimodalAgentQuestionSheetTests tests/question_sheet_tests.cpp)
+        add_executable(iiMultimodalAgentQuestionSheetTests tests/Legacy/question_sheet_tests.cpp)
         target_link_libraries(iiMultimodalAgentQuestionSheetTests PRIVATE iiMultimodalAgent Qt6::Test Qt6::Quick LVRS::LVRS)
         set_target_properties(iiMultimodalAgentQuestionSheetTests PROPERTIES AUTOMOC ON)
         target_compile_definitions(iiMultimodalAgentQuestionSheetTests PRIVATE
-            QUESTION_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/qml"
+            QUESTION_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/Legacy/qml"
             QUESTION_LVRS_IMPORT_PATH="${IIMULTIMODALAGENT_TEST_LVRS_DIR}/lib/qt6/qml")
         add_test(NAME iiMultimodalAgent.question_sheet COMMAND iiMultimodalAgentQuestionSheetTests)
         set_tests_properties(iiMultimodalAgent.question_sheet PROPERTIES TIMEOUT 90

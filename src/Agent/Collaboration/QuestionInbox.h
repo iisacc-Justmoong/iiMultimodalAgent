@@ -4,6 +4,10 @@
 #include <QtCore/QVariant>
 
 namespace iiMultimodalAgent::agent {
+struct QuestionInboxSnapshot final {
+    int position = -1;
+    QVariantMap request;
+};
 // GUI-thread adapter for native AskUserQuestion. Hooks block only their worker;
 // the UI reads stable snapshots and submits answers on this object's thread.
 class IIMULTIMODALAGENT_EXPORT QuestionInbox final : public QObject {
@@ -16,6 +20,7 @@ public:
     ~QuestionInbox() override;
     Hook hook() const; // Only handles native AskUserQuestion permission requests.
     QVariantList requests() const;
+    [[nodiscard]] QuestionInboxSnapshot requestSnapshot(const QString& requestId) const;
     QString errorString() const;
     Q_INVOKABLE void refresh();
     Q_INVOKABLE bool submit(const QString& requestId,const QVariantMap& answers,const QVariantMap& annotations = {});
@@ -23,6 +28,10 @@ public:
     Q_INVOKABLE void close();
 signals:
     void requestsChanged();
+    // A consumer can query only this request; position -1 means it was removed.
+    void requestDelta(const QString& requestId);
+    // Explicit refresh is also a recovery boundary even when the source was unchanged.
+    void requestsReconciled();
     void errorChanged();
 private:
     QuestionInbox(std::shared_ptr<PermissionRequests>,bool owned,QObject* parent);

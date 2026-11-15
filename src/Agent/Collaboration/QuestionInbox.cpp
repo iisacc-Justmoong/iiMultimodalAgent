@@ -38,6 +38,14 @@ Hook QuestionInbox::hook() const {
     };
 }
 QVariantList QuestionInbox::requests() const{return d->rows;}
+QuestionInboxSnapshot QuestionInbox::requestSnapshot(const QString& id) const {
+    Q_ASSERT(QThread::currentThread()==thread());
+    for(int i=0;i<d->rows.size();++i){
+        const auto row=d->rows[i].toMap();
+        if(row.value("request_id").toString()==id)return {i,row};
+    }
+    return {};
+}
 QString QuestionInbox::errorString() const{return d->error;}
 void QuestionInbox::error(QString value){if(d->error!=value){d->error=std::move(value);emit errorChanged();}}
 namespace {
@@ -66,6 +74,7 @@ void QuestionInbox::requestChanged(const QString& id) {
             d->snapshot.insert(at,*current);d->rows.insert(at,current->toVariantMap());
         }
         emit requestsChanged();
+        if(self)emit self->requestDelta(id);
     }catch(const std::exception& failure){if(self)self->error(QString::fromUtf8(failure.what()));}
 }
 void QuestionInbox::refresh() {
@@ -81,6 +90,7 @@ void QuestionInbox::refresh() {
             cursor=page["next_cursor"].toInteger();
         }while(cursor>0);
         if(rows!=d->snapshot){d->snapshot=rows;d->rows=rows.toVariantList();emit requestsChanged();}
+        if(self)emit self->requestsReconciled();
     }catch(const std::exception& failure){if(self)self->error(QString::fromUtf8(failure.what()));}
 }
 bool QuestionInbox::finish(const QString& id,const QVariantMap& answers,const QVariantMap& annotations,const std::optional<QString>& reason) {

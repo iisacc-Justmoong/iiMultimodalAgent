@@ -24,15 +24,15 @@ toolOptions.hooks.append(inbox->hook());
 
 기본 채널은 120초, 64개 요청, 총 8MiB 대기 한도를 갖는다. MCP 서버의 기본 요청 기한은 60초이며 클라이언트가 더 짧은 기한을 설정할 수 있다. 실제 대기는 가장 먼저 도달한 기한이나 취소에 종료된다. 앱 통합은 연결별 호출 취소를 전달하지만 질문 목록은 로컬 UI에 통합해서 보여 준다. 외부 MCP 호출자는 다른 요청을 조회하거나 UI 답변을 제출하는 도구를 받지 않는다.
 
-## LVRS 화면 설치
+## LVUI 화면과 레거시 QML
 
-CMake 패키지는 `IILOCALLLM_QML_DIR`을 설치 prefix의 `share/iiLocalLLM/qml`로 제공한다. 앱이 `UserQuestionsSheet.qml`을 Qt 리소스에 포함하면 SDK 원본 폴더 없이 실행할 수 있다. `Loader.setSource(url, {inbox: inboxObject})`로 required 속성을 생성 시 전달한다. SDK는 QML 플러그인을 새로 등록하지 않는다.
+CMake 패키지는 새로운 `UserQuestionsSheet.lvui`를 `IIMULTIMODALAGENT_VIEWS_DIR`에 제공한다. C++ 모델, 이벤트 연결, 호스트 통합과 현재 검증 범위는 [LVUI 사용자 질문 화면](NativeQuestionView.md)을 따른다. 기존 Qt 호스트를 위한 `UserQuestionsSheet.qml`은 `IIMULTIMODALAGENT_LEGACY_QML_DIR` 아래에만 설치된다. 이전 `IIMULTIMODALAGENT_QML_DIR`은 해당 레거시 경로의 별칭이므로 Qt 호스트는 기존 리소스 연결을 유지할 수 있다. `Loader.setSource(url, {inbox: inboxObject})`는 레거시 화면에만 적용된다.
 
 화면은 단일·다중 선택, 여러 줄 자유 입력, 여러 줄 메모, 선택지 미리보기, 부분 응답, 건너뛰기, 거절·Escape를 제공한다. 다음 요청이 도착해도 현재 답변과 포커스를 유지하며 현재 요청이 끝나면 다음 요청으로 이동한다. 질문 원문이 `__proto__`여도 일반 데이터 키로 보존한다. 모든 외부 텍스트와 미리보기는 PlainText로 표시한다. Markdown/HTML 서식 렌더링, 이미지 첨부, 인터뷰 모드, 전체 채팅 UI는 구현하지 않았다.
 
 ## MCP 앱 계약
 
-Society와 Dreamscapes의 POSIX 데스크톱 빌드는 같은 화면을 리소스로 포함한다. `AskUserQuestion`은 `experimental.iisacc/userQuestions.responseChannel=local-ui`로 로컬 답변 경로를 알린다. `previewFormat=markdown`은 허용 입력이며 `previewRendering=plain-text`는 현재 표시 방법이다. 일반 앱 도구의 허용 규칙은 유지한다. native 질문은 전역 도구 실행 잠금을 점유하지 않아 기다리는 동안 탐색·갱신 같은 일반 호출이 계속 실행된다.
+Society와 Dreamscapes의 macOS 소스는 LVUI 질문 화면을 iiGUI 표면에 연결하고 호스트 실패 시 격리된 레거시 화면을 사용한다. 다른 플랫폼의 호스트 전환과 실제 창 표시는 별도 검증이 필요하다. `AskUserQuestion`은 `experimental.iisacc/userQuestions.responseChannel=local-ui`로 로컬 답변 경로를 알린다. `previewFormat=markdown`은 허용 입력이며 `previewRendering=plain-text`는 현재 표시 방법이다. 일반 앱 도구의 허용 규칙은 유지한다. native 질문은 전역 도구 실행 잠금을 점유하지 않아 기다리는 동안 탐색·갱신 같은 일반 호출이 계속 실행된다.
 
 서버 도구의 `_meta["iisacc/userInteraction"]=true`는 가져오기 후 `requires_user_interaction`으로 전달한다. 이 표시는 권한을 허용하지 않으며 원격 이름으로 가져온 질문도 자동 검증 agent 훅의 도구 목록과 실행 경로에서 제외하는 데 사용한다. 표시하지 않은 임의의 외부 도구까지 대화형인지 판별하는 기능은 아니다.
 

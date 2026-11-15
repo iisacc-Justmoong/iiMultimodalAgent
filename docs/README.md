@@ -42,6 +42,7 @@ Markdown is the maintained human source. Agent JSON is a structured, source-trac
 | [`docs/Migration.md`](Migration.md) | [JSON](Migration.agent.json) |
 | [`docs/MultimodalHarness.md`](MultimodalHarness.md) | [JSON](MultimodalHarness.agent.json) |
 | [`docs/MultimodalServices.md`](MultimodalServices.md) | [JSON](MultimodalServices.agent.json) |
+| [`docs/NativeQuestionView.md`](NativeQuestionView.md) | [JSON](NativeQuestionView.agent.json) |
 | [`docs/NativeToolTurns.md`](NativeToolTurns.md) | [JSON](NativeToolTurns.agent.json) |
 | [`docs/Notebooks.md`](Notebooks.md) | [JSON](Notebooks.agent.json) |
 | [`docs/PERFORMANCE.md`](PERFORMANCE.md) | [JSON](PERFORMANCE.agent.json) |

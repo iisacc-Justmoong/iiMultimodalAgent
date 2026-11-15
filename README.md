@@ -52,6 +52,11 @@ rewrite. The adapters add no QtGui dependency. iiAudioGen's existing Diffusers
 backend runs a Python worker; binding it does not make it native in-process
 inference. Hosts can inject an `iiAudioGen::Backend` without changing the agent.
 
+The native LVUI agent-question view and its iiSDKCore-backed C++ presentation
+model are described in [Native question view](docs/NativeQuestionView.md).
+The previous Qt Quick view remains isolated as legacy for existing Qt hosts;
+installing the new view does not by itself migrate those applications.
+
 ## Build, install and link
 
 Build/install the dependencies first, including iiLocalLLM 0.56.1. Preserve their

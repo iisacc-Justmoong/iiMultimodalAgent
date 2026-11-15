@@ -9,3 +9,10 @@ foreach(_file API/Inference.h Agent/Runtime/Engine.h Agent/Runtime/Engine.cpp
         message(FATAL_ERROR "Missing responsibility-grouped source: ${_file}")
     endif()
 endforeach()
+if(NOT EXISTS "${SOURCE_ROOT}/src/Views/UserQuestionsSheet.lvui")
+    message(FATAL_ERROR "Missing native LVUI question view")
+endif()
+if(NOT EXISTS "${SOURCE_ROOT}/src/Legacy/qml/UserQuestionsSheet.qml" OR
+   EXISTS "${SOURCE_ROOT}/src/qml/UserQuestionsSheet.qml")
+    message(FATAL_ERROR "The QML question view must be isolated under src/Legacy/qml")
+endif()

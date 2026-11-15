@@ -46,6 +46,7 @@ find_package(iiAudioGen 0.3 CONFIG REQUIRED)
 find_package(iiVoiceOver 0.2 CONFIG REQUIRED)
 find_package(iiFileProvider 0.6 CONFIG REQUIRED)
 find_package(iiFileProviderNative 0.8.2 CONFIG REQUIRED)
+find_package(iiSDKCore 0.20 CONFIG REQUIRED COMPONENTS Runtime HINTS "$ENV{HOME}/.local/SDK/iiSDKCore")
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Network)
 find_package(Threads REQUIRED)
 if(WIN32)
@@ -88,7 +89,7 @@ target_compile_definitions(iiMultimodalAgent PRIVATE IIMULTIMODALAGENT_BUILDING_
 target_link_libraries(iiMultimodalAgent
     PRIVATE "$<LINK_ONLY:iiFileProvider::Native>"
     PUBLIC iiLocalLLM::iiLocalLLM iiDecision::iiDecision
-        iiMultimodalAgentImageTypes iiAudioGen::iiAudioGen iiVoiceOver::iiVoiceOver
+        iiMultimodalAgentImageTypes iiAudioGen::iiAudioGen iiVoiceOver::iiVoiceOver iiSDKCore::Runtime
     PRIVATE iiFileProvider::iiFileProvider Threads::Threads ${CMAKE_DL_LIBS})
 if(APPLE AND _native_provider_kind STREQUAL "SHARED_LIBRARY")
     target_link_options(iiMultimodalAgent BEFORE PUBLIC
@@ -169,7 +170,13 @@ install(TARGETS iiMultimodalAgentImages EXPORT iiMultimodalAgentTargets
 install(TARGETS ${_agent_entrypoints} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 include(cmake/PublicHeaders.cmake)
 install(FILES src/iiMultimodalAgent.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(DIRECTORY src/qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/qml)
+install(DIRECTORY src/Views/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/views
+    FILES_MATCHING PATTERN "*.lvui")
+if(NOT EMSCRIPTEN)
+    install(FILES src/python/iiquestion_presentation.py DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/python)
+endif()
+install(DIRECTORY src/Legacy/qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/legacy/qml
+    FILES_MATCHING PATTERN "*.qml")
 install(FILES catalog/harness-parity.json README.md LICENSE THIRD_PARTY_NOTICES.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/docs)
