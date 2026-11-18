@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiMultimodalAgent VERSION 0.1.0 LANGUAGES CXX)
+set(iiMultimodalAgent_SPDX_LICENSE "Apache-2.0")
+option(IIMULTIMODALAGENT_BUILD_HARNESS
+    "Build the Qt harness and host-dependent tools. OFF configures only the Qt-free diagnostics library and its tests."
+    ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -19,10 +23,15 @@ install(EXPORT iiMultimodalAgentFailureDiagnosticsTargets NAMESPACE iiMultimodal
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
 install(FILES src/Diagnostics/FailureReport.h DESTINATION include/iiMultimodalAgent/diagnostics COMPONENT FailureDiagnostics)
 if(BUILD_TESTING)
+    add_test(NAME iiMultimodalAgent.license COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/license.cmake)
     add_test(NAME iiMultimodalAgent.source_layout COMMAND ${CMAKE_COMMAND} -DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/source_layout.cmake)
     add_executable(iiMultimodalAgentFailureReportTests tests/failure_report_tests.cpp)
     target_link_libraries(iiMultimodalAgentFailureReportTests PRIVATE iiMultimodalAgent::FailureDiagnostics)
     add_test(NAME iiMultimodalAgent.failure_report COMMAND iiMultimodalAgentFailureReportTests)
+endif()
+
+if(NOT IIMULTIMODALAGENT_BUILD_HARNESS)
+    return()
 endif()
 
 if(PROJECT_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -177,7 +186,7 @@ if(NOT EMSCRIPTEN)
 endif()
 install(DIRECTORY src/Legacy/qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/legacy/qml
     FILES_MATCHING PATTERN "*.qml")
-install(FILES catalog/harness-parity.json README.md LICENSE THIRD_PARTY_NOTICES.md
+install(FILES catalog/harness-parity.json README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent)
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/docs)
 install(FILES third_party/cpp-httplib/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/licenses RENAME cpp-httplib.LICENSE)
