@@ -30,6 +30,18 @@ if(BUILD_TESTING)
     add_test(NAME iiMultimodalAgent.failure_report COMMAND iiMultimodalAgentFailureReportTests)
 endif()
 
+# The diagnostics component is installed above this point. Generate its
+# package config here so a harness-off build can still be found with
+# find_package(iiMultimodalAgent CONFIG REQUIRED COMPONENTS FailureDiagnostics).
+configure_package_config_file(cmake/iiMultimodalAgentConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfigVersion.cmake
+    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMinorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
+
 if(NOT IIMULTIMODALAGENT_BUILD_HARNESS)
     return()
 endif()
@@ -193,12 +205,4 @@ install(FILES third_party/cpp-httplib/LICENSE DESTINATION ${CMAKE_INSTALL_DATADI
 install(FILES third_party/jsoncons/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/licenses RENAME jsoncons.LICENSE)
 install(FILES third_party/jsoncons/A5HASH-LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiMultimodalAgent/licenses RENAME jsoncons-A5HASH.LICENSE)
 install(EXPORT iiMultimodalAgentTargets NAMESPACE iiMultimodalAgent::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
-configure_package_config_file(cmake/iiMultimodalAgentConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfigVersion.cmake
-    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMinorVersion)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/iiMultimodalAgentConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiMultimodalAgent COMPONENT FailureDiagnostics)
