@@ -1,7 +1,8 @@
 # iiMultimodalAgent dependency ownership
 
-The agent and MCP sources were extracted from iiLocalLLM 0.55.1, preserving
-the original source license. Private parsers and their pinned notices move with
+The agent and MCP sources were extracted from iiLocalLLM 0.55.1. This
+package is licensed under the Apache License, Version 2.0. See LICENSE
+and NOTICE. Private parsers and their pinned notices move with
 the harness. llama.cpp/libmtmd and MLX inference remain in the iiLocalLLM package.
 iiLocalDiffusion, iiAudioGen and iiVoiceOver retain their own runtime/model
 licenses; this package does not copy their models or silently enable runtimes.
@@ -58,7 +59,7 @@ HTTP 도입 전 설치된 Qt HttpServer 6.8.3의 chunked responder와 cpp-httpli
 - cpp-httplib httplib.h SHA-256: `5933c14b2d0f45212925ed18ca579841f5fce717f431fc20cec712423e905b10`
 - [Qt 6.8 chunked responder](https://doc.qt.io/qt-6.8/qhttpserverresponder.html), [OpenAI Chat Completions reference](https://developers.openai.com/api/reference/resources/chat)
 
-llama.cpp 정적 링크 시 원본 MIT 고지를 설치 패키지의 share/iiMultimodalAgent/licenses/llama.cpp.LICENSE에 포함한다. MLX 환경에는 원본 배포판의 고지를 유지한다. iiLocalLLM의 AGPL-3.0-only 선언은 외부 라이선스를 대체하지 않는다.
+llama.cpp 정적 링크 시 원본 MIT 고지를 설치 패키지의 share/iiMultimodalAgent/licenses/llama.cpp.LICENSE에 포함한다. MLX 환경에는 원본 배포판의 고지를 유지한다. 이 패키지의 Apache-2.0 선언은 외부 라이선스를 대체하지 않는다.
 
 원격 pull/CLI 도입에는 이미 유지 중인 Qt 6.8.3 Core/Network를 재사용했다. CLI는 추론 SDK를 링크하지 않는다. Qt의 공유 라이브러리 라이선스 조건을 유지하며 추가 Hub 의존성은 없다. [QNetworkAccessManager](https://doc.qt.io/qt-6.8/qnetworkaccessmanager.html)와 [QNetworkRequest의 redirect/transfer timeout](https://doc.qt.io/qt-6.8/qnetworkrequest.html)을 사용한다.
 

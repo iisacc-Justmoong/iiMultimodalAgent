@@ -1,0 +1,72 @@
+if(NOT DEFINED SOURCE_ROOT)
+    message(FATAL_ERROR "SOURCE_ROOT is required")
+endif()
+
+file(READ "${SOURCE_ROOT}/LICENSE" _license)
+if(NOT _license MATCHES "Apache License")
+    message(FATAL_ERROR "LICENSE is not the Apache License")
+endif()
+if(NOT _license MATCHES "Version 2.0, January 2004")
+    message(FATAL_ERROR "LICENSE is not Apache License, Version 2.0")
+endif()
+if(NOT _license MATCHES "Grant of Patent License")
+    message(FATAL_ERROR "LICENSE is missing the Apache-2.0 patent grant")
+endif()
+if(NOT _license MATCHES "END OF TERMS AND CONDITIONS")
+    message(FATAL_ERROR "LICENSE is missing the Apache-2.0 terms")
+endif()
+if(_license MATCHES "GNU AFFERO GENERAL PUBLIC LICENSE")
+    message(FATAL_ERROR "LICENSE still contains the GNU AGPL")
+endif()
+
+file(READ "${SOURCE_ROOT}/NOTICE" _notice)
+if(NOT _notice MATCHES "Copyright \\(c\\) 2026 iisacc")
+    message(FATAL_ERROR "NOTICE is missing Copyright (c) 2026 iisacc")
+endif()
+
+file(READ "${SOURCE_ROOT}/README.md" _readme)
+if(NOT _readme MATCHES "SPDX-License-Identifier: Apache-2.0")
+    message(FATAL_ERROR "README.md is missing SPDX-License-Identifier: Apache-2.0")
+endif()
+if(NOT _readme MATCHES "Apache License, Version 2.0")
+    message(FATAL_ERROR "README.md License section is missing")
+endif()
+
+file(READ "${SOURCE_ROOT}/docs/License.md" _korean)
+if(NOT _korean MATCHES "SPDX-License-Identifier: Apache-2.0")
+    message(FATAL_ERROR "docs/License.md is missing SPDX-License-Identifier: Apache-2.0")
+endif()
+
+file(READ "${SOURCE_ROOT}/AGENT.md" _agent)
+if(NOT _agent MATCHES "Apache License 2.0")
+    message(FATAL_ERROR "AGENT.md is missing the Apache-2.0 statement")
+endif()
+
+file(READ "${SOURCE_ROOT}/CMakeLists.txt" _cmake)
+if(NOT _cmake MATCHES "set\\(iiMultimodalAgent_SPDX_LICENSE \"Apache-2.0\"\\)")
+    message(FATAL_ERROR "CMake does not set iiMultimodalAgent_SPDX_LICENSE")
+endif()
+if(NOT _cmake MATCHES "LICENSE" OR NOT _cmake MATCHES "NOTICE")
+    message(FATAL_ERROR "Install rules do not copy LICENSE and NOTICE")
+endif()
+
+file(READ "${SOURCE_ROOT}/cmake/iiMultimodalAgentConfig.cmake.in" _config)
+if(NOT _config MATCHES "set\\(iiMultimodalAgent_SPDX_LICENSE \"Apache-2.0\"\\)")
+    message(FATAL_ERROR "Package config does not export iiMultimodalAgent_SPDX_LICENSE")
+endif()
+
+file(GLOB_RECURSE _sources
+    "${SOURCE_ROOT}/src/*"
+    "${SOURCE_ROOT}/tools/*"
+    "${SOURCE_ROOT}/tests/*"
+    "${SOURCE_ROOT}/cmake/*"
+    "${SOURCE_ROOT}/example/*")
+foreach(_source IN LISTS _sources)
+    if(_source MATCHES "/third_party/")
+        continue()
+    endif()
+    file(READ "${_source}" _text)
+    if(_text MATCHES "SPDX-License-Identifier:" AND NOT _text MATCHES "SPDX-License-Identifier:[ \t]*Apache-2.0")
+        message(FATAL_ERROR "First-party SPDX identifier is not Apache-2.0: ${_source}")
+    endif()
+endforeach()

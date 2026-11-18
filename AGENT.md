@@ -21,6 +21,14 @@
 구성한 임베딩 의미·결합 검색을 제공한다. 자막·메타데이터를 원본 이미지 추론으로
 취급하지 않는다.
 
+## 라이선스
+
+이 모듈은 Apache License 2.0이다. 자사 소스, 문서, 도구, 테스트가 포함된다. 저작권 표시는 `Copyright (c) 2026 iisacc`이고 고지는 루트 `NOTICE`에 있다. 사람용 한국어 설명은 [docs/License.md](docs/License.md)이다.
+
+`Product` 아래의 iisacc 제품은 GNU Affero General Public License(AGPL)이다.
+
+제3자와 벤더 코드는 원래 라이선스를 유지한다.
+
 <!-- workspace-docs:agent:start -->
 ## 문서 구조와 에이전트 탐색
 

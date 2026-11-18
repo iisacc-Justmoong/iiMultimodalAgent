@@ -14,21 +14,21 @@
       "document_id": "urn:iisacc:document:387c5770e8c88c4fa550a8c59a3441aac4010f662d0fedd2e950c53c67a95b1a",
       "source": "AGENT.md",
       "agent_json": "docs/entrypoints/AGENT.agent.json",
-      "source_sha256": "0d1994fc45c1e7d59958120826a5313b50efbff1b4d28acd942571fdccad29a5",
+      "source_sha256": "5ba9e7e82c91c7a2d6555676c085af79a44f1df6da0718c9b17c7aa056008af7",
       "role": "instructions"
     },
     {
       "document_id": "urn:iisacc:document:94bdbe9425666052ab7b82e3cfa1180e6010a29ca1325a54538a833af352f230",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "1af745458cf2d41bef5ab493d43818580fdff1bdf333d38c339256481db50cb1",
+      "source_sha256": "245b1f78f539499ea8961b0d862e4a696558994a1f0a698965df304999a6dfb9",
       "role": "overview"
     },
     {
       "document_id": "urn:iisacc:document:55011beacf17ca076b5848aad1569f0a81f81477d5d7a8c37570c8e45ba7b2f3",
       "source": "THIRD_PARTY_NOTICES.md",
       "agent_json": "docs/entrypoints/THIRD_PARTY_NOTICES.agent.json",
-      "source_sha256": "de7b9dfbbe4f75d190b9f27216af5d14941f9f8196761cd5d699199175b5127d",
+      "source_sha256": "da260055978e826693a2b73f3f3626164dffd1b2f8bc530dcffbecb0bb7c4be1",
       "role": "guide"
     },
     {
@@ -155,6 +155,13 @@
       "source": "docs/InputQueue.md",
       "agent_json": "docs/InputQueue.agent.json",
       "source_sha256": "3721748fe66cf481854caf26399d39f17a9c21d4ca2ec5f9d01898c816494e3a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:edcc066e7815bea5d748779db94c3339ce644c301dfee9cf7f821f3b6fa7729d",
+      "source": "docs/License.md",
+      "agent_json": "docs/License.agent.json",
+      "source_sha256": "68ac49284488500ce8ffded860cd4ee4805dc12c413242f48b9e1c835253db2f",
       "role": "guide"
     },
     {
@@ -371,7 +378,7 @@
       "document_id": "urn:iisacc:document:97414493707374b4caafaf74d3290b0c378957f1798eb022ddf8e70f8cb3e795",
       "source": "docs/README.md",
       "agent_json": "docs/README.agent.json",
-      "source_sha256": "8bc73f434514ac1a5225151447b75430eaca3e0e040712d95e5fc9ccb102e23b",
+      "source_sha256": "fb6dad2a2e033356cdb5e5d149af4e035e660a5bddb019a5f1cbc067759bedd8",
       "role": "overview"
     },
     {
