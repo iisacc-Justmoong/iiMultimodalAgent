@@ -1,6 +1,8 @@
 #include "iiMultimodalAgent/agent/ShellTasks.h"
 #include <iiFileProviderDevice.h>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
@@ -67,128 +69,127 @@ bool executing(const QByteArray& pid) {
 }
 }
 class ShellTaskTests : public QObject {
-    Q_OBJECT
-private slots:
+public:
     void liveTasksTransferOwnershipWithoutRestartingTheirProcess() {
         try {
         Fixture f;const auto id=f.start("printf $$ > worker.pid; printf before; while [ ! -f release ]; do sleep .02; done; printf after");
-        const auto pidPath=f.context.workingDirectory+"/worker.pid";QTRY_VERIFY(!read(pidPath).isEmpty());const auto pid=read(pidPath);
-        const auto moved=f.tasks->transferSession(f.context.sessionId,"session-b");QCOMPARE(moved,QJsonArray{id});
-        QVERIFY(f.tasks->list(f.context.sessionId).isEmpty());QCOMPARE(f.tasks->list("session-b").size(),1);QVERIFY(executing(pid));
-        QVERIFY_THROWS_EXCEPTION(Error,f.tasks->output(f.context.sessionId,id,false));
-        QFile release(f.context.workingDirectory+"/release");QVERIFY(release.open(QIODevice::WriteOnly));release.close();
-        const auto done=f.tasks->output("session-b",id,true,5000);QCOMPARE(done["task"].toObject()["output"],"beforeafter");
-        QCOMPARE(read(pidPath),pid);const auto output=done["task"].toObject()["output_file"].toString();
-        QVERIFY(f.tasks->ownsOutput("session-b",output));QVERIFY(!f.tasks->ownsOutput(f.context.sessionId,output));
+        const auto pidPath=f.context.workingDirectory+"/worker.pid";CTEST_WAIT_DEFAULT(!read(pidPath).isEmpty());const auto pid=read(pidPath);
+        const auto moved=f.tasks->transferSession(f.context.sessionId,"session-b");CTEST_COMPARE(moved,QJsonArray{id});
+        CTEST_CHECK(f.tasks->list(f.context.sessionId).isEmpty());CTEST_COMPARE(f.tasks->list("session-b").size(),1);CTEST_CHECK(executing(pid));
+        CTEST_THROWS(Error,f.tasks->output(f.context.sessionId,id,false));
+        QFile release(f.context.workingDirectory+"/release");CTEST_CHECK(release.open(QIODevice::WriteOnly));release.close();
+        const auto done=f.tasks->output("session-b",id,true,5000);CTEST_COMPARE(done["task"].toObject()["output"],"beforeafter");
+        CTEST_COMPARE(read(pidPath),pid);const auto output=done["task"].toObject()["output_file"].toString();
+        CTEST_CHECK(f.tasks->ownsOutput("session-b",output));CTEST_CHECK(!f.tasks->ownsOutput(f.context.sessionId,output));
         f.tasks->close();a::ShellTasks reopened(f.context.workingDirectory,f.root.filePath("state"));
-        QCOMPARE(reopened.list("session-b").size(),1);QVERIFY(reopened.list(f.context.sessionId).isEmpty());
-        QCOMPARE(reopened.output("session-b",id,false)["task"].toObject()["output"],"beforeafter");
-        } catch (const std::exception& error) { QFAIL(error.what()); }
+        CTEST_COMPARE(reopened.list("session-b").size(),1);CTEST_CHECK(reopened.list(f.context.sessionId).isEmpty());
+        CTEST_COMPARE(reopened.output("session-b",id,false)["task"].toObject()["output"],"beforeafter");
+        } catch (const std::exception& error) { agent_ctest::fail(__FILE__, __LINE__, error.what()); }
     }
     void initTestCase() {
 #if (!defined(Q_OS_UNIX) && !defined(Q_OS_WIN)) || defined(Q_OS_IOS) || defined(Q_OS_ANDROID)
-        QSKIP("Background shell execution requires a desktop host");
+        agent_ctest::skip("Background shell execution requires a desktop host");
 #endif
     }
     void lifecycleOutputAndPersistentHistory() {
         Fixture f; const auto id = f.start("printf 'native-'; sleep 0.15; printf 'background'; printf 'error-stream' >&2");
-        QVERIFY(id.startsWith("sh-"));
-        const auto done = f.output(id); QCOMPARE(done["retrieval_status"], "success");
-        const auto task = done["task"].toObject(); QCOMPARE(task["status"], "completed"); QCOMPARE(task["exitCode"].toInt(-1), 0);
-        QVERIFY(task["output"].toString().contains("native-background")); QVERIFY(task["output"].toString().contains("error-stream"));
-        const auto path = task["output_file"].toString(); QVERIFY(QFileInfo(path).isFile());
-        QVERIFY(!f.call("Read", {{"path", path}}).isError);
+        CTEST_CHECK(id.startsWith("sh-"));
+        const auto done = f.output(id); CTEST_COMPARE(done["retrieval_status"], "success");
+        const auto task = done["task"].toObject(); CTEST_COMPARE(task["status"], "completed"); CTEST_COMPARE(task["exitCode"].toInt(-1), 0);
+        CTEST_CHECK(task["output"].toString().contains("native-background")); CTEST_CHECK(task["output"].toString().contains("error-stream"));
+        const auto path = task["output_file"].toString(); CTEST_CHECK(QFileInfo(path).isFile());
+        CTEST_CHECK(!f.call("Read", {{"path", path}}).isError);
         auto other = f.context; other.sessionId = "session-b";
-        QVERIFY(f.call("TaskOutput", {{"task_id", id}}, other).isError);
-        QVERIFY(f.call("Read", {{"path", path}}, other).isError);
-        QVERIFY(f.call("TaskStop", {{"task_id", id}}).isError);
+        CTEST_CHECK(f.call("TaskOutput", {{"task_id", id}}, other).isError);
+        CTEST_CHECK(f.call("Read", {{"path", path}}, other).isError);
+        CTEST_CHECK(f.call("TaskStop", {{"task_id", id}}).isError);
         f.tasks->close();
         a::ShellTasks reopened(f.context.workingDirectory, f.root.filePath("state"));
         const auto recovered = reopened.output(f.context.sessionId, id, false, 0, 0, 65536);
-        QCOMPARE(recovered["task"].toObject()["output"], task["output"]);
-        QCOMPARE(reopened.list(f.context.sessionId).size(), 1); QVERIFY(reopened.list("session-b").isEmpty());
+        CTEST_COMPARE(recovered["task"].toObject()["output"], task["output"]);
+        CTEST_COMPARE(reopened.list(f.context.sessionId).size(), 1); CTEST_CHECK(reopened.list("session-b").isEmpty());
     }
     void waitCancellationDoesNotStopExecution() {
         Fixture f; const auto id = f.start("printf started; sleep 30");
-        QCOMPARE(f.output(id, false)["retrieval_status"], "not_ready");
-        QCOMPARE(f.output(id, true, 20)["retrieval_status"], "timeout");
+        CTEST_COMPARE(f.output(id, false)["retrieval_status"], "not_ready");
+        CTEST_COMPARE(f.output(id, true, 20)["retrieval_status"], "timeout");
         auto context = f.context; context.cancellation = CancellationToken{};
         auto waiting = std::async(std::launch::async, [&] { return f.call("TaskOutput", {{"task_id", id}, {"timeout", 30000}}, context); });
         context.cancellation.cancel();
-        try { auto response = waiting.get(); QVERIFY(response.isError); }
-        catch (const Error& error) { QCOMPARE(error.code(), ErrorCode::Cancelled); }
-        QCOMPARE(f.output(id, false)["task"].toObject()["status"], "running");
-        const auto stopped = f.call("TaskStop", {{"task_id", id}}); QVERIFY2(!stopped.isError, qPrintable(stopped.text));
-        QCOMPARE(f.output(id)["task"].toObject()["status"], "killed");
+        try { auto response = waiting.get(); CTEST_CHECK(response.isError); }
+        catch (const Error& error) { CTEST_COMPARE(error.code(), ErrorCode::Cancelled); }
+        CTEST_COMPARE(f.output(id, false)["task"].toObject()["status"], "running");
+        const auto stopped = f.call("TaskStop", {{"task_id", id}}); CTEST_CHECK_MESSAGE(!stopped.isError, qPrintable(stopped.text));
+        CTEST_COMPARE(f.output(id)["task"].toObject()["status"], "killed");
     }
     void stopsProcessGroupAndShutdownJoins() {
         Fixture f;
         const auto id = f.start("printf '%s' \"$$\" > shell.pid; sleep 30 & printf '%s' \"$!\" > child.pid; wait; printf late > late.txt");
-        QTRY_VERIFY_WITH_TIMEOUT(read(f.root.filePath("workspace/child.pid")).toLongLong() > 1, 3000);
+        CTEST_WAIT_VERIFY(read(f.root.filePath("workspace/child.pid")).toLongLong() > 1, 3000);
         const auto parent = read(f.root.filePath("workspace/shell.pid")), child = read(f.root.filePath("workspace/child.pid"));
-        QVERIFY(executing(parent)); QVERIFY(executing(child));
-        QVERIFY(!f.call("TaskStop", {{"shell_id", id}}).isError);
-        QTRY_VERIFY_WITH_TIMEOUT(!executing(parent) && !executing(child), 3000);
-        QCOMPARE(f.output(id)["task"].toObject()["status"], "killed");
-        QVERIFY(!QFileInfo::exists(f.root.filePath("workspace/late.txt")));
+        CTEST_CHECK(executing(parent)); CTEST_CHECK(executing(child));
+        CTEST_CHECK(!f.call("TaskStop", {{"shell_id", id}}).isError);
+        CTEST_WAIT_VERIFY(!executing(parent) && !executing(child), 3000);
+        CTEST_COMPARE(f.output(id)["task"].toObject()["status"], "killed");
+        CTEST_CHECK(!QFileInfo::exists(f.root.filePath("workspace/late.txt")));
         const auto second = f.start("sleep 30; printf leaked > leaked.txt");
-        f.tasks->close(); QCOMPARE(f.tasks->output(f.context.sessionId, second, false, 0, 0, 1024)["task"].toObject()["status"], "killed");
-        QVERIFY(!QFileInfo::exists(f.root.filePath("workspace/leaked.txt")));
-        QVERIFY(f.call("Bash", {{"command", "printf bad"}, {"run_in_background", true}}).isError);
+        f.tasks->close(); CTEST_COMPARE(f.tasks->output(f.context.sessionId, second, false, 0, 0, 1024)["task"].toObject()["status"], "killed");
+        CTEST_CHECK(!QFileInfo::exists(f.root.filePath("workspace/leaked.txt")));
+        CTEST_CHECK(f.call("Bash", {{"command", "printf bad"}, {"run_in_background", true}}).isError);
     }
     void preservesOutputWrittenDuringTermination() {
 #ifdef Q_OS_WIN
-        QSKIP("Windows job termination is immediate and does not deliver POSIX TERM traps; subtree cleanup is verified separately");
+        agent_ctest::skip("Windows job termination is immediate and does not deliver POSIX TERM traps; subtree cleanup is verified separately");
 #endif
         Fixture f;
         const auto id = f.start("trap 'printf stopped-log; exit 0' TERM; printf ready > trap.ready; while :; do sleep 30 & wait $!; done");
-        QTRY_COMPARE_WITH_TIMEOUT(read(f.root.filePath("workspace/trap.ready")), QByteArray("ready"), 3000);
-        QVERIFY(!f.call("TaskStop", {{"task_id", id}}).isError);
+        CTEST_WAIT_COMPARE_TIMEOUT(read(f.root.filePath("workspace/trap.ready")), QByteArray("ready"), 3000);
+        CTEST_CHECK(!f.call("TaskStop", {{"task_id", id}}).isError);
         const auto task = f.output(id)["task"].toObject();
-        QCOMPARE(task["status"], "killed");
-        QVERIFY2(task["output"].toString().contains("stopped-log"), qPrintable(task["output"].toString()));
-        QCOMPARE(read(task["output_file"].toString()), QByteArray::fromBase64(task["output_base64"].toString().toLatin1()));
+        CTEST_COMPARE(task["status"], "killed");
+        CTEST_CHECK_MESSAGE(task["output"].toString().contains("stopped-log"), qPrintable(task["output"].toString()));
+        CTEST_COMPARE(read(task["output_file"].toString()), QByteArray::fromBase64(task["output_base64"].toString().toLatin1()));
     }
     void timeoutCapacityAndOutputLimit() {
         a::ShellTaskOptions options; options.maxConcurrent = 1; options.maxOutputBytes = 1024;
         Fixture f(options); auto id = f.start("sleep 30");
-        QVERIFY(f.call("Bash", {{"command", "printf should-not-start"}, {"run_in_background", true}}).isError);
-        QVERIFY(!f.call("TaskStop", {{"task_id", id}}).isError);
+        CTEST_CHECK(f.call("Bash", {{"command", "printf should-not-start"}, {"run_in_background", true}}).isError);
+        CTEST_CHECK(!f.call("TaskStop", {{"task_id", id}}).isError);
         id = f.start("sleep 30", 100);
-        auto task = f.output(id)["task"].toObject(); QCOMPARE(task["status"], "failed"); QCOMPARE(task["error_code"], "timeout");
+        auto task = f.output(id)["task"].toObject(); CTEST_COMPARE(task["status"], "failed"); CTEST_COMPARE(task["error_code"], "timeout");
         id = f.start("while :; do printf 0123456789012345678901234567890123456789; done");
-        task = f.output(id)["task"].toObject(); QCOMPARE(task["error_code"], "resource_limit");
-        QVERIFY(read(task["output_file"].toString()).size() <= 1024);
+        task = f.output(id)["task"].toObject(); CTEST_COMPARE(task["error_code"], "resource_limit");
+        CTEST_CHECK(read(task["output_file"].toString()).size() <= 1024);
         id = f.start("printf failure >&2; exit 7"); task = f.output(id)["task"].toObject();
-        QCOMPARE(task["status"], "failed"); QCOMPARE(task["exitCode"].toInt(-1), 7);
+        CTEST_COMPARE(task["status"], "failed"); CTEST_COMPARE(task["exitCode"].toInt(-1), 7);
     }
     void permissionsAndInputValidationPrecedeStart() {
         Fixture f;
         a::ToolRunner denied(f.registry, std::make_shared<a::RulePolicy>(a::PermissionMode::Plan));
         auto r = denied.run({"x", "Bash", {{"command", "printf forbidden > forbidden.txt"}, {"run_in_background", true}}}, f.context);
-        QVERIFY(r.isError); QVERIFY(f.tasks->list(f.context.sessionId).isEmpty());
-        QVERIFY(!QFileInfo::exists(f.root.filePath("workspace/forbidden.txt")));
-        QVERIFY(f.call("Bash", {{"command", "echo bad"}, {"run_in_background", "true"}}).isError);
-        QVERIFY(f.call("TaskOutput", {{"task_id", "../../etc/passwd"}}).isError);
-        QVERIFY(f.call("TaskStop", {}).isError);
-        QVERIFY(f.tasks->list(f.context.sessionId).isEmpty());
+        CTEST_CHECK(r.isError); CTEST_CHECK(f.tasks->list(f.context.sessionId).isEmpty());
+        CTEST_CHECK(!QFileInfo::exists(f.root.filePath("workspace/forbidden.txt")));
+        CTEST_CHECK(f.call("Bash", {{"command", "echo bad"}, {"run_in_background", "true"}}).isError);
+        CTEST_CHECK(f.call("TaskOutput", {{"task_id", "../../etc/passwd"}}).isError);
+        CTEST_CHECK(f.call("TaskStop", {}).isError);
+        CTEST_CHECK(f.tasks->list(f.context.sessionId).isEmpty());
     }
     void crashDoesNotExposeAnUndefinedExitCode() {
         Fixture f; const auto id = f.start("kill -KILL $$");
         const auto task = f.output(id)["task"].toObject();
-        QCOMPARE(task["status"], "failed"); QCOMPARE(task["error_code"], "runtime_failure");
-        QVERIFY(task["exitCode"].isNull());
+        CTEST_COMPARE(task["status"], "failed"); CTEST_COMPARE(task["error_code"], "runtime_failure");
+        CTEST_CHECK(task["exitCode"].isNull());
     }
     void nestedStateProtectionAndBytePaging() {
         Fixture f({}, true); const auto id = f.start("printf 'private_marker_123456789'");
         const auto task = f.output(id)["task"].toObject(); const auto output = task["output_file"].toString();
         const auto state = QFileInfo(output).dir().filePath("state.json");
-        QVERIFY(f.call("Read", {{"path", state}}).isError);
-        QVERIFY(f.call("Grep", {{"pattern", "private_marker"}}).data["matches"].toArray().isEmpty());
+        CTEST_CHECK(f.call("Read", {{"path", state}}).isError);
+        CTEST_CHECK(f.call("Grep", {{"pattern", "private_marker"}}).data["matches"].toArray().isEmpty());
         auto other = f.context; other.sessionId = "another";
-        QVERIFY(f.call("Read", {{"path", output}}, other).isError);
+        CTEST_CHECK(f.call("Read", {{"path", output}}, other).isError);
         const auto page = f.tasks->output(f.context.sessionId, id, false, 0, 8, 6)["task"].toObject();
-        QCOMPARE(page["output"], "marker"); QCOMPARE(page["next_offset"].toInt(), 14); QVERIFY(page["has_more"].toBool());
+        CTEST_COMPARE(page["output"], "marker"); CTEST_COMPARE(page["next_offset"].toInt(), 14); CTEST_CHECK(page["has_more"].toBool());
     }
     void recoveryDoesNotReplayAndRejectsCorruptState() {
         Fixture f; const auto id = f.start("printf once >> invocation-count; printf saved-output");
@@ -196,16 +197,35 @@ private slots:
         const auto path = QFileInfo(task["output_file"].toString()).dir().filePath("state.json");
         auto metadata = QJsonDocument::fromJson(read(path)).object(); metadata["status"] = "running";
         metadata["finished_at"] = QJsonValue::Null; metadata["exitCode"] = QJsonValue::Null;
-        auto write = [&] { QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate)); file.write(QJsonDocument(metadata).toJson()); };
+        auto write = [&] { QFile file(path); CTEST_CHECK(file.open(QIODevice::WriteOnly | QIODevice::Truncate)); file.write(QJsonDocument(metadata).toJson()); };
         write();
         { a::ShellTasks recovered(f.context.workingDirectory, f.root.filePath("state"));
           task = recovered.output(f.context.sessionId, id, false, 0, 0, 1024)["task"].toObject();
-          QCOMPARE(task["status"], "interrupted"); QCOMPARE(task["error_code"], "host_interrupted");
-          QCOMPARE(task["output"], "saved-output"); }
-        QCOMPARE(read(f.root.filePath("workspace/invocation-count")), QByteArray("once"));
+          CTEST_COMPARE(task["status"], "interrupted"); CTEST_COMPARE(task["error_code"], "host_interrupted");
+          CTEST_COMPARE(task["output"], "saved-output"); }
+        CTEST_COMPARE(read(f.root.filePath("workspace/invocation-count")), QByteArray("once"));
         metadata = QJsonDocument::fromJson(read(path)).object(); metadata["exitCode"] = "not-an-integer"; write();
-        QVERIFY_THROWS_EXCEPTION(Error, a::ShellTasks(f.context.workingDirectory, f.root.filePath("state")));
+        CTEST_THROWS(Error, a::ShellTasks(f.context.workingDirectory, f.root.filePath("state")));
     }
 };
-QTEST_GUILESS_MAIN(ShellTaskTests)
-#include "shell_tasks_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    ShellTaskTests tests;
+    try { tests.initTestCase(); }
+    catch (const agent_ctest::SkippedCase& skipped) { std::cerr << "initTestCase: skipped: " << skipped.reason << '\n'; return 77; }
+    catch (const std::exception& error) { std::cerr << "initTestCase: " << error.what() << '\n'; return 1; }
+    catch (...) { std::cerr << "initTestCase: unexpected exception\n"; return 1; }
+    runner.run("liveTasksTransferOwnershipWithoutRestartingTheirProcess", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.liveTasksTransferOwnershipWithoutRestartingTheirProcess(); });
+    runner.run("lifecycleOutputAndPersistentHistory", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.lifecycleOutputAndPersistentHistory(); });
+    runner.run("waitCancellationDoesNotStopExecution", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.waitCancellationDoesNotStopExecution(); });
+    runner.run("stopsProcessGroupAndShutdownJoins", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.stopsProcessGroupAndShutdownJoins(); });
+    runner.run("preservesOutputWrittenDuringTermination", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.preservesOutputWrittenDuringTermination(); });
+    runner.run("timeoutCapacityAndOutputLimit", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.timeoutCapacityAndOutputLimit(); });
+    runner.run("permissionsAndInputValidationPrecedeStart", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.permissionsAndInputValidationPrecedeStart(); });
+    runner.run("crashDoesNotExposeAnUndefinedExitCode", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.crashDoesNotExposeAnUndefinedExitCode(); });
+    runner.run("nestedStateProtectionAndBytePaging", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.nestedStateProtectionAndBytePaging(); });
+    runner.run("recoveryDoesNotReplayAndRejectsCorruptState", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.recoveryDoesNotReplayAndRejectsCorruptState(); });
+    return runner.result();
+}

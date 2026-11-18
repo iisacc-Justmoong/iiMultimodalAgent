@@ -120,7 +120,8 @@ public:
         require(!path.trimmed().isEmpty() && !QFileInfo(path).isSymLink() && iiFileProvider::Directory().mkpath(path),"Cannot create subagent state",ErrorCode::StorageFailure);
         path=QFileInfo(path).canonicalFilePath();
         require(!path.isEmpty() && !nested(path,workspace) && !nested(workspace,path),"Subagent state and workspace must be disjoint");
-        require(iiFileProvider::FileDevice::setPermissions(path,QFileDevice::ReadOwner|QFileDevice::WriteOwner|QFileDevice::ExeOwner),"Cannot protect subagent state",ErrorCode::StorageFailure);
+        require(iiFileProvider::FileDevice::setPermissions(path,
+                iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner),"Cannot protect subagent state",ErrorCode::StorageFailure);
         return path;
     }
     static QString sessionPath(const QString& path,const QString& workspace) {

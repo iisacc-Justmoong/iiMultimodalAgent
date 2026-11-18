@@ -7,7 +7,11 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTemporaryDir>
-#include <QtTest/QtTest>
+#include "../CTestSupport.h"
+#include "../QtEventWait.h"
+#include "QtGuiInput.h"
+#include <QDir>
+#include <QJsonArray>
 #include <future>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 namespace a=iiMultimodalAgent::agent;
@@ -69,7 +73,7 @@ struct Fixture {
         auto* target=item(name);if(!target||!target->isVisible())return false;
         const auto point=target->mapToScene(QPointF(target->width()/2,target->height()/2)).toPoint();
         if(!QRect(QPoint(0,0),window->size()).contains(point)){qWarning()<<name<<"outside window"<<point;return false;}
-        QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point);return true;
+        agent_ctest::clickWindow(window,point);return true;
     }
     bool type(const char* name,const QString& text) {
         auto* wrapper=object(name);if(!wrapper)return false;
@@ -78,84 +82,94 @@ struct Fixture {
     }
 };
 }
-class QuestionSheetTests:public QObject {
-    Q_OBJECT
-private slots:
+class QuestionSheetTests {
+public:
     void singleSelectionAndPlainPreview() {
-        Fixture f;QVERIFY2(f.window,qPrintable(f.warnings.join('\n')));f.ask();
-        QTRY_VERIFY(f.object("agentQuestionChoice_0_0"));
-        QTRY_VERIFY(f.object("agentQuestionsSheet")->property("opened").toBool());
-        QVERIFY(f.click("agentQuestionChoice_0_0"));
-        QVERIFY(f.click("agentQuestionChoice_0_0"));QVERIFY(f.object("agentQuestionChoice_0_0")->property("checked").toBool());
-        QTRY_COMPARE(f.object("agentQuestionPreview_0")->property("text").toString(),"<b>Native preview</b>");
-        QCOMPARE(f.object("agentQuestionPreview_0")->property("textFormat").toInt(),int(Qt::PlainText));
+        Fixture f;CTEST_CHECK_MESSAGE(f.window,qPrintable(f.warnings.join('\n')));f.ask();
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionChoice_0_0"));
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionsSheet")->property("opened").toBool());
+        CTEST_CHECK(f.click("agentQuestionChoice_0_0"));
+        CTEST_CHECK(f.click("agentQuestionChoice_0_0"));CTEST_CHECK(f.object("agentQuestionChoice_0_0")->property("checked").toBool());
+        CTEST_WAIT_COMPARE(f.object("agentQuestionPreview_0")->property("text").toString(),"<b>Native preview</b>");
+        CTEST_COMPARE(f.object("agentQuestionPreview_0")->property("textFormat").toInt(),int(Qt::PlainText));
         f.window->grabWindow().save(QDir::current().filePath("question-before-submit.png"));
-        QVERIFY(f.click("agentQuestionSubmit"));QTRY_VERIFY2_WITH_TIMEOUT(f.inbox.requests().isEmpty(),qPrintable(f.inbox.errorString()),3000);
-        const auto result=f.pending.front().get();QVERIFY2(!result.isError,qPrintable(result.text));
-        QCOMPARE(result.data["answers"].toObject()["Which renderer?"],"Qt");
-        QCOMPARE(result.data["annotations"].toObject()["Which renderer?"].toObject()["preview"],"<b>Native preview</b>");
-        QVERIFY2(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
+        CTEST_CHECK(f.click("agentQuestionSubmit"));CTEST_CHECK_MESSAGE(agent_ctest::waitFor([&] { return f.inbox.requests().isEmpty(); },3000),qPrintable(f.inbox.errorString()));
+        const auto result=f.pending.front().get();CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));
+        CTEST_COMPARE(result.data["answers"].toObject()["Which renderer?"],"Qt");
+        CTEST_COMPARE(result.data["annotations"].toObject()["Which renderer?"].toObject()["preview"],"<b>Native preview</b>");
+        CTEST_CHECK_MESSAGE(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
     }
     void multilineFreeAnswerAndNotesPreservePrototypeKeys() {
-        Fixture f;QVERIFY(f.window);f.ask(question("__proto__",true));
-        QTRY_VERIFY(f.object("agentQuestionOption_0_0"));QTRY_VERIFY(f.object("agentQuestionsSheet")->property("opened").toBool());
-        QVERIFY(f.click("agentQuestionOption_0_1"));QVERIFY(f.click("agentQuestionOption_0_0"));
-        QVERIFY(f.type("agentQuestionOther_0","직접 입력\n두 번째 줄"));
-        QVERIFY(f.type("agentQuestionNotes_0","검토 메모\n두 번째 줄"));
-        QVERIFY(f.click("agentQuestionSubmit"));QTRY_VERIFY2_WITH_TIMEOUT(f.inbox.requests().isEmpty(),qPrintable(f.inbox.errorString()),3000);
-        const auto result=f.pending.front().get();QVERIFY2(!result.isError,qPrintable(result.text));
-        QCOMPARE(result.data["answers"].toObject()["__proto__"],"Qt, Web, 직접 입력\n두 번째 줄");
-        QCOMPARE(result.data["annotations"].toObject()["__proto__"].toObject()["notes"],"검토 메모\n두 번째 줄");
-        QVERIFY2(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
+        Fixture f;CTEST_CHECK(f.window);f.ask(question("__proto__",true));
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionOption_0_0"));CTEST_WAIT_DEFAULT(f.object("agentQuestionsSheet")->property("opened").toBool());
+        CTEST_CHECK(f.click("agentQuestionOption_0_1"));CTEST_CHECK(f.click("agentQuestionOption_0_0"));
+        CTEST_CHECK(f.type("agentQuestionOther_0","직접 입력\n두 번째 줄"));
+        CTEST_CHECK(f.type("agentQuestionNotes_0","검토 메모\n두 번째 줄"));
+        CTEST_CHECK(f.click("agentQuestionSubmit"));CTEST_CHECK_MESSAGE(agent_ctest::waitFor([&] { return f.inbox.requests().isEmpty(); },3000),qPrintable(f.inbox.errorString()));
+        const auto result=f.pending.front().get();CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));
+        CTEST_COMPARE(result.data["answers"].toObject()["__proto__"],"Qt, Web, 직접 입력\n두 번째 줄");
+        CTEST_COMPARE(result.data["annotations"].toObject()["__proto__"].toObject()["notes"],"검토 메모\n두 번째 줄");
+        CTEST_CHECK_MESSAGE(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
     }
     void newRequestDoesNotResetFocusOrDraftAndSkipAdvances() {
-        Fixture f;QVERIFY(f.window);f.ask();
-        QTRY_VERIFY(f.object("agentQuestionOther_0"));QTRY_VERIFY(f.object("agentQuestionsSheet")->property("opened").toBool());
-        QVERIFY(f.type("agentQuestionOther_0","Draft"));auto* editor=f.window->activeFocusItem();QVERIFY(editor);
-        f.ask(question("Second?"));QTRY_COMPARE(f.inbox.requests().size(),2);
-        QCOMPARE(f.window->activeFocusItem(),editor);QCOMPARE(f.object("agentQuestionOther_0")->property("text").toString(),"Draft");
-        QVERIFY(f.click("agentQuestionSkip"));QTRY_COMPARE(f.inbox.requests().size(),1);
-        QCOMPARE(f.pending.front().get().data["answers"].toObject(),QJsonObject{});
-        QTRY_COMPARE(f.object("agentQuestionText_0")->property("text").toString(),"Second?");
-        QCOMPARE(f.object("agentQuestionOther_0")->property("text").toString(),"");
-        QVERIFY(f.click("agentQuestionDecline"));QTRY_VERIFY(f.inbox.requests().isEmpty());QVERIFY(f.pending.back().get().isError);
-        QVERIFY2(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
+        Fixture f;CTEST_CHECK(f.window);f.ask();
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionOther_0"));CTEST_WAIT_DEFAULT(f.object("agentQuestionsSheet")->property("opened").toBool());
+        CTEST_CHECK(f.type("agentQuestionOther_0","Draft"));auto* editor=f.window->activeFocusItem();CTEST_CHECK(editor);
+        f.ask(question("Second?"));CTEST_WAIT_COMPARE(f.inbox.requests().size(),2);
+        CTEST_COMPARE(f.window->activeFocusItem(),editor);CTEST_COMPARE(f.object("agentQuestionOther_0")->property("text").toString(),"Draft");
+        CTEST_CHECK(f.click("agentQuestionSkip"));CTEST_WAIT_COMPARE(f.inbox.requests().size(),1);
+        CTEST_COMPARE(f.pending.front().get().data["answers"].toObject(),QJsonObject{});
+        CTEST_WAIT_COMPARE(f.object("agentQuestionText_0")->property("text").toString(),"Second?");
+        CTEST_COMPARE(f.object("agentQuestionOther_0")->property("text").toString(),"");
+        CTEST_CHECK(f.click("agentQuestionDecline"));CTEST_WAIT_DEFAULT(f.inbox.requests().isEmpty());CTEST_CHECK(f.pending.back().get().isError);
+        CTEST_CHECK_MESSAGE(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
     }
     void cancellationClosesAndEscapeDeclines() {
-        Fixture f;QVERIFY(f.window);CancellationToken token;f.ask(question(),token);
-        QTRY_VERIFY(f.object("agentQuestionOther_0"));token.cancel();QTRY_VERIFY(f.inbox.requests().isEmpty());
-        QTRY_VERIFY(!f.object("agentQuestionsSheet")->property("visible").toBool());QVERIFY(f.pending.front().get().isError);
-        f.ask();QTRY_VERIFY(f.object("agentQuestionOther_0"));QTRY_VERIFY(f.object("agentQuestionsSheet")->property("opened").toBool());
-        QTest::keyClick(f.window,Qt::Key_Escape);QTRY_VERIFY(f.inbox.requests().isEmpty());QVERIFY(f.pending.back().get().isError);
-        QVERIFY2(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
+        Fixture f;CTEST_CHECK(f.window);CancellationToken token;f.ask(question(),token);
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionOther_0"));token.cancel();CTEST_WAIT_DEFAULT(f.inbox.requests().isEmpty());
+        CTEST_WAIT_DEFAULT(!f.object("agentQuestionsSheet")->property("visible").toBool());CTEST_CHECK(f.pending.front().get().isError);
+        f.ask();CTEST_WAIT_DEFAULT(f.object("agentQuestionOther_0"));CTEST_WAIT_DEFAULT(f.object("agentQuestionsSheet")->property("opened").toBool());
+        agent_ctest::pressEscape(f.window);CTEST_WAIT_DEFAULT(f.inbox.requests().isEmpty());CTEST_CHECK(f.pending.back().get().isError);
+        CTEST_CHECK_MESSAGE(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
     }
     void fourQuestionsAllowPartialFreeAnswers() {
-        Fixture f;QVERIFY(f.window);auto input=question("First?");auto rows=input["questions"].toArray();
+        Fixture f;CTEST_CHECK(f.window);auto input=question("First?");auto rows=input["questions"].toArray();
         for(const auto& text:{"Second?","Third?","Fourth?"})rows.append(question(text)["questions"].toArray().first());
-        input["questions"]=rows;f.ask(input);QTRY_VERIFY(f.object("agentQuestionOther_3"));
-        QTRY_VERIFY(f.object("agentQuestionsSheet")->property("opened").toBool());
-        QVERIFY(f.click("agentQuestionChoice_0_0"));QVERIFY(f.type("agentQuestionOther_0","My own renderer"));
-        QVERIFY(!f.object("agentQuestionChoice_0_0")->property("checked").toBool());
-        auto* viewport=f.object("sheet_viewport");QVERIFY(viewport);
-        QVERIFY(viewport->property("contentHeight").toReal()>viewport->property("height").toReal());
+        input["questions"]=rows;f.ask(input);CTEST_WAIT_DEFAULT(f.object("agentQuestionOther_3"));
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionsSheet")->property("opened").toBool());
+        CTEST_CHECK(f.click("agentQuestionChoice_0_0"));CTEST_CHECK(f.type("agentQuestionOther_0","My own renderer"));
+        CTEST_CHECK(!f.object("agentQuestionChoice_0_0")->property("checked").toBool());
+        auto* viewport=f.object("sheet_viewport");CTEST_CHECK(viewport);
+        CTEST_CHECK(viewport->property("contentHeight").toReal()>viewport->property("height").toReal());
         viewport->setProperty("contentY",viewport->property("contentHeight").toReal()-viewport->property("height").toReal());
-        QVERIFY(f.click("agentQuestionSubmit"));QTRY_VERIFY(f.inbox.requests().isEmpty());
-        const auto result=f.pending.front().get();QVERIFY2(!result.isError,qPrintable(result.text));
-        QCOMPARE(result.data["answers"].toObject(),(QJsonObject{{"First?","My own renderer"}}));
-        QVERIFY(result.data["annotations"].toObject().isEmpty());
-        QVERIFY2(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
+        CTEST_CHECK(f.click("agentQuestionSubmit"));CTEST_WAIT_DEFAULT(f.inbox.requests().isEmpty());
+        const auto result=f.pending.front().get();CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));
+        CTEST_COMPARE(result.data["answers"].toObject(),(QJsonObject{{"First?","My own renderer"}}));
+        CTEST_CHECK(result.data["annotations"].toObject().isEmpty());
+        CTEST_CHECK_MESSAGE(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
     }
     void multipleSelectionsDoNotUseAnUnselectedPreview() {
-        Fixture f;QVERIFY(f.window);auto input=question("Renderer?",true);auto row=input["questions"].toArray().first().toObject();
+        Fixture f;CTEST_CHECK(f.window);auto input=question("Renderer?",true);auto row=input["questions"].toArray().first().toObject();
         auto choices=row["options"].toArray();choices.append(QJsonObject{{"label","Qt, Web"},{"description","Another choice"},{"preview","Must not be attached"}});
         row["options"]=choices;input["questions"]=QJsonArray{row};f.ask(input);
-        QTRY_VERIFY(f.object("agentQuestionOption_0_2"));QTRY_VERIFY(f.object("agentQuestionsSheet")->property("opened").toBool());
-        QVERIFY(f.click("agentQuestionOption_0_0"));QVERIFY(f.click("agentQuestionOption_0_1"));
-        QVERIFY(f.click("agentQuestionSubmit"));QTRY_VERIFY(f.inbox.requests().isEmpty());
-        const auto result=f.pending.front().get();QVERIFY(!result.isError);
-        QCOMPARE(result.data["answers"].toObject()["Renderer?"],"Qt, Web");QVERIFY(result.data["annotations"].toObject().isEmpty());
-        QVERIFY2(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
+        CTEST_WAIT_DEFAULT(f.object("agentQuestionOption_0_2"));CTEST_WAIT_DEFAULT(f.object("agentQuestionsSheet")->property("opened").toBool());
+        CTEST_CHECK(f.click("agentQuestionOption_0_0"));CTEST_CHECK(f.click("agentQuestionOption_0_1"));
+        CTEST_CHECK(f.click("agentQuestionSubmit"));CTEST_WAIT_DEFAULT(f.inbox.requests().isEmpty());
+        const auto result=f.pending.front().get();CTEST_CHECK(!result.isError);
+        CTEST_COMPARE(result.data["answers"].toObject()["Renderer?"],"Qt, Web");CTEST_CHECK(result.data["annotations"].toObject().isEmpty());
+        CTEST_CHECK_MESSAGE(f.warnings.isEmpty(),qPrintable(f.warnings.join('\n')));
     }
 };
-QTEST_MAIN(QuestionSheetTests)
-#include "question_sheet_tests.moc"
+int main(int argc, char** argv)
+{
+    QGuiApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    QuestionSheetTests tests;
+    runner.run("singleSelectionAndPlainPreview", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.singleSelectionAndPlainPreview(); });
+    runner.run("multilineFreeAnswerAndNotesPreservePrototypeKeys", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.multilineFreeAnswerAndNotesPreservePrototypeKeys(); });
+    runner.run("newRequestDoesNotResetFocusOrDraftAndSkipAdvances", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.newRequestDoesNotResetFocusOrDraftAndSkipAdvances(); });
+    runner.run("cancellationClosesAndEscapeDeclines", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.cancellationClosesAndEscapeDeclines(); });
+    runner.run("fourQuestionsAllowPartialFreeAnswers", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.fourQuestionsAllowPartialFreeAnswers(); });
+    runner.run("multipleSelectionsDoNotUseAnUnselectedPreview", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.multipleSelectionsDoNotUseAnUnselectedPreview(); });
+    return runner.result();
+}

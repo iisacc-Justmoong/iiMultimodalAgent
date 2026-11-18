@@ -2,7 +2,8 @@
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QTemporaryDir>
-#include <QtTest/QtTest>
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -44,9 +45,8 @@ struct Host {
     }
 };
 }
-class SkillForkTests final : public QObject {
-    Q_OBJECT
-private slots:
+class SkillForkTests final {
+public:
     void fallbackModelAuthorizationAndParentPolicyRemainEnforced() {
         Host h; h.skill("context: fork\nagent: absent\nmodel: inherit\n"); int reads=0;
         h.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Default,
@@ -59,12 +59,12 @@ private slots:
         };
         auto engine=h.start();const auto s=engine->createSession("parent",h.workspace);
         a::RunRequest r{s.id};r.skill="inspect";const auto result=engine->run(r).result.get();
-        QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage)); QCOMPARE(reads,0);
-        QCOMPARE(h.agents->list(s.id)[0].toObject()["agent_type"],"reader");
+        CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage)); CTEST_COMPARE(reads,0);
+        CTEST_COMPARE(h.agents->list(s.id)[0].toObject()["agent_type"],"reader");
         h.skill("context: fork\nagent: reader\nmodel: unauthorized\n");
-        QCOMPARE(engine->run(r).result.get().errorCode,ErrorCode::InvalidArgument); QCOMPARE(h.agents->list(s.id).size(),1);
+        CTEST_COMPARE(engine->run(r).result.get().errorCode,ErrorCode::InvalidArgument); CTEST_COMPARE(h.agents->list(s.id).size(),1);
         h.skill("context: fork\nuser-invocable: false\n");
-        QCOMPARE(engine->run(r).result.get().errorCode,ErrorCode::InvalidArgument); QCOMPARE(h.agents->list(s.id).size(),1);
+        CTEST_COMPARE(engine->run(r).result.get().errorCode,ErrorCode::InvalidArgument); CTEST_COMPARE(h.agents->list(s.id).size(),1);
     }
     void directForkLeavesQueuedInputPendingAndHonorsStopVeto() {
         Host h; h.skill(); int stops=0; QString parentId; std::unique_ptr<a::Engine> engine;
@@ -79,29 +79,29 @@ private slots:
         };
         engine=h.start(); parentId=engine->createSession("parent",h.workspace).id;
         a::RunRequest r{parentId};r.skill="inspect";const auto result=engine->run(r).result.get();
-        QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage)); QCOMPARE(result.text,"AFTER_VETO");
-        QCOMPARE(stops,2); QCOMPARE(result.turns,2); QCOMPARE(engine->queuedInputs(parentId)["count"],1);
+        CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage)); CTEST_COMPARE(result.text,"AFTER_VETO");
+        CTEST_COMPARE(stops,2); CTEST_COMPARE(result.turns,2); CTEST_COMPARE(engine->queuedInputs(parentId)["count"],1);
     }
     void observerFailureJoinsChildAndDoesNotReplayOnReopen() {
         Host h;h.skill();int calls=0;h.model->next=[&](const auto&,const auto&){++calls;return a::ModelReply{"answer",{}};};
         auto engine=h.start();const auto s=engine->createSession("parent",h.workspace);a::RunRequest r{s.id};r.skill="inspect";
         const auto result=engine->run(r,[](const a::Event& e){if(e.kind==a::EventKind::ToolProgress)throw std::runtime_error("observer");}).result.get();
-        QCOMPARE(result.status,a::RunStatus::Failed); QCOMPARE(result.errorCode,ErrorCode::ConsumerFailure); QCOMPARE(calls,0);
-        const auto jobs=h.agents->list(s.id);QCOMPARE(jobs.size(),1);QVERIFY(jobs[0].toObject()["finished"].toBool());
+        CTEST_COMPARE(result.status,a::RunStatus::Failed); CTEST_COMPARE(result.errorCode,ErrorCode::ConsumerFailure); CTEST_COMPARE(calls,0);
+        const auto jobs=h.agents->list(s.id);CTEST_COMPARE(jobs.size(),1);CTEST_CHECK(jobs[0].toObject()["finished"].toBool());
         engine.reset();engine=std::make_unique<a::Engine>(h.model,h.registry,h.policy,h.eo);
-        QCOMPARE(engine->run({s.id,"continue"}).result.get().status,a::RunStatus::Completed);QCOMPARE(calls,1);QCOMPARE(h.agents->list(s.id).size(),1);
+        CTEST_COMPARE(engine->run({s.id,"continue"}).result.get().status,a::RunStatus::Completed);CTEST_COMPARE(calls,1);CTEST_COMPARE(h.agents->list(s.id).size(),1);
     }
     void catalogRequiresAnExecutorAndKeepsInlineModelUnsupported() {
         Host h; h.skill(); auto catalog=a::discoverSkills(h.workspace);
-        QCOMPARE(catalog.skills[0].executionContext,"fork"); QCOMPARE(catalog.skills[0].agent,"reader");
-        QCOMPARE(catalog.skills[0].model,"reader-model"); QVERIFY(catalog.skills[0].unsupportedFeatures.isEmpty());
+        CTEST_COMPARE(catalog.skills[0].executionContext,"fork"); CTEST_COMPARE(catalog.skills[0].agent,"reader");
+        CTEST_COMPARE(catalog.skills[0].model,"reader-model"); CTEST_CHECK(catalog.skills[0].unsupportedFeatures.isEmpty());
         auto engine=h.start(false); const auto s=engine->createSession("parent",h.workspace);
-        QVERIFY(engine->skills(s.id).message().text.isEmpty());
-        QVERIFY(engine->skills(s.id).skills[0].unsupportedFeatures.contains("fork-executor-unavailable"));
+        CTEST_CHECK(engine->skills(s.id).message().text.isEmpty());
+        CTEST_CHECK(engine->skills(s.id).skills[0].unsupportedFeatures.contains("fork-executor-unavailable"));
         a::RunRequest request{s.id}; request.skill="inspect";
-        QCOMPARE(engine->run(request).result.get().errorCode,ErrorCode::RuntimeUnavailable);
-        QVERIFY(engine->session(s.id).messages.isEmpty());
-        h.skill("model: reader-model\n"); QVERIFY(!a::discoverSkills(h.workspace).skills[0].unsupportedFeatures.isEmpty());
+        CTEST_COMPARE(engine->run(request).result.get().errorCode,ErrorCode::RuntimeUnavailable);
+        CTEST_CHECK(engine->session(s.id).messages.isEmpty());
+        h.skill("model: reader-model\n"); CTEST_CHECK(!a::discoverSkills(h.workspace).skills[0].unsupportedFeatures.isEmpty());
     }
     void directInvocationIsIsolatedForegroundAndPreservesParentIdentity() {
         Host h; h.skill(); int calls=0, starts=0, stops=0; QString parentId;
@@ -122,15 +122,15 @@ private slots:
         { a::SessionStore store(h.eo.sessionsDirectory); auto lease=store.acquire(s.id); lease->append({{},a::MessageRole::User,"PARENT_SECRET"}); }
         a::RunRequest request{s.id,"ADDITIONAL"}; request.skill="inspect"; request.skillArguments="'two words'"; request.generation.temperature=0.13;
         const auto handle=engine->run(request); const auto result=handle.result.get();
-        QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage)); QCOMPARE(result.text,"CHILD_RESULT");
-        QCOMPARE(result.sessionId,s.id); QCOMPARE(result.runId,handle.runId); QCOMPARE(result.turns,1);
-        QCOMPARE(result.usage.promptTokens,17); QCOMPARE(result.usage.generatedTokens,3); QCOMPARE(calls,1); QCOMPARE(starts,1); QCOMPARE(stops,1);
-        const auto jobs=h.agents->list(s.id); QCOMPARE(jobs.size(),1);
+        CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage)); CTEST_COMPARE(result.text,"CHILD_RESULT");
+        CTEST_COMPARE(result.sessionId,s.id); CTEST_COMPARE(result.runId,handle.runId); CTEST_COMPARE(result.turns,1);
+        CTEST_COMPARE(result.usage.promptTokens,17); CTEST_COMPARE(result.usage.generatedTokens,3); CTEST_COMPARE(calls,1); CTEST_COMPARE(starts,1); CTEST_COMPARE(stops,1);
+        const auto jobs=h.agents->list(s.id); CTEST_COMPARE(jobs.size(),1);
         const auto child=h.agents->output(s.id,jobs[0].toObject()["agentId"].toString());
-        QCOMPARE(child["background"],false); QCOMPARE(child["fork_context"],false); QVERIFY(!child.contains("notification_id"));
-        const auto saved=engine->session(s.id); QCOMPARE(saved.messages.size(),3);
-        for(const auto& m:saved.messages) QVERIFY(!m.text.contains("PRIVATE_BODY"));
-        QCOMPARE(saved.messages.last().metadata["iilocal.skill_fork"].toObject()["agentId"],child["agentId"]);
+        CTEST_COMPARE(child["background"],false); CTEST_COMPARE(child["fork_context"],false); CTEST_CHECK(!child.contains("notification_id"));
+        const auto saved=engine->session(s.id); CTEST_COMPARE(saved.messages.size(),3);
+        for(const auto& m:saved.messages) CTEST_CHECK(!m.text.contains("PRIVATE_BODY"));
+        CTEST_COMPARE(saved.messages.last().metadata["iilocal.skill_fork"].toObject()["agentId"],child["agentId"]);
     }
     void nativeToolReturnsResultWithoutInjectingInstructionsOrReplaying() {
         Host h; h.skill(); QString parentId; int childCalls=0,parentCalls=0;
@@ -147,11 +147,11 @@ private slots:
             return a::ModelReply{"PARENT_RESULT",{}};
         };
         auto engine=h.start(); const auto s=engine->createSession("parent",h.workspace); parentId=s.id;
-        const auto result=engine->run({s.id,"invoke"}).result.get(); QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
-        QCOMPARE(result.text,"PARENT_RESULT"); QCOMPARE(childCalls,1); QCOMPARE(parentCalls,2); QCOMPARE(engine->session(s.id).messages.size(),4);
+        const auto result=engine->run({s.id,"invoke"}).result.get(); CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.text,"PARENT_RESULT"); CTEST_COMPARE(childCalls,1); CTEST_COMPARE(parentCalls,2); CTEST_COMPARE(engine->session(s.id).messages.size(),4);
         engine.reset(); h.skill("context: fork\nagent: reader\n"); engine=std::make_unique<a::Engine>(h.model,h.registry,h.policy,h.eo);
-        QCOMPARE(engine->run({s.id,"continue"}).result.get().status,a::RunStatus::Completed); QCOMPARE(childCalls,1);
-        QVERIFY(a::pendingToolCalls(engine->session(s.id).messages).isEmpty());
+        CTEST_COMPARE(engine->run({s.id,"continue"}).result.get().status,a::RunStatus::Completed); CTEST_COMPARE(childCalls,1);
+        CTEST_CHECK(a::pendingToolCalls(engine->session(s.id).messages).isEmpty());
     }
     void childFailureAndTurnLimitAreNotReportedCompleted() {
         for(bool limited:{false,true}) {
@@ -161,9 +161,9 @@ private slots:
             };
             auto engine=h.start(); const auto s=engine->createSession("parent",h.workspace);
             a::RunRequest r{s.id}; r.skill="inspect"; r.maxTurns=1; const auto result=engine->run(r).result.get();
-            QCOMPARE(result.status,limited?a::RunStatus::TurnLimit:a::RunStatus::Failed);
-            if(!limited) { QCOMPARE(result.errorCode,ErrorCode::RuntimeFailure); QVERIFY(result.errorMessage.contains("CHILD_FAILED")); }
-            QCOMPARE(h.agents->list(s.id).size(),1);
+            CTEST_COMPARE(result.status,limited?a::RunStatus::TurnLimit:a::RunStatus::Failed);
+            if(!limited) { CTEST_COMPARE(result.errorCode,ErrorCode::RuntimeFailure); CTEST_CHECK(result.errorMessage.contains("CHILD_FAILED")); }
+            CTEST_COMPARE(h.agents->list(s.id).size(),1);
         }
     }
     void cancellationAndDeadlineJoinTheChild() {
@@ -175,13 +175,26 @@ private slots:
             };
             auto engine=h.start(); const auto s=engine->createSession("parent",h.workspace);
             a::RunRequest r{s.id}; r.skill="inspect"; const auto handle=engine->run(r);
-            if(!deadline) { QTRY_VERIFY_WITH_TIMEOUT(entered.load(),2000); handle.cancel(); }
-            QVERIFY(handle.result.wait_for(3s)==std::future_status::ready); const auto result=handle.result.get();
-            QCOMPARE(result.status,deadline?a::RunStatus::Failed:a::RunStatus::Cancelled);
-            QCOMPARE(result.errorCode,deadline?ErrorCode::Timeout:ErrorCode::Cancelled);
-            const auto jobs=h.agents->list(s.id); QCOMPARE(jobs.size(),1); QVERIFY(jobs[0].toObject()["finished"].toBool());
+            if(!deadline) { CTEST_WAIT_VERIFY(entered.load(),2000); handle.cancel(); }
+            CTEST_CHECK(handle.result.wait_for(3s)==std::future_status::ready); const auto result=handle.result.get();
+            CTEST_COMPARE(result.status,deadline?a::RunStatus::Failed:a::RunStatus::Cancelled);
+            CTEST_COMPARE(result.errorCode,deadline?ErrorCode::Timeout:ErrorCode::Cancelled);
+            const auto jobs=h.agents->list(s.id); CTEST_COMPARE(jobs.size(),1); CTEST_CHECK(jobs[0].toObject()["finished"].toBool());
         }
     }
 };
-QTEST_GUILESS_MAIN(SkillForkTests)
-#include "skill_fork_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    SkillForkTests tests;
+    runner.run("fallbackModelAuthorizationAndParentPolicyRemainEnforced", [&] { tests.fallbackModelAuthorizationAndParentPolicyRemainEnforced(); });
+    runner.run("directForkLeavesQueuedInputPendingAndHonorsStopVeto", [&] { tests.directForkLeavesQueuedInputPendingAndHonorsStopVeto(); });
+    runner.run("observerFailureJoinsChildAndDoesNotReplayOnReopen", [&] { tests.observerFailureJoinsChildAndDoesNotReplayOnReopen(); });
+    runner.run("catalogRequiresAnExecutorAndKeepsInlineModelUnsupported", [&] { tests.catalogRequiresAnExecutorAndKeepsInlineModelUnsupported(); });
+    runner.run("directInvocationIsIsolatedForegroundAndPreservesParentIdentity", [&] { tests.directInvocationIsIsolatedForegroundAndPreservesParentIdentity(); });
+    runner.run("nativeToolReturnsResultWithoutInjectingInstructionsOrReplaying", [&] { tests.nativeToolReturnsResultWithoutInjectingInstructionsOrReplaying(); });
+    runner.run("childFailureAndTurnLimitAreNotReportedCompleted", [&] { tests.childFailureAndTurnLimitAreNotReportedCompleted(); });
+    runner.run("cancellationAndDeadlineJoinTheChild", [&] { tests.cancellationAndDeadlineJoinTheChild(); });
+    return runner.result();
+}

@@ -4,7 +4,8 @@
 #include <QtCore/QFile>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QJsonDocument>
-#include <QtTest/QTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
 #include <thread>
 #include <atomic>
 #include <mutex>
@@ -53,28 +54,12 @@ struct Fixture {
 };
 }
 class TeamTests:public QObject {
-    Q_OBJECT
-private slots:
-    void messageSchemaPreservesConditionalSummary_data(){
-        QTest::addColumn<QJsonObject>("args");QTest::addColumn<bool>("valid");
-        QTest::newRow("plaintext-missing-summary")<<QJsonObject{{"to","team-lead"},{"message","observed"}}<<false;
-        QTest::newRow("plaintext-empty-summary")<<QJsonObject{{"to","team-lead"},{"message","observed"},{"summary",""}}<<false;
-        QTest::newRow("plaintext-complete")<<QJsonObject{{"to","team-lead"},{"message","observed"},{"summary","File observed"}}<<true;
-        QTest::newRow("shutdown-without-summary")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}}}<<true;
-        QTest::newRow("shutdown-empty-summary")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}},{"summary",""}}<<true;
-        QTest::newRow("shutdown-with-summary")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}},{"summary","Stop the worker"}}<<true;
-        QTest::newRow("wrong-summary-type")<<QJsonObject{{"to","team-lead"},{"message","observed"},{"summary",17}}<<false;
-        QTest::newRow("unknown-control-type")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","unknown"}}}}<<false;
-        QTest::newRow("leader-cannot-respond")<<QJsonObject{{"to","team-lead"},{"message",QJsonObject{{"type","shutdown_response"},{"request_id","invented"},{"approve",true}}}}<<false;
-        QTest::newRow("request-id-is-host-owned")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"request_id","invented"}}}}<<false;
-        QTest::newRow("request-cannot-approve")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"approve",true}}}}<<false;
-        QTest::newRow("request-empty-reason")<<QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"reason",""}}}}<<true;
-    }
-    void messageSchemaPreservesConditionalSummary(){
-        QFETCH(QJsonObject,args);QFETCH(bool,valid);Fixture f;a::ToolRegistry schema;
+public:
+    void messageSchemaPreservesConditionalSummary(const QJsonObject& args, bool valid){
+        Fixture f;a::ToolRegistry schema;
         for(const auto& tool:f.options.additionalTools)if(tool.definition.name=="SendMessage")schema.add(tool);
         if(valid)schema.validateInput("SendMessage",args);
-        else QVERIFY_THROWS_EXCEPTION(Error,schema.validateInput("SendMessage",args));
+        else CTEST_THROWS(Error,schema.validateInput("SendMessage",args));
     }
     void teammateSchemaTracksOnlyItsPendingShutdown(){
         auto model=std::make_shared<FunctionModel>();std::mutex mutex;
@@ -95,7 +80,7 @@ private slots:
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","scoped-protocol"}});
         f.teams->spawn(leader,{{"name","worker"},{"prompt","worker"}});
         f.teams->spawn(leader,{{"name","peer"},{"prompt","peer"}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         auto schema=[&](const QString& label){std::lock_guard lock(mutex);return observed.value(label);};
         auto valid=[](const a::ToolDefinition& definition,const QJsonObject& args){
             a::ToolRegistry registry;a::Tool tool;tool.definition=definition;tool.execute=[](const auto&,const auto&){return a::ToolResult{};};
@@ -104,104 +89,100 @@ private slots:
         const QJsonObject plain{{"to","team-lead"},{"message","{\"type\":\"shutdown_request\"}"},{"summary","Literal JSON text"}};
         const QJsonObject initiate{{"to","peer"},{"message",QJsonObject{{"type","shutdown_request"}}}};
         auto response=[](const QString& id){return QJsonObject{{"to","team-lead"},{"message",QJsonObject{{"type","shutdown_response"},{"request_id",id},{"approve",true}}}};};
-        QVERIFY(valid(schema("worker"),plain));QVERIFY(!valid(schema("worker"),initiate));
-        QVERIFY(!valid(schema("worker"),response("invented")));
+        CTEST_CHECK(valid(schema("worker"),plain));CTEST_CHECK(!valid(schema("worker"),initiate));
+        CTEST_CHECK(!valid(schema("worker"),response("invented")));
         f.teams->send(leader,{{"to","worker"},{"summary","Literal protocol text"},{"message",plain["message"]}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        QVERIFY(!valid(schema(plain["message"].toString()),response("invented")));
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(!valid(schema(plain["message"].toString()),response("invented")));
         const auto sent=f.teams->send(leader,{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}}});
         const auto request=sent.data["messages"].toArray().first().toObject()["message"].toObject()["request_id"].toString();
-        QTRY_VERIFY_WITH_TIMEOUT(!schema(request).name.isEmpty(),5000);
-        QVERIFY(valid(schema(request),plain));QVERIFY(valid(schema(request),response(request)));
-        QVERIFY(!valid(schema(request),initiate));QVERIFY(!valid(schema(request),response("other-request")));
-        auto wrongTarget=response(request);wrongTarget["to"]="peer";QVERIFY(!valid(schema(request),wrongTarget));
+        CTEST_WAIT_VERIFY(!schema(request).name.isEmpty(),5000);
+        CTEST_CHECK(valid(schema(request),plain));CTEST_CHECK(valid(schema(request),response(request)));
+        CTEST_CHECK(!valid(schema(request),initiate));CTEST_CHECK(!valid(schema(request),response("other-request")));
+        auto wrongTarget=response(request);wrongTarget["to"]="peer";CTEST_CHECK(!valid(schema(request),wrongTarget));
         auto decline=response(request);auto body=decline["message"].toObject();body["approve"]=false;decline["message"]=body;
-        QVERIFY(!valid(schema(request),decline));body["reason"]="Still working";decline["message"]=body;QVERIFY(valid(schema(request),decline));
-        body.remove("request_id");decline["message"]=body;QVERIFY(!valid(schema(request),decline));
+        CTEST_CHECK(!valid(schema(request),decline));body["reason"]="Still working";decline["message"]=body;CTEST_CHECK(valid(schema(request),decline));
+        body.remove("request_id");decline["message"]=body;CTEST_CHECK(!valid(schema(request),decline));
         f.teams->send(leader,{{"to","peer"},{"summary","Check peer isolation"},{"message","peer-during-shutdown"}});
-        QTRY_VERIFY_WITH_TIMEOUT(!schema("peer-during-shutdown").name.isEmpty(),5000);
-        QVERIFY(!valid(schema("peer-during-shutdown"),response(request)));
-        release=true;QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        QVERIFY(!valid(schema("after-decline"),response(request)));
+        CTEST_WAIT_VERIFY(!schema("peer-during-shutdown").name.isEmpty(),5000);
+        CTEST_CHECK(!valid(schema("peer-during-shutdown"),response(request)));
+        release=true;CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(!valid(schema("after-decline"),response(request)));
         const auto status=f.teams->status(leader.sessionId);
         for(const auto& value:status["team"].toObject()["members"].toArray())if(value.toObject()["name"]=="worker")
-            QVERIFY2(!value.toObject().contains("shutdown_request_id"),QJsonDocument(status).toJson().constData());
+            CTEST_CHECK_MESSAGE(!value.toObject().contains("shutdown_request_id"),QJsonDocument(status).toJson().constData());
         const auto again=f.teams->send(leader,{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}}});
         const auto next=again.data["messages"].toArray().first().toObject()["message"].toObject()["request_id"].toString();
-        QVERIFY(next!=request);QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        QVERIFY(valid(schema(next),response(next)));QVERIFY(!valid(schema(next),response(request)));
-        QCOMPARE(requests.size(),2);
+        CTEST_CHECK(next!=request);CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(valid(schema(next),response(next)));CTEST_CHECK(!valid(schema(next),response(request)));
+        CTEST_COMPARE(requests.size(),2);
     }
     void directTeamCallsUseTheAdvertisedProvider(){
         auto model=std::make_shared<ReplyModel>();Fixture f(model);f.engine.reset();a::Tool send;
         for(qsizetype i=f.options.additionalTools.size();i-->0;)if(f.options.additionalTools[i].definition.name=="SendMessage")send=f.options.additionalTools.takeAt(i);
-        QVERIFY(!send.definition.name.isEmpty());
+        CTEST_CHECK(!send.definition.name.isEmpty());
         f.options.additionalToolsProvider=[send,previous=f.options.additionalToolsProvider]{auto tools=previous();tools.append(send);return tools;};
         f.engine=std::make_unique<a::Engine>(model,f.registry,f.policy,f.options);
         const auto leader=f.owner();f.teams->create(leader,{{"team_name","provider"}});
         const auto result=f.engine->runTeamTool(leader.sessionId,"SendMessage",{{"to","team-lead"},{"message","observed"},{"summary","Live provider"}});
-        QVERIFY2(!result.isError,qPrintable(result.text));QVERIFY(result.data["success"].toBool());
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_CHECK(result.data["success"].toBool());
     }
     void rejectedShutdownResponseDoesNotInventPendingRequest(){
         Fixture f;const auto leader=f.owner();f.teams->create(leader,{{"team_name","rejected-response"}});
         const auto member=f.teams->spawn(leader,{{"name","worker"},{"prompt","Be ready"}}).data["session_id"].toString();
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send({member,{},f.work},{{"to","team-lead"},
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_THROWS(Error,f.teams->send({member,{},f.work},{{"to","team-lead"},
             {"message",QJsonObject{{"type","shutdown_response"},{"request_id","invented"},{"approve",true}}}}));
         const auto status=f.teams->status(leader.sessionId);
         for(const auto& value:status["team"].toObject()["members"].toArray())if(value.toObject()["name"]=="worker")
-            QVERIFY2(!value.toObject().contains("shutdown_request_id"),"Rejected response must not create a pending request");
+            CTEST_CHECK_MESSAGE(!value.toObject().contains("shutdown_request_id"),"Rejected response must not create a pending request");
         const auto sent=f.teams->send(leader,{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}}});
-        QVERIFY(!sent.isError);QVERIFY(sent.data["success"].toBool());
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(!sent.isError);CTEST_CHECK(sent.data["success"].toBool());
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
     }
-    void automaticClaimsRespectHostOptOut_data(){
-        QTest::addColumn<bool>("autoClaim");QTest::addColumn<bool>("taskTools");
-        QTest::newRow("automatic-off")<<false<<true;QTest::newRow("tasks-off")<<true<<false;
-    }
-    void automaticClaimsRespectHostOptOut(){
-        QFETCH(bool,autoClaim);QFETCH(bool,taskTools);std::atomic_int calls=0;auto model=std::make_shared<FunctionModel>();
+    void automaticClaimsRespectHostOptOut(bool autoClaim, bool taskTools){
+        std::atomic_int calls=0;auto model=std::make_shared<FunctionModel>();
         model->reply=[&](const auto&,const auto&)->a::ModelReply{++calls;return {"done",{}};};
         Fixture f(model,[&](auto& options){options.autoClaimTasks=autoClaim;},[&](auto& options){options.taskToolsEnabled=taskTools;});
         const auto leader=f.owner();f.teams->create(leader,{{"team_name","disabled"}});const auto board=f.teams->taskList(leader.sessionId);
         const auto id=f.teams->taskStore()->execute(board,"TaskCreate",{{"subject","Do not claim"},{"description","Must remain unowned"}}).data["task"].toObject()["id"].toString();
-        f.teams->spawn(leader,{{"name","worker"},{"prompt","Be ready"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());QTest::qWait(1100);
+        f.teams->spawn(leader,{{"name","worker"},{"prompt","Be ready"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());agent_ctest::processFor(1100);
         const auto task=f.teams->taskStore()->execute(board,"TaskGet",{{"taskId",id}}).data["task"].toObject();
-        QCOMPARE(task["status"],"pending");QCOMPARE(task["owner"],"");QCOMPARE(calls.load(),1);
-        QVERIFY(!f.teams->status(leader.sessionId)["team"].toObject()["auto_task_claim_enabled"].toBool());
+        CTEST_COMPARE(task["status"],"pending");CTEST_COMPARE(task["owner"],"");CTEST_COMPARE(calls.load(),1);
+        CTEST_CHECK(!f.teams->status(leader.sessionId)["team"].toObject()["auto_task_claim_enabled"].toBool());
     }
     void undeliverableClaimRetainsIntentAndDoesNotRunOrClaimAgain(){
         std::atomic_int calls=0;auto model=std::make_shared<FunctionModel>();model->reply=[&](const auto&,const auto&)->a::ModelReply{++calls;return {"ready",{}};};
         Fixture f(model,[](auto& options){options.autoClaimTasks=true;},[](auto& options){options.inputQueue.maxBytes=1024;options.inputQueue.maxTextCharacters=4096;});
         const auto leader=f.owner();const auto created=f.teams->create(leader,{{"team_name","delivery-limit"}});
-        f.teams->spawn(leader,{{"name","worker"},{"prompt","Wait for a task"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        for(const auto& v:f.teams->status(leader.sessionId)["team"].toObject()["members"].toArray())QVERIFY(!v.toObject()["task_claim_pending"].toBool());
+        f.teams->spawn(leader,{{"name","worker"},{"prompt","Wait for a task"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        for(const auto& v:f.teams->status(leader.sessionId)["team"].toObject()["members"].toArray())CTEST_CHECK(!v.toObject()["task_claim_pending"].toBool());
         const auto board=f.teams->taskList(leader.sessionId);const auto task=f.teams->taskStore()->execute(board,"TaskCreate",{{"subject","Larger than queue byte capacity"},{"description",QString(2000,'x')}}).data["task"].toObject()["id"].toString();
         auto member=[&]{for(const auto& v:f.teams->status(leader.sessionId)["team"].toObject()["members"].toArray())if(v.toObject()["name"]=="worker")return v.toObject();return QJsonObject{};};
-        QTRY_VERIFY_WITH_TIMEOUT(member()["task_claim_pending"].toBool(),5000);
-        QVERIFY(!member().contains("task_claim"));QVERIFY2(!member()["task_claim_error"].toString().isEmpty(),QJsonDocument(member()).toJson().constData());
+        CTEST_WAIT_VERIFY(member()["task_claim_pending"].toBool(),5000);
+        CTEST_CHECK(!member().contains("task_claim"));CTEST_CHECK_MESSAGE(!member()["task_claim_error"].toString().isEmpty(),QJsonDocument(member()).toJson().constData());
         const auto current=f.teams->taskStore()->execute(board,"TaskGet",{{"taskId",task}}).data["task"].toObject();
-        QCOMPARE(current["status"],"in_progress");QCOMPARE(current["owner"],"worker");
-        const auto revision=f.teams->taskStore()->snapshot(board)["revision"].toDouble();QTest::qWait(1100);QCOMPARE(calls.load(),1);
-        QCOMPARE(f.teams->taskStore()->snapshot(board)["revision"].toDouble(),revision);
-        QFile record(created.data["team_file_path"].toString());QVERIFY(record.open(QIODevice::ReadOnly));const auto stored=QJsonDocument::fromJson(record.readAll()).object();record.close();
+        CTEST_COMPARE(current["status"],"in_progress");CTEST_COMPARE(current["owner"],"worker");
+        const auto revision=f.teams->taskStore()->snapshot(board)["revision"].toDouble();agent_ctest::processFor(1100);CTEST_COMPARE(calls.load(),1);
+        CTEST_COMPARE(f.teams->taskStore()->snapshot(board)["revision"].toDouble(),revision);
+        QFile record(created.data["team_file_path"].toString());CTEST_CHECK(record.open(QIODevice::ReadOnly));const auto stored=QJsonDocument::fromJson(record.readAll()).object();record.close();
         QJsonObject intent;for(const auto& v:stored["members"].toArray())if(v.toObject()["name"]=="worker")intent=v.toObject()["task_claim"].toObject();
-        QCOMPARE(intent["task_id"],task);const auto inputId=intent["message"].toObject()["id"].toString();QVERIFY(!inputId.isEmpty());
-        int copies=0;for(const auto& v:stored["messages"].toArray())if(v.toObject()["id"]==inputId){++copies;QVERIFY(!v.toObject()["queued"].toBool());}
-        QCOMPARE(copies,1);QVERIFY(f.teams->stop(leader.sessionId,"worker")["stopped"].toBool());QVERIFY(!f.teams->remove(leader).isError);
+        CTEST_COMPARE(intent["task_id"],task);const auto inputId=intent["message"].toObject()["id"].toString();CTEST_CHECK(!inputId.isEmpty());
+        int copies=0;for(const auto& v:stored["messages"].toArray())if(v.toObject()["id"]==inputId){++copies;CTEST_CHECK(!v.toObject()["queued"].toBool());}
+        CTEST_COMPARE(copies,1);CTEST_CHECK(f.teams->stop(leader.sessionId,"worker")["stopped"].toBool());CTEST_CHECK(!f.teams->remove(leader).isError);
     }
     void oversizedAssignmentIsRejectedBeforeClaimAndCanBeCorrected(){
         auto model=std::make_shared<FunctionModel>();model->reply=[](const auto&,const auto&)->a::ModelReply{return {"ready",{}};};
         Fixture f(model,[](auto& options){options.autoClaimTasks=true;},[](auto& options){options.inputQueue.maxTextCharacters=4096;});
         const auto leader=f.owner();f.teams->create(leader,{{"team_name","oversized"}});const auto board=f.teams->taskList(leader.sessionId);
         const auto task=f.teams->taskStore()->execute(board,"TaskCreate",{{"subject","Oversized assignment"},{"description",QString(4096,'x')}}).data["task"].toObject()["id"].toString();
-        f.teams->spawn(leader,{{"name","worker"},{"prompt","Wait for work"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        f.teams->spawn(leader,{{"name","worker"},{"prompt","Wait for work"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         auto get=[&]{return f.teams->taskStore()->execute(board,"TaskGet",{{"taskId",task}}).data["task"].toObject();};
-        QCOMPARE(get()["status"],"pending");QCOMPARE(get()["owner"],"");
-        QVERIFY(QJsonDocument(f.teams->status(leader.sessionId)).toJson().contains("Task assignment exceeds input limit"));
+        CTEST_COMPARE(get()["status"],"pending");CTEST_COMPARE(get()["owner"],"");
+        CTEST_CHECK(QJsonDocument(f.teams->status(leader.sessionId)).toJson().contains("Task assignment exceeds input limit"));
         f.teams->taskStore()->execute(board,"TaskUpdate",{{"taskId",task},{"description","Corrected assignment"}});
-        QTRY_COMPARE_WITH_TIMEOUT(get()["owner"],"worker",5000);QCOMPARE(get()["status"],"in_progress");
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_WAIT_COMPARE_TIMEOUT(get()["owner"],"worker",5000);CTEST_COMPARE(get()["status"],"in_progress");
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
     }
     void peerSummaryIsLimitedToTheCurrentRun(){
         auto model=std::make_shared<FunctionModel>();model->reply=[](const a::ModelRequest& r,const auto&)->a::ModelReply{
@@ -209,12 +190,12 @@ private slots:
             return {"final reply",{}};
         };
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","peer-summary"}});
-        f.teams->spawn(leader,{{"name","peer"},{"prompt","Be ready"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        f.teams->spawn(leader,{{"name","worker"},{"prompt","send-peer"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        f.teams->spawn(leader,{{"name","peer"},{"prompt","Be ready"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        f.teams->spawn(leader,{{"name","worker"},{"prompt","send-peer"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         auto notice=[&]{QJsonObject found;for(const auto& v:f.teams->inbox(leader.sessionId)["messages"].toArray())if(v.toObject()["from"]=="worker")found=v.toObject()["message"].toObject();return found;};
-        QCOMPARE(notice()["summary"],"[to peer] SHORT_PEER_SUMMARY");
-        f.teams->send(leader,{{"to","worker"},{"summary","Finish"},{"message","Finish without another message"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        QVERIFY(!notice().contains("summary"));
+        CTEST_COMPARE(notice()["summary"],"[to peer] SHORT_PEER_SUMMARY");
+        f.teams->send(leader,{{"to","worker"},{"summary","Finish"},{"message","Finish without another message"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(!notice().contains("summary"));
     }
     void automaticTasksAreClaimedAtStartupAndAfterIdle(){
         auto model=std::make_shared<FunctionModel>();std::shared_ptr<a::TaskStore> tasks;QString board;std::atomic_int worked=0,userSubmissions=0;std::atomic_bool badInput=false;
@@ -234,11 +215,11 @@ private slots:
         auto make=[&](const QString& subject){return f.engine->runTaskTool(leader.sessionId,"TaskCreate",{{"subject",subject},{"description","Complete this task"}}).data["task"].toObject()["id"].toString();};
         auto status=[&](const QString& id){return tasks->execute(board,"TaskGet",{{"taskId",id}}).data["task"].toObject()["status"].toString();};
         const auto first=make("FIRST_AUTO_TASK");f.teams->spawn(leader,{{"name","worker"},{"prompt","Work on the assigned task"}});
-        QTRY_COMPARE_WITH_TIMEOUT(status(first),"completed",5000);QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        const auto second=make("SECOND_AUTO_TASK");QTRY_COMPARE_WITH_TIMEOUT(status(second),"completed",5000);
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());QCOMPARE(worked.load(),2);QVERIFY(!badInput.load());
-        QCOMPARE(userSubmissions.load(),0);
-        QCOMPARE(tasks->execute(board,"TaskGet",{{"taskId",second}}).data["task"].toObject()["owner"],"worker");
+        CTEST_WAIT_COMPARE_TIMEOUT(status(first),"completed",5000);CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto second=make("SECOND_AUTO_TASK");CTEST_WAIT_COMPARE_TIMEOUT(status(second),"completed",5000);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());CTEST_COMPARE(worked.load(),2);CTEST_CHECK(!badInput.load());
+        CTEST_COMPARE(userSubmissions.load(),0);
+        CTEST_COMPARE(tasks->execute(board,"TaskGet",{{"taskId",second}}).data["task"].toObject()["owner"],"worker");
     }
     void idleMembersClaimEachEligibleTaskOnceAndRespectDependencies(){
         auto model=std::make_shared<FunctionModel>();std::shared_ptr<a::TaskStore> tasks;QString board;std::atomic_bool entered=false,release=false;std::mutex mutex;QStringList claimed;
@@ -260,28 +241,28 @@ private slots:
         const auto first=make("ROOT_TASK"),second=make("BLOCKED_TASK");tasks->execute(board,"TaskUpdate",{{"taskId",second},{"addBlockedBy",QJsonArray{first}}});
         tasks->execute(board,"TaskUpdate",{{"taskId",first},{"owner","setup"}});
         for(const auto& name:{"first","second"})f.teams->spawn(leader,{{"name",name},{"prompt","Wait for tasks"}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         tasks->execute(board,"TaskUpdate",{{"taskId",first},{"owner",""}});
-        QTRY_VERIFY_WITH_TIMEOUT(entered.load(),5000);QTest::qWait(650);
-        {std::lock_guard lock(mutex);QCOMPARE(claimed,(QStringList{first}));}
-        QCOMPARE(tasks->execute(board,"TaskGet",{{"taskId",second}}).data["task"].toObject()["status"],"pending");
+        CTEST_WAIT_VERIFY(entered.load(),5000);agent_ctest::processFor(650);
+        {std::lock_guard lock(mutex);CTEST_COMPARE(claimed,(QStringList{first}));}
+        CTEST_COMPARE(tasks->execute(board,"TaskGet",{{"taskId",second}}).data["task"].toObject()["status"],"pending");
         release=true;
         auto complete=[&]{return tasks->execute(board,"TaskGet",{{"taskId",second}}).data["task"].toObject()["status"]=="completed";};
-        QTRY_VERIFY_WITH_TIMEOUT(complete(),5000);QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        {std::lock_guard lock(mutex);QCOMPARE(claimed,(QStringList{first,second}));}
-        QCOMPARE(tasks->execute(board,"TaskGet",{{"taskId",reserved}}).data["task"].toObject()["owner"],"reserved");
+        CTEST_WAIT_VERIFY(complete(),5000);CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        {std::lock_guard lock(mutex);CTEST_COMPARE(claimed,(QStringList{first,second}));}
+        CTEST_COMPARE(tasks->execute(board,"TaskGet",{{"taskId",reserved}}).data["task"].toObject()["owner"],"reserved");
     }
     void idleNotificationsDoNotCopyTheFinalAnswer(){
         auto model=std::make_shared<FunctionModel>();model->reply=[](const auto&,const auto&)->a::ModelReply{return {"PRIVATE_FINAL_ANSWER",{}};};
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","idle-metadata"}});
         f.teams->spawn(leader,{{"name","worker"},{"prompt","Finish without sending a message"}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        const auto inbox=f.teams->inbox(leader.sessionId);QVERIFY(!QJsonDocument(inbox).toJson().contains("PRIVATE_FINAL_ANSWER"));
-        const auto message=inbox["messages"].toArray().last().toObject();QCOMPARE(message["from"],"worker");
-        const auto body=message["message"].toObject();QCOMPARE(body["type"],"idle_notification");QCOMPARE(body["from"],"worker");
-        QCOMPARE(body["idleReason"],"available");QVERIFY(!body["timestamp"].toString().isEmpty());QVERIFY(!body.contains("result"));
-        QVERIFY(!QJsonDocument(f.engine->queuedInputs(leader.sessionId)).toJson().contains("PRIVATE_FINAL_ANSWER"));
-        QVERIFY(QJsonDocument(f.teams->status(leader.sessionId)).toJson().contains("PRIVATE_FINAL_ANSWER"));
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto inbox=f.teams->inbox(leader.sessionId);CTEST_CHECK(!QJsonDocument(inbox).toJson().contains("PRIVATE_FINAL_ANSWER"));
+        const auto message=inbox["messages"].toArray().last().toObject();CTEST_COMPARE(message["from"],"worker");
+        const auto body=message["message"].toObject();CTEST_COMPARE(body["type"],"idle_notification");CTEST_COMPARE(body["from"],"worker");
+        CTEST_COMPARE(body["idleReason"],"available");CTEST_CHECK(!body["timestamp"].toString().isEmpty());CTEST_CHECK(!body.contains("result"));
+        CTEST_CHECK(!QJsonDocument(f.engine->queuedInputs(leader.sessionId)).toJson().contains("PRIVATE_FINAL_ANSWER"));
+        CTEST_CHECK(QJsonDocument(f.teams->status(leader.sessionId)).toJson().contains("PRIVATE_FINAL_ANSWER"));
     }
     void queuedTeamMessagesUseShutdownLeaderAndPeerPriority(){
         auto model=std::make_shared<FunctionModel>();std::atomic_bool entered=false,released=false;std::mutex mutex;QStringList seen;
@@ -299,14 +280,14 @@ private slots:
         };
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","priorities"}});
         const auto peer=f.teams->spawn(leader,{{"name","peer"},{"prompt","peer ready"}}).data["session_id"].toString();
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        f.teams->spawn(leader,{{"name","worker"},{"prompt","hold"}});QTRY_VERIFY_WITH_TIMEOUT(entered.load(),5000);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        f.teams->spawn(leader,{{"name","worker"},{"prompt","hold"}});CTEST_WAIT_VERIFY(entered.load(),5000);
         const a::ToolContext sender{peer,{},f.work};
         f.teams->send(sender,{{"to","worker"},{"summary","First peer message"},{"message","peer-1"}});
         f.teams->send(leader,{{"to","worker"},{"summary","Leader instruction"},{"message","leader"}});
         f.teams->send(sender,{{"to","worker"},{"summary","Second peer message"},{"message","peer-2"}});
         f.teams->send(leader,{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}}});
-        released=true;QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        released=true;CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         std::lock_guard lock(mutex);
         if(seen!=(QStringList{"shutdown","leader","peer-1","peer-2"})){
             qWarning().noquote()<<QJsonDocument(f.teams->status(leader.sessionId)).toJson();
@@ -315,61 +296,61 @@ private slots:
                 qWarning().noquote()<<QJsonDocument(messages).toJson();
             }
         }
-        QCOMPARE(seen,(QStringList{"shutdown","leader","peer-1","peer-2"}));
+        CTEST_COMPARE(seen,(QStringList{"shutdown","leader","peer-1","peer-2"}));
     }
     void teamAttachmentPreservesDisabledTaskToolsForEveryMember(){
         auto model=std::make_shared<FunctionModel>();bool exposed=false;
         model->reply=[&](const a::ModelRequest& r,const auto&)->a::ModelReply{for(const auto& tool:r.tools)exposed|=tool.name.startsWith("Task");return {"done",{}};};
-        Fixture f(model,{},[](auto& options){options.taskToolsEnabled=false;});const auto leader=f.owner();QVERIFY(!f.engine->taskToolsEnabled());
+        Fixture f(model,{},[](auto& options){options.taskToolsEnabled=false;});const auto leader=f.owner();CTEST_CHECK(!f.engine->taskToolsEnabled());
         f.teams->create(leader,{{"team_name","no-tasks"}});f.teams->spawn(leader,{{"name","worker"},{"prompt","Inspect available tools"}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());QVERIFY(!exposed);
-        QVERIFY_THROWS_EXCEPTION(Error,f.engine->runTaskTool(leader.sessionId,"TaskList"));
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());CTEST_CHECK(!exposed);
+        CTEST_THROWS(Error,f.engine->runTaskTool(leader.sessionId,"TaskList"));
     }
     void failedMemberPublicationLeavesNoUnownedConversation(){
         Fixture f;const auto leader=f.owner();const auto created=f.teams->create(leader,{{"team_name","publication"}});
         const auto path=created.data["team_file_path"].toString(),backup=path+".saved";
-        QVERIFY(QFile::rename(path,backup));QVERIFY(createNativeTestLink(backup,path));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->spawn(leader,{{"name","unpublished"},{"prompt","Must not execute"}}));
-        QVERIFY(a::SessionStore(f.state+"/teams/sessions").list().isEmpty());
-        QCOMPARE(f.teams->status(leader.sessionId)["team"].toObject()["members"].toArray().size(),1);
-        QVERIFY(QFile::remove(path));QVERIFY(QFile::rename(backup,path));QVERIFY(!f.teams->remove(leader).isError);
+        CTEST_CHECK(QFile::rename(path,backup));CTEST_CHECK(createNativeTestLink(backup,path));
+        CTEST_THROWS(Error,f.teams->spawn(leader,{{"name","unpublished"},{"prompt","Must not execute"}}));
+        CTEST_CHECK(a::SessionStore(f.state+"/teams/sessions").list().isEmpty());
+        CTEST_COMPARE(f.teams->status(leader.sessionId)["team"].toObject()["members"].toArray().size(),1);
+        CTEST_CHECK(QFile::remove(path));CTEST_CHECK(QFile::rename(backup,path));CTEST_CHECK(!f.teams->remove(leader).isError);
     }
     void shutdownResponseCannotBeReplayedOrBorrowAnotherMembersRequest(){
         Fixture f;const auto leader=f.owner();f.teams->create(leader,{{"team_name","protocol"}});
         const auto first=f.teams->spawn(leader,{{"name","first"},{"prompt","Be ready"}}).data["session_id"].toString();
-        const auto second=f.teams->spawn(leader,{{"name","second"},{"prompt","Be ready"}}).data["session_id"].toString();QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto second=f.teams->spawn(leader,{{"name","second"},{"prompt","Be ready"}}).data["session_id"].toString();CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         const auto sent=f.teams->send(leader,{{"to","first"},{"message",QJsonObject{{"type","shutdown_request"}}}});
-        const auto request=sent.data["messages"].toArray().first().toObject()["message"].toObject()["request_id"].toString();QVERIFY(!request.isEmpty());
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto request=sent.data["messages"].toArray().first().toObject()["message"].toObject()["request_id"].toString();CTEST_CHECK(!request.isEmpty());
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         QJsonObject reply{{"to","team-lead"},{"message",QJsonObject{{"type","shutdown_response"},{"request_id",request},{"approve",false}}}};
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send({second,{},f.work},reply));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send({first,{},f.work},reply)); // Refusal needs a reason.
+        CTEST_THROWS(Error,f.teams->send({second,{},f.work},reply));
+        CTEST_THROWS(Error,f.teams->send({first,{},f.work},reply)); // Refusal needs a reason.
         auto protocol=reply["message"].toObject();protocol["reason"]="Still working";reply["message"]=protocol;
-        QVERIFY(!f.teams->send({first,{},f.work},reply).isError);
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send({first,{},f.work},reply));
-        QVERIFY(!f.teams->send(leader,{{"to","first"},{"summary","Continue after refusal"},{"message","Reply again"}}).isError);
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_CHECK(!f.teams->send({first,{},f.work},reply).isError);
+        CTEST_THROWS(Error,f.teams->send({first,{},f.work},reply));
+        CTEST_CHECK(!f.teams->send(leader,{{"to","first"},{"summary","Continue after refusal"},{"message","Reply again"}}).isError);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
     }
     void boundedMailboxPreservesInputsTheLeaderHasNotConsumed(){
         Fixture f(std::make_shared<ReplyModel>(),[](auto& options){options.maxMailboxMessages=2;});const auto leader=f.owner();f.teams->create(leader,{{"team_name","bounded"}});
-        f.teams->spawn(leader,{{"name","worker"},{"prompt","Reply"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        const auto before=f.engine->queuedInputs(leader.sessionId)["inputs"].toArray();QCOMPARE(before.size(),2);
-        f.teams->send(leader,{{"to","worker"},{"summary","Another run"},{"message","Reply again"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        QCOMPARE(f.engine->queuedInputs(leader.sessionId)["inputs"].toArray(),before);QCOMPARE(f.teams->inbox(leader.sessionId)["total"].toInt(),2);
-        QVERIFY(!f.teams->remove(leader).isError);QCOMPARE(f.engine->queuedInputs(leader.sessionId)["count"].toInt(),0);
+        f.teams->spawn(leader,{{"name","worker"},{"prompt","Reply"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto before=f.engine->queuedInputs(leader.sessionId)["inputs"].toArray();CTEST_COMPARE(before.size(),2);
+        f.teams->send(leader,{{"to","worker"},{"summary","Another run"},{"message","Reply again"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        CTEST_COMPARE(f.engine->queuedInputs(leader.sessionId)["inputs"].toArray(),before);CTEST_COMPARE(f.teams->inbox(leader.sessionId)["total"].toInt(),2);
+        CTEST_CHECK(!f.teams->remove(leader).isError);CTEST_COMPARE(f.engine->queuedInputs(leader.sessionId)["count"].toInt(),0);
     }
     void activeMembersPreventDeletionAndStopCooperatesWithCancellation(){
         auto model=std::make_shared<FunctionModel>();std::atomic_bool entered=false,cancelled=false;
         model->reply=[&](const auto&,const CancellationToken& token)->a::ModelReply{entered=true;while(!token.isCancelled())std::this_thread::sleep_for(std::chrono::milliseconds(1));cancelled=true;token.throwIfCancelled();return {};};
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","busy"}});
-        QVERIFY(!f.engine->runTeamTool(leader.sessionId,"Agent",{{"name","worker"},{"prompt","wait"}}).isError);QTRY_VERIFY_WITH_TIMEOUT(entered.load(),5000);
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->remove(leader));QVERIFY(!f.teams->wait(leader.sessionId,0)["idle"].toBool());
-        CancellationToken stop;stop.cancel();QVERIFY_THROWS_EXCEPTION(Error,f.teams->wait(leader.sessionId,1000,stop));
+        CTEST_CHECK(!f.engine->runTeamTool(leader.sessionId,"Agent",{{"name","worker"},{"prompt","wait"}}).isError);CTEST_WAIT_VERIFY(entered.load(),5000);
+        CTEST_THROWS(Error,f.teams->remove(leader));CTEST_CHECK(!f.teams->wait(leader.sessionId,0)["idle"].toBool());
+        CancellationToken stop;stop.cancel();CTEST_THROWS(Error,f.teams->wait(leader.sessionId,1000,stop));
         const auto ended=f.engine->endSession(leader.sessionId);
         // The parent has not run a model turn: no SessionStart activation ends,
         // but owned teammates must still be cancelled and joined.
-        QVERIFY(!ended["ended"].toBool());QVERIFY2(ended["diagnostics"].toArray().isEmpty(),QJsonDocument(ended).toJson().constData());QVERIFY(cancelled.load());
-        QVERIFY(f.teams->wait(leader.sessionId,100)["idle"].toBool());QVERIFY(!f.teams->remove(leader).isError);
+        CTEST_CHECK(!ended["ended"].toBool());CTEST_CHECK_MESSAGE(ended["diagnostics"].toArray().isEmpty(),QJsonDocument(ended).toJson().constData());CTEST_CHECK(cancelled.load());
+        CTEST_CHECK(f.teams->wait(leader.sessionId,100)["idle"].toBool());CTEST_CHECK(!f.teams->remove(leader).isError);
     }
     void nativeMemberTasksShareTheLeaderBoard(){
         auto model=std::make_shared<FunctionModel>();std::atomic_int calls=0;
@@ -380,8 +361,8 @@ private slots:
             default:return {"done",{}};}
         };
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","board"}});
-        f.teams->spawn(leader,{{"name","builder"},{"prompt","Create a task"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        const auto tasks=f.engine->runTaskTool(leader.sessionId,"TaskList").data["tasks"].toArray();QCOMPARE(tasks.size(),1);QCOMPARE(tasks.first().toObject()["subject"],"MEMBER_TASK");
+        f.teams->spawn(leader,{{"name","builder"},{"prompt","Create a task"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto tasks=f.engine->runTaskTool(leader.sessionId,"TaskList").data["tasks"].toArray();CTEST_COMPARE(tasks.size(),1);CTEST_COMPARE(tasks.first().toObject()["subject"],"MEMBER_TASK");
     }
     void readOnlyMemberCanSendTextButCannotWriteOrEscalate(){
         auto model=std::make_shared<FunctionModel>();std::atomic_int calls=0;bool denied=false;
@@ -393,8 +374,8 @@ private slots:
         };
         Fixture f(model,[](auto& options){a::SubagentDefinition p;p.name="reader";p.readOnly=true;options.definitions={p};});const auto leader=f.owner();
         f.teams->create(leader,{{"team_name","permissions"}});f.teams->spawn(leader,{{"name","reader"},{"subagent_type","reader"},{"prompt","Check scope"}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());QVERIFY(denied);QVERIFY(!QFileInfo::exists(f.work+"/forbidden.txt"));
-        bool reply=false;for(const auto& v:f.teams->inbox(leader.sessionId)["messages"].toArray())reply|=v.toObject()["message"]=="SCOPED_REPLY";QVERIFY(reply);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());CTEST_CHECK(denied);CTEST_CHECK(!QFileInfo::exists(f.work+"/forbidden.txt"));
+        bool reply=false;for(const auto& v:f.teams->inbox(leader.sessionId)["messages"].toArray())reply|=v.toObject()["message"]=="SCOPED_REPLY";CTEST_CHECK(reply);
     }
     void modelShutdownDecisionPersistsBeforeTheMemberStops(){
         auto model=std::make_shared<FunctionModel>();std::atomic_int decisions=0,afterDecision=0;
@@ -406,77 +387,119 @@ private slots:
             }return {"idle",{}};
         };
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","shutdown"}});
-        const auto member=f.teams->spawn(leader,{{"name","worker"},{"prompt","Be ready"}}).data["session_id"].toString();QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto member=f.teams->spawn(leader,{{"name","worker"},{"prompt","Be ready"}}).data["session_id"].toString();CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
         f.teams->send(leader,{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"reason","Work completed"}}}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());QCOMPARE(decisions.load(),1);QCOMPARE(afterDecision.load(),0);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());CTEST_COMPARE(decisions.load(),1);CTEST_COMPARE(afterDecision.load(),0);
         const auto history=a::SessionStore(f.state+"/teams/sessions").load(member);bool paired=false;
-        for(const auto& m:history.messages)if(m.role==a::MessageRole::Tool&&m.toolCallId=="shutdown"){paired=true;QVERIFY(!m.isError);QVERIFY(m.data["success"].toBool());}QVERIFY(paired);
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(leader,{{"to","worker"},{"summary","late"},{"message","must remain stopped"}}));
+        for(const auto& m:history.messages)if(m.role==a::MessageRole::Tool&&m.toolCallId=="shutdown"){paired=true;CTEST_CHECK(!m.isError);CTEST_CHECK(m.data["success"].toBool());}CTEST_CHECK(paired);
+        CTEST_THROWS(Error,f.teams->send(leader,{{"to","worker"},{"summary","late"},{"message","must remain stopped"}}));
     }
     void clearTransfersTheTeamBoardAndPendingLeaderNotifications(){
         Fixture f;auto leader=f.owner();f.teams->create(leader,{{"team_name","transfer"}});
-        const auto board=f.teams->taskList(leader.sessionId);f.teams->spawn(leader,{{"name","worker"},{"prompt","reply"}});QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        const auto before=f.engine->queuedInputs(leader.sessionId)["count"].toInt();QVERIFY(before>0);
-        const auto cleared=f.engine->clearSession(leader.sessionId);QVERIFY2(cleared["complete"].toBool(),QJsonDocument(cleared).toJson().constData());
-        const auto next=cleared["session_id"].toString();QVERIFY2(!next.isEmpty(),QJsonDocument(cleared).toJson().constData());
-        QCOMPARE(f.teams->taskList(next),board);QVERIFY(f.teams->status(leader.sessionId)["team"].isNull());
-        QCOMPARE(f.engine->queuedInputs(leader.sessionId)["count"].toInt(),0);QCOMPARE(f.engine->queuedInputs(next)["count"].toInt(),before);
-        leader.sessionId=next;QVERIFY(!f.teams->send(leader,{{"to","worker"},{"summary","Continue after clear"},{"message","Reply to the new leader"}}).isError);
-        QVERIFY(f.teams->wait(next,10000)["idle"].toBool());QVERIFY(f.engine->queuedInputs(next)["count"].toInt()>before);
-        QVERIFY(!f.teams->remove(leader).isError);QCOMPARE(f.engine->queuedInputs(next)["count"].toInt(),0);
+        const auto board=f.teams->taskList(leader.sessionId);f.teams->spawn(leader,{{"name","worker"},{"prompt","reply"}});CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto before=f.engine->queuedInputs(leader.sessionId)["count"].toInt();CTEST_CHECK(before>0);
+        const auto cleared=f.engine->clearSession(leader.sessionId);CTEST_CHECK_MESSAGE(cleared["complete"].toBool(),QJsonDocument(cleared).toJson().constData());
+        const auto next=cleared["session_id"].toString();CTEST_CHECK_MESSAGE(!next.isEmpty(),QJsonDocument(cleared).toJson().constData());
+        CTEST_COMPARE(f.teams->taskList(next),board);CTEST_CHECK(f.teams->status(leader.sessionId)["team"].isNull());
+        CTEST_COMPARE(f.engine->queuedInputs(leader.sessionId)["count"].toInt(),0);CTEST_COMPARE(f.engine->queuedInputs(next)["count"].toInt(),before);
+        leader.sessionId=next;CTEST_CHECK(!f.teams->send(leader,{{"to","worker"},{"summary","Continue after clear"},{"message","Reply to the new leader"}}).isError);
+        CTEST_CHECK(f.teams->wait(next,10000)["idle"].toBool());CTEST_CHECK(f.engine->queuedInputs(next)["count"].toInt()>before);
+        CTEST_CHECK(!f.teams->remove(leader).isError);CTEST_COMPARE(f.engine->queuedInputs(next)["count"].toInt(),0);
     }
     void restartRetainsIdentityButDoesNotRepeatMemberWork(){
         try {
         auto model=std::make_shared<FunctionModel>();std::atomic_int calls=0;model->reply=[&](const auto&,const auto&)->a::ModelReply{++calls;return {"finished",{}};};
         Fixture f(model);const auto leader=f.owner();f.teams->create(leader,{{"team_name","persistent"}});f.teams->spawn(leader,{{"name","worker"},{"prompt","Once"}});
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());const auto count=calls.load();const auto board=f.teams->taskList(leader.sessionId);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());const auto count=calls.load();const auto board=f.teams->taskList(leader.sessionId);
         f.engine.reset();f.teams->close();f.options.additionalTools.clear();f.options.additionalToolsProvider={};f.options.taskListId={};f.options.hooks.clear();f.teams.reset();
         a::TeamsOptions options;options.workingDirectory=f.work;a::Teams reopened(model,f.registry,f.policy,f.options,options);
-        QCOMPARE(reopened.taskList(leader.sessionId),board);QCOMPARE(calls.load(),count);QCOMPARE(reopened.status(leader.sessionId)["team"].toObject()["members"].toArray().size(),2);
-        QVERIFY_THROWS_EXCEPTION(Error,reopened.send(leader,{{"to","worker"},{"summary","explicit restart is not yet supported"},{"message","do not silently replay"}}));
-        QVERIFY(!reopened.remove(leader).isError);
-        } catch (const std::exception &error) { QFAIL(error.what()); }
+        CTEST_COMPARE(reopened.taskList(leader.sessionId),board);CTEST_COMPARE(calls.load(),count);CTEST_COMPARE(reopened.status(leader.sessionId)["team"].toObject()["members"].toArray().size(),2);
+        CTEST_THROWS(Error,reopened.send(leader,{{"to","worker"},{"summary","explicit restart is not yet supported"},{"message","do not silently replay"}}));
+        CTEST_CHECK(!reopened.remove(leader).isError);
+        } catch (const std::exception &error) { agent_ctest::fail(__FILE__, __LINE__, error.what()); }
     }
     void teamIdentityIsolationAndFreshTaskNamespaces(){
         Fixture f;const auto leader=f.owner(),other=f.owner();
         const auto made=f.teams->create(leader,{{"team_name","studio"},{"description","Coordinate work"}});
-        QVERIFY(!made.isError);QCOMPARE(made.data["team_name"].toString(),"studio");
-        QVERIFY(!f.teams->status(leader.sessionId)["team"].isNull());QVERIFY(f.teams->status(other.sessionId)["team"].isNull());
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->create(leader,{{"team_name","another"}}));
-        const auto second=f.teams->create(other,{{"team_name","studio"}});QVERIFY(second.data["team_name"]!=made.data["team_name"]);
+        CTEST_CHECK(!made.isError);CTEST_COMPARE(made.data["team_name"].toString(),"studio");
+        CTEST_CHECK(!f.teams->status(leader.sessionId)["team"].isNull());CTEST_CHECK(f.teams->status(other.sessionId)["team"].isNull());
+        CTEST_THROWS(Error,f.teams->create(leader,{{"team_name","another"}}));
+        const auto second=f.teams->create(other,{{"team_name","studio"}});CTEST_CHECK(second.data["team_name"]!=made.data["team_name"]);
         const auto task=f.engine->runTaskTool(leader.sessionId,"TaskCreate",{{"subject","Shared work"},{"description","Team task"}});
-        QVERIFY2(!task.isError,qPrintable(task.text));QCOMPARE(f.engine->runTaskTool(leader.sessionId,"TaskList").data["tasks"].toArray().size(),1);
-        QVERIFY(f.engine->runTaskTool(other.sessionId,"TaskList").data["tasks"].toArray().isEmpty());
-        QVERIFY(!f.teams->remove(leader).isError);QVERIFY(f.teams->status(leader.sessionId)["team"].isNull());
-        QVERIFY(f.engine->runTaskTool(leader.sessionId,"TaskList").data["tasks"].toArray().isEmpty());
+        CTEST_CHECK_MESSAGE(!task.isError,qPrintable(task.text));CTEST_COMPARE(f.engine->runTaskTool(leader.sessionId,"TaskList").data["tasks"].toArray().size(),1);
+        CTEST_CHECK(f.engine->runTaskTool(other.sessionId,"TaskList").data["tasks"].toArray().isEmpty());
+        CTEST_CHECK(!f.teams->remove(leader).isError);CTEST_CHECK(f.teams->status(leader.sessionId)["team"].isNull());
+        CTEST_CHECK(f.engine->runTaskTool(leader.sessionId,"TaskList").data["tasks"].toArray().isEmpty());
     }
     void memberActuallyRunsAndRepliesToTheLeader(){
         Fixture f;const auto leader=f.owner();f.teams->create(leader,{{"team_name","workers"}});
         const auto started=f.teams->spawn(leader,{{"name","reader"},{"prompt","Report your result"}});
-        QVERIFY2(!started.isError,qPrintable(started.text));QCOMPARE(started.data["name"].toString(),"reader");
-        const auto result=f.teams->wait(leader.sessionId,10000);QVERIFY2(result["idle"].toBool(),QJsonDocument(result).toJson().constData());
+        CTEST_CHECK_MESSAGE(!started.isError,qPrintable(started.text));CTEST_COMPARE(started.data["name"].toString(),"reader");
+        const auto result=f.teams->wait(leader.sessionId,10000);CTEST_CHECK_MESSAGE(result["idle"].toBool(),QJsonDocument(result).toJson().constData());
         const auto messages=f.teams->inbox(leader.sessionId)["messages"].toArray();bool found=false;
-        for(const auto& value:messages){const auto m=value.toObject();if(m["message"]=="MEMBER_REPLY"){found=true;QCOMPARE(m["from"].toString(),"reader");}}
-        QVERIFY(found);const auto member=started.data["session_id"].toString();
-        QVERIFY(!member.isEmpty());QCOMPARE(f.teams->taskList(member),f.teams->taskList(leader.sessionId));
-        QVERIFY(!f.teams->send(leader,{{"to","reader"},{"summary","Continue with a second observation"},{"message","Reply again"}}).isError);
-        QVERIFY(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
-        const auto status=f.teams->status(leader.sessionId);QCOMPARE(status["team"].toObject()["members"].toArray().size(),2);
-        QVERIFY(f.teams->stop(leader.sessionId,"reader")["stopped"].toBool());
-        QVERIFY(!f.teams->remove(leader).isError);
+        for(const auto& value:messages){const auto m=value.toObject();if(m["message"]=="MEMBER_REPLY"){found=true;CTEST_COMPARE(m["from"].toString(),"reader");}}
+        CTEST_CHECK(found);const auto member=started.data["session_id"].toString();
+        CTEST_CHECK(!member.isEmpty());CTEST_COMPARE(f.teams->taskList(member),f.teams->taskList(leader.sessionId));
+        CTEST_CHECK(!f.teams->send(leader,{{"to","reader"},{"summary","Continue with a second observation"},{"message","Reply again"}}).isError);
+        CTEST_CHECK(f.teams->wait(leader.sessionId,10000)["idle"].toBool());
+        const auto status=f.teams->status(leader.sessionId);CTEST_COMPARE(status["team"].toObject()["members"].toArray().size(),2);
+        CTEST_CHECK(f.teams->stop(leader.sessionId,"reader")["stopped"].toBool());
+        CTEST_CHECK(!f.teams->remove(leader).isError);
     }
     void recipientsAndStructuredMessagesCannotForgeAuthority(){
         Fixture f;const auto leader=f.owner(),outsider=f.owner();f.teams->create(leader,{{"team_name","private"}});
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->spawn(leader,{{"name","host"},{"prompt","Impersonate the scheduler"}}));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(leader,{{"from","host"},{"to","team-lead"},{"summary","forged host"},{"message","bad"}}));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(outsider,{{"to","team-lead"},{"summary","forged"},{"message","bad"}}));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(leader,{{"to","nobody"},{"summary","missing"},{"message","bad"}}));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(leader,{{"to","team-lead"},{"message","summary required"}}));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(leader,{{"to","*"},{"message",QJsonObject{{"type","shutdown_request"}}}}));
-        QVERIFY_THROWS_EXCEPTION(Error,f.teams->send(leader,{{"to","uds:/tmp/socket"},{"summary","not a team member"},{"message","bad"}}));
+        CTEST_THROWS(Error,f.teams->spawn(leader,{{"name","host"},{"prompt","Impersonate the scheduler"}}));
+        CTEST_THROWS(Error,f.teams->send(leader,{{"from","host"},{"to","team-lead"},{"summary","forged host"},{"message","bad"}}));
+        CTEST_THROWS(Error,f.teams->send(outsider,{{"to","team-lead"},{"summary","forged"},{"message","bad"}}));
+        CTEST_THROWS(Error,f.teams->send(leader,{{"to","nobody"},{"summary","missing"},{"message","bad"}}));
+        CTEST_THROWS(Error,f.teams->send(leader,{{"to","team-lead"},{"message","summary required"}}));
+        CTEST_THROWS(Error,f.teams->send(leader,{{"to","*"},{"message",QJsonObject{{"type","shutdown_request"}}}}));
+        CTEST_THROWS(Error,f.teams->send(leader,{{"to","uds:/tmp/socket"},{"summary","not a team member"},{"message","bad"}}));
         const auto sent=f.teams->send(leader,{{"to","*"},{"summary","No other members to notify"},{"message","hello"}});
-        QVERIFY(!sent.isError);QVERIFY(sent.data["recipients"].toArray().isEmpty());
+        CTEST_CHECK(!sent.isError);CTEST_CHECK(sent.data["recipients"].toArray().isEmpty());
     }
 };
-QTEST_GUILESS_MAIN(TeamTests)
-#include "team_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    TeamTests tests;
+    runner.run("messageSchemaPreservesConditionalSummary:plaintext-missing-summary", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","team-lead"},{"message","observed"}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:plaintext-empty-summary", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","team-lead"},{"message","observed"},{"summary",""}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:plaintext-complete", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","team-lead"},{"message","observed"},{"summary","File observed"}}, true); });
+    runner.run("messageSchemaPreservesConditionalSummary:shutdown-without-summary", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}}}, true); });
+    runner.run("messageSchemaPreservesConditionalSummary:shutdown-empty-summary", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}},{"summary",""}}, true); });
+    runner.run("messageSchemaPreservesConditionalSummary:shutdown-with-summary", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"}}},{"summary","Stop the worker"}}, true); });
+    runner.run("messageSchemaPreservesConditionalSummary:wrong-summary-type", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","team-lead"},{"message","observed"},{"summary",17}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:unknown-control-type", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","unknown"}}}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:leader-cannot-respond", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","team-lead"},{"message",QJsonObject{{"type","shutdown_response"},{"request_id","invented"},{"approve",true}}}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:request-id-is-host-owned", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"request_id","invented"}}}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:request-cannot-approve", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"approve",true}}}}, false); });
+    runner.run("messageSchemaPreservesConditionalSummary:request-empty-reason", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.messageSchemaPreservesConditionalSummary(QJsonObject{{"to","worker"},{"message",QJsonObject{{"type","shutdown_request"},{"reason",""}}}}, true); });
+    runner.run("teammateSchemaTracksOnlyItsPendingShutdown", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.teammateSchemaTracksOnlyItsPendingShutdown(); });
+    runner.run("directTeamCallsUseTheAdvertisedProvider", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.directTeamCallsUseTheAdvertisedProvider(); });
+    runner.run("rejectedShutdownResponseDoesNotInventPendingRequest", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.rejectedShutdownResponseDoesNotInventPendingRequest(); });
+    runner.run("automaticClaimsRespectHostOptOut:automatic-off", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.automaticClaimsRespectHostOptOut(false, true); });
+    runner.run("automaticClaimsRespectHostOptOut:tasks-off", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.automaticClaimsRespectHostOptOut(true, false); });
+    runner.run("undeliverableClaimRetainsIntentAndDoesNotRunOrClaimAgain", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.undeliverableClaimRetainsIntentAndDoesNotRunOrClaimAgain(); });
+    runner.run("oversizedAssignmentIsRejectedBeforeClaimAndCanBeCorrected", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.oversizedAssignmentIsRejectedBeforeClaimAndCanBeCorrected(); });
+    runner.run("peerSummaryIsLimitedToTheCurrentRun", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.peerSummaryIsLimitedToTheCurrentRun(); });
+    runner.run("automaticTasksAreClaimedAtStartupAndAfterIdle", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.automaticTasksAreClaimedAtStartupAndAfterIdle(); });
+    runner.run("idleMembersClaimEachEligibleTaskOnceAndRespectDependencies", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.idleMembersClaimEachEligibleTaskOnceAndRespectDependencies(); });
+    runner.run("idleNotificationsDoNotCopyTheFinalAnswer", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.idleNotificationsDoNotCopyTheFinalAnswer(); });
+    runner.run("queuedTeamMessagesUseShutdownLeaderAndPeerPriority", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.queuedTeamMessagesUseShutdownLeaderAndPeerPriority(); });
+    runner.run("teamAttachmentPreservesDisabledTaskToolsForEveryMember", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.teamAttachmentPreservesDisabledTaskToolsForEveryMember(); });
+    runner.run("failedMemberPublicationLeavesNoUnownedConversation", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.failedMemberPublicationLeavesNoUnownedConversation(); });
+    runner.run("shutdownResponseCannotBeReplayedOrBorrowAnotherMembersRequest", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.shutdownResponseCannotBeReplayedOrBorrowAnotherMembersRequest(); });
+    runner.run("boundedMailboxPreservesInputsTheLeaderHasNotConsumed", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.boundedMailboxPreservesInputsTheLeaderHasNotConsumed(); });
+    runner.run("activeMembersPreventDeletionAndStopCooperatesWithCancellation", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.activeMembersPreventDeletionAndStopCooperatesWithCancellation(); });
+    runner.run("nativeMemberTasksShareTheLeaderBoard", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.nativeMemberTasksShareTheLeaderBoard(); });
+    runner.run("readOnlyMemberCanSendTextButCannotWriteOrEscalate", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.readOnlyMemberCanSendTextButCannotWriteOrEscalate(); });
+    runner.run("modelShutdownDecisionPersistsBeforeTheMemberStops", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.modelShutdownDecisionPersistsBeforeTheMemberStops(); });
+    runner.run("clearTransfersTheTeamBoardAndPendingLeaderNotifications", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.clearTransfersTheTeamBoardAndPendingLeaderNotifications(); });
+    runner.run("restartRetainsIdentityButDoesNotRepeatMemberWork", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.restartRetainsIdentityButDoesNotRepeatMemberWork(); });
+    runner.run("teamIdentityIsolationAndFreshTaskNamespaces", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.teamIdentityIsolationAndFreshTaskNamespaces(); });
+    runner.run("memberActuallyRunsAndRepliesToTheLeader", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.memberActuallyRunsAndRepliesToTheLeader(); });
+    runner.run("recipientsAndStructuredMessagesCannotForgeAuthority", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.recipientsAndStructuredMessagesCannotForgeAuthority(); });
+    return runner.result();
+}

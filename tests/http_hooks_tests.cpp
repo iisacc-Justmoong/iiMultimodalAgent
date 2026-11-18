@@ -1,7 +1,9 @@
 #include <iiMultimodalAgent/agent/CommandHooks.h>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include "../third_party/cpp-httplib/httplib.h"
 #include <future>
 #include <mutex>
@@ -53,8 +55,7 @@ QJsonObject pre(const QString& decision,const QJsonObject& update={}) {
 QJsonObject diagnostic(const a::HookResult& result){return result.diagnostics.last().toObject();}
 }
 class HttpHooksTests final:public QObject {
-    Q_OBJECT
-private slots:
+public:
     void httpPostsOriginalJsonAndOnlyInterpolatesAllowedHeaders() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();
         options.environment=QProcessEnvironment{};
@@ -63,16 +64,16 @@ private slots:
         value["headers"]=QJsonObject{{"Authorization","Bearer ${HOOK_TOKEN}"},{"X-Filtered","$FORBIDDEN/${HOOK_TOKEN}"}};
         try {
             a::CommandHooks hooks(settings("PreToolUse",value),options);
-            const auto result=hooks.callback()(input(),{});QCOMPARE(diagnostic(result)["outcome"],"success");
-            QCOMPARE(endpoint.calls.load(),1);
+            const auto result=hooks.callback()(input(),{});CTEST_COMPARE(diagnostic(result)["outcome"],"success");
+            CTEST_COMPARE(endpoint.calls.load(),1);
             {std::lock_guard lock(endpoint.mutex);
-                QCOMPARE(endpoint.received["tool_input"],input().call.arguments);
-                QCOMPARE(endpoint.received["hook_event_name"],"PreToolUse");QCOMPARE(endpoint.received["cwd"],work.path());
-                QCOMPARE(endpoint.auth,"Bearer fixture token");QCOMPARE(endpoint.filtered,"/fixture token");
+                CTEST_COMPARE(endpoint.received["tool_input"],input().call.arguments);
+                CTEST_COMPARE(endpoint.received["hook_event_name"],"PreToolUse");CTEST_COMPARE(endpoint.received["cwd"],work.path());
+                CTEST_COMPARE(endpoint.auth,"Bearer fixture token");CTEST_COMPARE(endpoint.filtered,"/fixture token");
             }
             const auto described=QJsonDocument(hooks.describe()).toJson();
-            QVERIFY(!described.contains("HOOK_TOKEN")&&!described.contains("127.0.0.1")&&!described.contains("fixture token"));
-        } catch(const Error& error){QFAIL(error.what());}
+            CTEST_CHECK(!described.contains("HOOK_TOKEN")&&!described.contains("127.0.0.1")&&!described.contains("fixture token"));
+        } catch(const Error& error){agent_ctest::fail(__FILE__, __LINE__, error.what());}
     }
     void successfulHttpDecisionsReachTheRealToolAndRecheckHostDeny() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};
@@ -81,12 +82,12 @@ private slots:
             a::CommandHooks hooks(settings("PreToolUse",hook(endpoint.url())),options);
             auto registry=std::make_shared<a::ToolRegistry>();a::registerWorkspaceTools(*registry,work.path());
             a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::DontAsk),{{hooks.callback()}});
-            const auto result=runner.run(input().call,{"session","run",work.path()});QVERIFY2(!result.isError,qPrintable(result.text));
-            QFile file(work.filePath("approved.txt"));QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),"APPROVED");
-            QVERIFY(!QFileInfo::exists(work.filePath("original.txt")));
+            const auto result=runner.run(input().call,{"session","run",work.path()});CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));
+            QFile file(work.filePath("approved.txt"));CTEST_CHECK(file.open(QIODevice::ReadOnly));CTEST_COMPARE(file.readAll(),"APPROVED");
+            CTEST_CHECK(!QFileInfo::exists(work.filePath("original.txt")));
             a::ToolRunner denied(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::DontAsk,QList<a::PermissionRule>{{"Write",a::PermissionBehavior::Deny}}),{{hooks.callback()}});
-            QVERIFY(denied.run(input().call,{"session","run",work.path()}).isError);
-        } catch(const Error& error){QFAIL(error.what());}
+            CTEST_CHECK(denied.run(input().call,{"session","run",work.path()}).isError);
+        } catch(const Error& error){agent_ctest::fail(__FILE__, __LINE__, error.what());}
     }
     void httpStatusAndMalformedBodiesCannotGrantOrInjectPlainText() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};options.maxOutputBytes=1024;
@@ -99,9 +100,9 @@ private slots:
             try {
                 const auto before=endpoint.calls.load();
                 const auto result=a::CommandHooks(settings("PreToolUse",hook(endpoint.url())),options).callback()(input(),{});
-                QCOMPARE(endpoint.calls.load(),before+1);QVERIFY(!result.permission&&!result.permissionResponse&&!result.block&&!result.stop);QVERIFY(result.feedback.isEmpty());
-                QCOMPARE(diagnostic(result)["outcome"],test.success?"success":"non_blocking_error");
-            } catch(const Error& error){QFAIL(error.what());}
+                CTEST_COMPARE(endpoint.calls.load(),before+1);CTEST_CHECK(!result.permission&&!result.permissionResponse&&!result.block&&!result.stop);CTEST_CHECK(result.feedback.isEmpty());
+                CTEST_COMPARE(diagnostic(result)["outcome"],test.success?"success":"non_blocking_error");
+            } catch(const Error& error){agent_ctest::fail(__FILE__, __LINE__, error.what());}
         }
     }
     void urlAndEnvironmentPoliciesAreAppliedBeforeAnyRequest() {
@@ -110,46 +111,46 @@ private slots:
         auto value=hook(endpoint.url());value["allowedEnvVars"]=QJsonArray{"A","B"};value["headers"]=QJsonObject{{"Authorization","$A/$B"}};
         auto config=settings("PreToolUse",value);config["allowedHttpHookUrls"]=QJsonArray{};
         try {
-            const auto rejected=a::CommandHooks(config,options).callback()(input(),{});QCOMPARE(endpoint.calls.load(),0);
-            QCOMPARE(diagnostic(rejected)["outcome"],"non_blocking_error");
+            const auto rejected=a::CommandHooks(config,options).callback()(input(),{});CTEST_COMPARE(endpoint.calls.load(),0);
+            CTEST_COMPARE(diagnostic(rejected)["outcome"],"non_blocking_error");
             config["allowedHttpHookUrls"]=QJsonArray{endpoint.url("/*")};config["httpHookAllowedEnvVars"]=QJsonArray{"A"};
-            const auto result=a::CommandHooks(config,options).callback()(input(),{});QCOMPARE(diagnostic(result)["outcome"],"success");
-            QCOMPARE(endpoint.calls.load(),1);
-            {std::lock_guard lock(endpoint.mutex);QCOMPARE(endpoint.auth,"KEPT/");}
+            const auto result=a::CommandHooks(config,options).callback()(input(),{});CTEST_COMPARE(diagnostic(result)["outcome"],"success");
+            CTEST_COMPARE(endpoint.calls.load(),1);
+            {std::lock_guard lock(endpoint.mutex);CTEST_COMPARE(endpoint.auth,"KEPT/");}
             options.environment.insert("A",QString("INVALID")+QChar(0x7f));
             const auto invalid=a::CommandHooks(config,options).callback()(input(),{});
-            QCOMPARE(diagnostic(invalid)["outcome"],"non_blocking_error");QCOMPARE(endpoint.calls.load(),1);
-        } catch(const Error& error){QFAIL(error.what());}
+            CTEST_COMPARE(diagnostic(invalid)["outcome"],"non_blocking_error");CTEST_COMPARE(endpoint.calls.load(),1);
+        } catch(const Error& error){agent_ctest::fail(__FILE__, __LINE__, error.what());}
     }
     void privateAndMappedAddressesAreRejectedAndLoopbackDnsWorks() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};options.timeoutMs=200;
         for(const QString& address:{"0.0.0.1","10.0.0.1","100.64.0.1","100.100.100.200","169.254.169.254","172.16.0.1","172.31.1.1","192.168.1.1",
                 "[::]","[fc00::1]","[fd00::1]","[fe80::1]","[febf::1]","[::ffff:192.168.1.1]","[::ffff:a9fe:a9fe]"}) {
             const auto result=a::CommandHooks(settings("PreToolUse",hook("http://"+address+"/hook")),options).callback()(input(),{});
-            QCOMPARE(diagnostic(result)["error_code"],"unauthorized");QCOMPARE(endpoint.calls.load(),0);
+            CTEST_COMPARE(diagnostic(result)["error_code"],"unauthorized");CTEST_COMPARE(endpoint.calls.load(),0);
         }
         auto url=endpoint.url();url.replace("127.0.0.1","localhost");
         const auto result=a::CommandHooks(settings("PreToolUse",hook(url)),options).callback()(input(),{});
-        QCOMPARE(diagnostic(result)["outcome"],"success");QCOMPARE(endpoint.calls.load(),1);
-        std::lock_guard lock(endpoint.mutex);QCOMPARE(endpoint.host,QString("localhost:%1").arg(endpoint.port).toUtf8());
+        CTEST_COMPARE(diagnostic(result)["outcome"],"success");CTEST_COMPARE(endpoint.calls.load(),1);
+        std::lock_guard lock(endpoint.mutex);CTEST_COMPARE(endpoint.host,QString("localhost:%1").arg(endpoint.port).toUtf8());
     }
     void timeoutAndCancellationReleaseCapacityAndOnceIsShared() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};options.maxConcurrentProcesses=1;
         endpoint.setHandler([](const auto&,auto& reply){std::this_thread::sleep_for(250ms);reply.set_content("{}","application/json");});
         auto value=hook(endpoint.url());value["timeout"]=0.04;
         auto timed=a::CommandHooks(settings("PreToolUse",value),options).callback()(input(),{});
-        QCOMPARE(diagnostic(timed)["error_code"],"timeout");
+        CTEST_COMPARE(diagnostic(timed)["error_code"],"timeout");
         value["timeout"]=2;value["once"]=true;a::CommandHooks hooks(settings("PreToolUse",value),options);CancellationToken token;
         const auto before=endpoint.calls.load();auto pending=std::async(std::launch::async,[&]{return hooks.callback()(input(),token);});
-        QTRY_VERIFY(endpoint.calls.load()>before);token.cancel();
-        QVERIFY(pending.wait_for(500ms)==std::future_status::ready);
-        try{(void)pending.get();QFAIL("Cancelled HTTP hook completed");}catch(const Error& error){QCOMPARE(error.code(),ErrorCode::Cancelled);}
-        QVERIFY(hooks.callback()(input(),{}).diagnostics.isEmpty());
+        CTEST_WAIT_DEFAULT(endpoint.calls.load()>before);token.cancel();
+        CTEST_CHECK(pending.wait_for(500ms)==std::future_status::ready);
+        try{(void)pending.get();agent_ctest::fail(__FILE__, __LINE__, "Cancelled HTTP hook completed");}catch(const Error& error){CTEST_COMPARE(error.code(),ErrorCode::Cancelled);}
+        CTEST_CHECK(hooks.callback()(input(),{}).diagnostics.isEmpty());
         endpoint.setHandler({});
-        auto other=input();other.sessionId="second";const auto completed=hooks.callback()(other,{});QCOMPARE(diagnostic(completed)["outcome"],"success");
+        auto other=input();other.sessionId="second";const auto completed=hooks.callback()(other,{});CTEST_COMPARE(diagnostic(completed)["outcome"],"success");
         const auto count=endpoint.calls.load();std::vector<std::future<a::HookResult>> calls;
         other.sessionId="race";for(int n=0;n<8;++n)calls.push_back(std::async(std::launch::async,[&]{return hooks.callback()(other,{});}));
-        for(auto& call:calls)(void)call.get();QCOMPARE(endpoint.calls.load(),count+1);
+        for(auto& call:calls)(void)call.get();CTEST_COMPARE(endpoint.calls.load(),count+1);
     }
     void httpPermissionRequestKeepsItsDecisionWhenACommandFinishesLater() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};
@@ -161,9 +162,9 @@ private slots:
         group["hooks"]=entries;groups["PermissionRequest"]=QJsonArray{group};config["hooks"]=groups;
 #endif
         auto request=input();request.kind=a::HookKind::PermissionRequest;
-        const auto result=a::CommandHooks(config,options).callback()(request,{});QVERIFY(result.permissionResponse);
-        QCOMPARE(result.permissionResponse->behavior,a::PermissionBehavior::Allow);QVERIFY(!result.stop&&!result.permissionResponse->interrupt);
-        QCOMPARE(result.permissionResponse->updatedArguments->value("content"),"APPROVED");
+        const auto result=a::CommandHooks(config,options).callback()(request,{});CTEST_CHECK(result.permissionResponse);
+        CTEST_COMPARE(result.permissionResponse->behavior,a::PermissionBehavior::Allow);CTEST_CHECK(!result.stop&&!result.permissionResponse->interrupt);
+        CTEST_COMPARE(result.permissionResponse->updatedArguments->value("content"),"APPROVED");
     }
     void unsupportedAndInvalidConfigurationIsRejected() {
         QTemporaryDir work;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};
@@ -171,7 +172,7 @@ private slots:
                 QJsonObject{{"type","http"},{"url","http://127.0.0.1/"},{"headers",QJsonObject{{"Host","spoof"}}}},
                 QJsonObject{{"type","http"},{"url","http://127.0.0.1/"},{"allowedEnvVars",true}},
                 QJsonObject{{"type","http"},{"url","http://127.0.0.1/"},{"async",true}}}) {
-            try{a::CommandHooks ignored(settings("PreToolUse",value),options);QFAIL("Invalid HTTP hook accepted");}catch(const Error&){}
+            try{a::CommandHooks ignored(settings("PreToolUse",value),options);agent_ctest::fail(__FILE__, __LINE__, "Invalid HTTP hook accepted");}catch(const Error&){}
         }
     }
     void environmentProxyAndNoProxyUseHostOwnedRouting() {
@@ -179,14 +180,14 @@ private slots:
         options.environment.insert("HTTPS_PROXY",proxy.url("/"));
         auto config=settings("PreToolUse",hook("http://10.0.0.2/hook"));
         const auto routed=a::CommandHooks(config,options).callback()(input(),{});
-        QCOMPARE(diagnostic(routed)["outcome"],"success");QCOMPARE(proxy.calls.load(),1);
-        {std::lock_guard lock(proxy.mutex);QCOMPARE(proxy.host,"10.0.0.2");}
+        CTEST_COMPARE(diagnostic(routed)["outcome"],"success");CTEST_COMPARE(proxy.calls.load(),1);
+        {std::lock_guard lock(proxy.mutex);CTEST_COMPARE(proxy.host,"10.0.0.2");}
         options.environment.insert("NO_PROXY","10.0.0.2");
         const auto direct=a::CommandHooks(config,options).callback()(input(),{});
-        QCOMPARE(diagnostic(direct)["error_code"],"unauthorized");QCOMPARE(proxy.calls.load(),1);
+        CTEST_COMPARE(diagnostic(direct)["error_code"],"unauthorized");CTEST_COMPARE(proxy.calls.load(),1);
         options.environment.remove("NO_PROXY");options.httpProxy=QNetworkProxy(QNetworkProxy::NoProxy);
         const auto disabled=a::CommandHooks(config,options).callback()(input(),{});
-        QCOMPARE(diagnostic(disabled)["error_code"],"unauthorized");QCOMPARE(proxy.calls.load(),1);
+        CTEST_COMPARE(diagnostic(disabled)["error_code"],"unauthorized");CTEST_COMPARE(proxy.calls.load(),1);
     }
     void duplicateHttpUrlsUseLastMatchedConfigurationButKeepDistinctConditions() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};
@@ -196,21 +197,37 @@ private slots:
             QJsonObject{{"matcher","Write"},{"hooks",values}},
             QJsonObject{{"matcher","Read"},{"hooks",QJsonArray{first}}}}}}}};};
         const auto deduplicated=a::CommandHooks(config({first,last}),options).callback()(input(),{});
-        QCOMPARE(endpoint.calls.load(),1);QCOMPARE(deduplicated.diagnostics.size(),1);
-        {std::lock_guard lock(endpoint.mutex);QCOMPARE(endpoint.auth,"LAST");}
+        CTEST_COMPARE(endpoint.calls.load(),1);CTEST_COMPARE(deduplicated.diagnostics.size(),1);
+        {std::lock_guard lock(endpoint.mutex);CTEST_COMPARE(endpoint.auth,"LAST");}
         first["if"]="Write";last["if"]="Write(original.txt)";
         const auto distinct=a::CommandHooks(config({first,last}),options).callback()(input(),{});
-        QCOMPARE(endpoint.calls.load(),3);QCOMPARE(distinct.diagnostics.size(),2);
+        CTEST_COMPARE(endpoint.calls.load(),3);CTEST_COMPARE(distinct.diagnostics.size(),2);
     }
     void invalidHeaderNamesAreRejectedBeforeNetworkIo() {
         QTemporaryDir work;Endpoint endpoint;a::CommandHookOptions options;options.workingDirectory=work.path();options.environment={};
         for(const QString& name:{QString("X-Policy\n"),QString("X-Policy\r\n"),QString("X Policy"),QString("X-Policy:")}) {
             auto value=hook(endpoint.url());value["headers"]=QJsonObject{{name,"VALUE"}};
             bool rejected=false;try{a::CommandHooks ignored(settings("PreToolUse",value),options);}catch(const Error&){rejected=true;}
-            QVERIFY2(rejected,qPrintable("Accepted header name: "+name));
+            CTEST_CHECK_MESSAGE(rejected,qPrintable("Accepted header name: "+name));
         }
-        QCOMPARE(endpoint.calls.load(),0);
+        CTEST_COMPARE(endpoint.calls.load(),0);
     }
 };
-QTEST_GUILESS_MAIN(HttpHooksTests)
-#include "http_hooks_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    HttpHooksTests tests;
+    runner.run("httpPostsOriginalJsonAndOnlyInterpolatesAllowedHeaders", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.httpPostsOriginalJsonAndOnlyInterpolatesAllowedHeaders(); });
+    runner.run("successfulHttpDecisionsReachTheRealToolAndRecheckHostDeny", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.successfulHttpDecisionsReachTheRealToolAndRecheckHostDeny(); });
+    runner.run("httpStatusAndMalformedBodiesCannotGrantOrInjectPlainText", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.httpStatusAndMalformedBodiesCannotGrantOrInjectPlainText(); });
+    runner.run("urlAndEnvironmentPoliciesAreAppliedBeforeAnyRequest", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.urlAndEnvironmentPoliciesAreAppliedBeforeAnyRequest(); });
+    runner.run("privateAndMappedAddressesAreRejectedAndLoopbackDnsWorks", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.privateAndMappedAddressesAreRejectedAndLoopbackDnsWorks(); });
+    runner.run("timeoutAndCancellationReleaseCapacityAndOnceIsShared", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.timeoutAndCancellationReleaseCapacityAndOnceIsShared(); });
+    runner.run("httpPermissionRequestKeepsItsDecisionWhenACommandFinishesLater", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.httpPermissionRequestKeepsItsDecisionWhenACommandFinishesLater(); });
+    runner.run("unsupportedAndInvalidConfigurationIsRejected", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.unsupportedAndInvalidConfigurationIsRejected(); });
+    runner.run("environmentProxyAndNoProxyUseHostOwnedRouting", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.environmentProxyAndNoProxyUseHostOwnedRouting(); });
+    runner.run("duplicateHttpUrlsUseLastMatchedConfigurationButKeepDistinctConditions", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.duplicateHttpUrlsUseLastMatchedConfigurationButKeepDistinctConditions(); });
+    runner.run("invalidHeaderNamesAreRejectedBeforeNetworkIo", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.invalidHeaderNamesAreRejectedBeforeNetworkIo(); });
+    return runner.result();
+}

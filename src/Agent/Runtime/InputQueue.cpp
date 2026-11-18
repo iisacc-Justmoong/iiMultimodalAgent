@@ -20,8 +20,8 @@
 namespace iiMultimodalAgent::agent {
 namespace {
 constexpr qint64 maximum = 9007199254740991LL;
-const auto filePermissions = QFileDevice::ReadOwner | QFileDevice::WriteOwner;
-const auto directoryPermissions = filePermissions | QFileDevice::ExeOwner;
+const auto filePermissions = iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner;
+const auto directoryPermissions = filePermissions | iiFileProvider::FileDevice::ExeOwner;
 void require(bool ok, const QString& text, ErrorCode code = ErrorCode::InvalidArgument) { if (!ok) throw Error(code, text); }
 #ifdef Q_OS_WIN
 bool transientSharingError(DWORD error) {

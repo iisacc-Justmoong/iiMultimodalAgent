@@ -92,6 +92,8 @@ set(_agent_sources
     src/Agent/Integrations/WebContent.h
     src/Agent/Integrations/GraphQL.cpp
     src/Agent/Integrations/GraphQL.h
+    src/Agent/Integrations/GraphQLTransport.cpp
+    src/Agent/Integrations/GraphQLTransport.h
     src/Agent/Integrations/WebFetch.cpp
     src/Agent/Integrations/WebFetch.h
     src/Agent/Tools/WorkspaceTools.cpp

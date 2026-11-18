@@ -5,7 +5,8 @@
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include <QCoreApplication>
 #include <atomic>
 #include <fstream>
 #include <limits>
@@ -122,49 +123,48 @@ QByteArray storedZip(const QList<QPair<QByteArray,QByteArray>>& entries, bool zi
 }
 }
 
-class MultimodalServicesTests final : public QObject {
-    Q_OBJECT
-private slots:
+class MultimodalServicesTests final {
+public:
     void disabledServicesDoNotAdvertiseGeneration() {
         a::MultimodalServices empty;
-        QVERIFY(a::multimodalTools(empty).isEmpty());
-        QVERIFY(!a::multimodalCapabilities(empty)["image_generation"].toBool());
-        QVERIFY(!a::multimodalCapabilities(empty)["speech_synthesis"].toBool());
+        CTEST_CHECK(a::multimodalTools(empty).isEmpty());
+        CTEST_CHECK(!a::multimodalCapabilities(empty)["image_generation"].toBool());
+        CTEST_CHECK(!a::multimodalCapabilities(empty)["speech_synthesis"].toBool());
     }
     void imageIsAValidPngAndProviderFileWithInlineMedia() {
         QTemporaryDir root; PresentationCleanup cleanup{path(root.path())}; std::atomic_int calls=0;
         auto tools=a::multimodalTools(services(root,calls));
-        QCOMPARE(tools.size(),1);
+        CTEST_COMPARE(tools.size(),1);
         auto result=tools[0].execute({{"prompt","red square"},{"width",8},{"height",8}},context(root));
-        QCOMPARE(calls.load(),1); QVERIFY(!result.isError);
-        QCOMPARE(result.data["provider"],"iiLocalDiffusion");
+        CTEST_COMPARE(calls.load(),1); CTEST_CHECK(!result.isError);
+        CTEST_COMPARE(result.data["provider"],"iiLocalDiffusion");
         const auto path=std::filesystem::path(result.data["path"].toString().toStdU16String());
         const auto bytes=iiFileProvider::native::File::read(path,65536);
         const auto png=QByteArray(bytes.data(),qsizetype(bytes.size()));
-        QVERIFY(png.startsWith(QByteArray::fromHex("89504e470d0a1a0a")));
-        QCOMPARE(png.mid(12,4),QByteArray("IHDR"));
+        CTEST_CHECK(png.startsWith(QByteArray::fromHex("89504e470d0a1a0a")));
+        CTEST_COMPARE(png.mid(12,4),QByteArray("IHDR"));
         const auto compressedLength=quint32(static_cast<unsigned char>(png[33]))*16777216U
             +quint32(static_cast<unsigned char>(png[34]))*65536U+quint32(static_cast<unsigned char>(png[35]))*256U
             +quint32(static_cast<unsigned char>(png[36]));
         const auto raw=qUncompress(QByteArray::fromHex("000000c8")+png.mid(41,compressedLength));
-        QCOMPARE(raw.size(),200);
+        CTEST_COMPARE(raw.size(),200);
         for(int row=0;row<8;++row) {
-            QCOMPARE(raw[row*25],char(0));
-            for(int column=0;column<24;++column) QCOMPARE(raw[row*25+1+column],char(127));
+            CTEST_COMPARE(raw[row*25],char(0));
+            for(int column=0;column<24;++column) CTEST_COMPARE(raw[row*25+1+column],char(127));
         }
-        QVERIFY(png.contains("iiSDK.Generation"));
+        CTEST_CHECK(png.contains("iiSDK.Generation"));
         const auto settings=result.data["generation_settings"].toObject();
-        QCOMPARE(settings["report_status"],"unreported");
-        QCOMPARE(settings["output"].toObject()["width"],8);QCOMPARE(settings["output"].toObject()["height"],8);
+        CTEST_COMPARE(settings["report_status"],"unreported");
+        CTEST_COMPARE(settings["output"].toObject()["width"],8);CTEST_COMPARE(settings["output"].toObject()["height"],8);
         const auto marker=png.indexOf("iiSDK.Generation");
-        QVERIFY(marker>=8);QCOMPARE(png.mid(marker-4,4),QByteArray("iTXt"));
+        CTEST_CHECK(marker>=8);CTEST_COMPARE(png.mid(marker-4,4),QByteArray("iTXt"));
         const auto length=(quint32(static_cast<unsigned char>(png[marker-8]))<<24)
             |(quint32(static_cast<unsigned char>(png[marker-7]))<<16)
             |(quint32(static_cast<unsigned char>(png[marker-6]))<<8)
             |quint32(static_cast<unsigned char>(png[marker-5]));
         const auto header=qsizetype(QByteArray("iiSDK.Generation").size()+5);
-        QCOMPARE(QJsonDocument::fromJson(png.mid(marker+header,length-header)).object(),settings);
-        QCOMPARE(QByteArray::fromBase64(result.content.first().toObject()["data"].toString().toLatin1()),png);
+        CTEST_COMPARE(QJsonDocument::fromJson(png.mid(marker+header,length-header)).object(),settings);
+        CTEST_COMPARE(QByteArray::fromBase64(result.content.first().toObject()["data"].toString().toLatin1()),png);
     }
     void validationCancellationAndPermissionPreventSideEffects() {
         QTemporaryDir root; std::atomic_int calls=0;
@@ -173,14 +173,14 @@ private slots:
         a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>());
         auto c=context(root);
         auto denied=runner.run({"denied","GenerateImage",{{"prompt","red"},{"width",8},{"height",8}}},c);
-        QVERIFY(denied.isError); QCOMPARE(calls.load(),0);
+        CTEST_CHECK(denied.isError); CTEST_COMPARE(calls.load(),0);
         a::ToolRunner allowed(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
         auto invalid=allowed.run({"invalid","GenerateImage",{{"prompt","red"},{"model_path","untrusted"}}},c);
-        QVERIFY(invalid.isError); QCOMPARE(calls.load(),0);
+        CTEST_CHECK(invalid.isError); CTEST_COMPARE(calls.load(),0);
         c.cancellation.cancel();
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,allowed.run({"cancelled","GenerateImage",{{"prompt","red"}}},c));
-        QCOMPARE(calls.load(),0);
-        QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
+        CTEST_THROWS(iiLocalLLM::Error,allowed.run({"cancelled","GenerateImage",{{"prompt","red"}}},c));
+        CTEST_COMPARE(calls.load(),0);
+        CTEST_CHECK(QDir(root.path()).entryList(QDir::Files).isEmpty());
     }
     void imageInputsAreNotRewrittenByHooksOrPermissionResponses() {
         QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;
@@ -196,14 +196,14 @@ private slots:
         });
         const a::ToolCall call{"immutable","GenerateImage",{{"prompt","unchanged"},{"width",8},{"height",8},{"steps",50}}};
         auto result=a::ToolRunner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),hooks).run(call,context(root));
-        QVERIFY(result.isError);QCOMPARE(calls.load(),0);
+        CTEST_CHECK(result.isError);CTEST_COMPARE(calls.load(),0);
         a::ToolRunnerOptions permission;
         permission.permissionResponse=[](const auto& input,const auto&,const auto&) {
             a::PermissionResponse response;response.behavior=a::PermissionBehavior::Allow;
             auto edited=input.arguments;edited["steps"]=9;response.updatedArguments=edited;return response;
         };
         result=a::ToolRunner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Default),permission).run(call,context(root));
-        QVERIFY(result.isError);QCOMPARE(calls.load(),0);
+        CTEST_CHECK(result.isError);CTEST_COMPARE(calls.load(),0);
     }
     void imageSeedAndExplicitValuesReachTheExecutorWithoutNarrowing() {
         QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;auto config=services(root,calls);
@@ -215,20 +215,20 @@ private slots:
         const auto tool=a::multimodalTools(config)[0];
         const auto result=tool.execute({{"prompt"," untouched "},{"width",8},{"height",8},{"steps",300},
             {"seed",qint64(2147483648LL)}},context(root));
-        QCOMPARE(observed.prompt,std::string(" untouched "));QCOMPARE(observed.steps,300);
-        QCOMPARE(observed.seed,std::int64_t(2147483648LL));QCOMPARE(result.data["steps_source"],"request");
+        CTEST_COMPARE(observed.prompt,std::string(" untouched "));CTEST_COMPARE(observed.steps,300);
+        CTEST_COMPARE(observed.seed,std::int64_t(2147483648LL));CTEST_COMPARE(result.data["steps_source"],"request");
         tool.execute({{"prompt","x"},{"width",8},{"height",8},{"seed",-1}},context(root));
-        QCOMPARE(observed.seed,std::int64_t(-1));
+        CTEST_COMPARE(observed.seed,std::int64_t(-1));
         tool.execute({{"prompt","x"},{"width",8},{"height",8},{"seed",qint64(std::numeric_limits<std::int64_t>::max())}},context(root));
-        QCOMPARE(observed.seed,std::numeric_limits<std::int64_t>::max());
+        CTEST_COMPARE(observed.seed,std::numeric_limits<std::int64_t>::max());
         auto registry=std::make_shared<a::ToolRegistry>();registry->add(tool);
         a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
         const auto admitted=runner.run({"wide-seed","GenerateImage",{{"prompt","x"},{"width",8},{"height",8},
             {"seed",qint64(2147483648LL)}}},context(root));
-        QVERIFY(!admitted.isError);QCOMPARE(observed.seed,std::int64_t(2147483648LL));
+        CTEST_CHECK(!admitted.isError);CTEST_COMPARE(observed.seed,std::int64_t(2147483648LL));
         const auto maximum=runner.run({"maximum-seed","GenerateImage",{{"prompt","x"},{"width",8},{"height",8},
             {"seed",qint64(std::numeric_limits<std::int64_t>::max())}}},context(root));
-        QVERIFY(!maximum.isError);QCOMPARE(observed.seed,std::numeric_limits<std::int64_t>::max());
+        CTEST_CHECK(!maximum.isError);CTEST_COMPARE(observed.seed,std::numeric_limits<std::int64_t>::max());
     }
     void nativeAdapterRejectsMissingModelAndOversizeDefaultsBeforeInference() {
         QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;
@@ -236,15 +236,15 @@ private slots:
         config.image->modelPath=path(root.filePath("missing.safetensors"));
         config.image->width=0;config.image->height=0;config.image->steps=0;config.maximumImageDimension=64;
         auto tool=a::multimodalTools(config)[0];
-        try { tool.execute({{"prompt","x"}},context(root));QFAIL("Oversize backend defaults must fail"); }
+        try { tool.execute({{"prompt","x"}},context(root));agent_ctest::fail(__FILE__, __LINE__, "Oversize backend defaults must fail"); }
         catch(const iiLocalLLM::Error& error) {
-            QCOMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure);
-            QVERIFY(QString::fromUtf8(error.what()).contains("budget",Qt::CaseInsensitive));
+            CTEST_COMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure);
+            CTEST_CHECK(QString::fromUtf8(error.what()).contains("budget",Qt::CaseInsensitive));
         }
         config.maximumImageDimension=2048;tool=a::multimodalTools(config)[0];
-        try { tool.execute({{"prompt","x"}},context(root));QFAIL("A missing model must fail before inference"); }
-        catch(const iiLocalLLM::Error& error) { QCOMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure); }
-        QCOMPARE(calls.load(),0);
+        try { tool.execute({{"prompt","x"}},context(root));agent_ctest::fail(__FILE__, __LINE__, "A missing model must fail before inference"); }
+        catch(const iiLocalLLM::Error& error) { CTEST_COMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure); }
+        CTEST_COMPARE(calls.load(),0);
     }
     void imageBackendResolvesOnlyUnspecifiedValuesAndReportsActualSettings() {
         QTemporaryDir root;PresentationCleanup cleanup{path(root.path())};std::atomic_int calls=0;
@@ -267,24 +267,24 @@ private slots:
         };
         const auto tool=a::multimodalTools(config,executor)[0];
         const auto result=tool.execute({{"prompt","model default"}},context(root));
-        QCOMPARE(observed.width,0);QCOMPARE(observed.height,0);QCOMPARE(observed.steps,0);QCOMPARE(observed.seed,std::int64_t(-1));
+        CTEST_COMPARE(observed.width,0);CTEST_COMPARE(observed.height,0);CTEST_COMPARE(observed.steps,0);CTEST_COMPARE(observed.seed,std::int64_t(-1));
         const auto settings=result.data["generation_settings"].toObject();
-        QCOMPARE(settings["report_status"],"backend_reported");QCOMPARE(settings["reported_by"],"host_executor");
-        QCOMPARE(settings["resolved_request"].toObject()["steps"],42);
-        QCOMPARE(settings["stages"].toArray().first().toObject()["seed"],123456);
-        QCOMPARE(settings["stages"].toArray().first().toObject()["hires_steps"],2);
-        QCOMPARE(settings["stages"].toArray().first().toObject()["hires_sigmas"].toArray().size(),3);
-        QCOMPARE(result.data["steps_source"],"backend_default");
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"steps",0}},context(root)));
+        CTEST_COMPARE(settings["report_status"],"backend_reported");CTEST_COMPARE(settings["reported_by"],"host_executor");
+        CTEST_COMPARE(settings["resolved_request"].toObject()["steps"],42);
+        CTEST_COMPARE(settings["stages"].toArray().first().toObject()["seed"],123456);
+        CTEST_COMPARE(settings["stages"].toArray().first().toObject()["hires_steps"],2);
+        CTEST_COMPARE(settings["stages"].toArray().first().toObject()["hires_sigmas"].toArray().size(),3);
+        CTEST_COMPARE(result.data["steps_source"],"backend_default");
+        CTEST_THROWS(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"steps",0}},context(root)));
         tool.execute({{"prompt","x"},{"steps",47},{"width",8}},context(root));
-        QCOMPARE(observed.steps,47);QCOMPARE(observed.width,8);QCOMPARE(observed.height,0);
+        CTEST_COMPARE(observed.steps,47);CTEST_COMPARE(observed.width,8);CTEST_COMPARE(observed.height,0);
     }
     void imageModelSelectionKeepsHostAndExplicitOptions() {
-        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        QTemporaryDir root(QDir::temp().filePath("image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
-        QVERIFY(root.isValid());std::atomic_int calls=0;
-        QVERIFY(QDir().mkpath(root.filePath("model-a/transformer")));
-        QVERIFY(QDir().mkpath(root.filePath("MOSS-Image-not-a-model")));
+        CTEST_CHECK(root.isValid());std::atomic_int calls=0;
+        CTEST_CHECK(QDir().mkpath(root.filePath("model-a/transformer")));
+        CTEST_CHECK(QDir().mkpath(root.filePath("MOSS-Image-not-a-model")));
         write(root.filePath("model-a/model_index.json"),json({{"_class_name","MOSSImagePipeline"}}));
         write(root.filePath("MOSS-Image-not-a-model/model_index.json"),json({{"_class_name","OtherPipeline"}}));
         std::error_code linkError;
@@ -300,35 +300,35 @@ private slots:
         };
         auto tool=a::multimodalTools(config)[0];const auto c=context(root);
         const auto choices=tool.definition.inputSchema["properties"].toObject()["model"].toObject()["enum"].toArray();
-        QVERIFY(choices.contains("default"));QVERIFY(choices.contains("moss"));QVERIFY(choices.contains("renamed"));
+        CTEST_CHECK(choices.contains("default"));CTEST_CHECK(choices.contains("moss"));CTEST_CHECK(choices.contains("renamed"));
         auto result=tool.execute({{"prompt","x"},{"model","moss"},{"width",8},{"height",8}},c);
-        QCOMPARE(observed.modelPath,path(root.filePath("model-a")));QCOMPARE(observed.steps,27);
-        QCOMPARE(result.data["steps"],27);QCOMPARE(result.data["steps_source"],"host");
+        CTEST_COMPARE(observed.modelPath,path(root.filePath("model-a")));CTEST_COMPARE(observed.steps,27);
+        CTEST_COMPARE(result.data["steps"],27);CTEST_COMPARE(result.data["steps_source"],"host");
         const auto explicitResult=tool.execute({{"prompt","x"},{"model","moss"},{"width",8},{"height",8},{"steps",50}},c);
-        QCOMPARE(observed.steps,50);QCOMPARE(explicitResult.data["steps_source"],"request");
+        CTEST_COMPARE(observed.steps,50);CTEST_COMPARE(explicitResult.data["steps_source"],"request");
         tool.execute({{"prompt","x"},{"model","renamed"},{"width",8},{"height",8}},c);
-        QCOMPARE(observed.steps,27);
+        CTEST_COMPARE(observed.steps,27);
         tool.execute({{"prompt","x"},{"width",8},{"height",8}},c);
-        QCOMPARE(observed.modelPath,config.image->modelPath);QCOMPARE(observed.steps,27);
+        CTEST_COMPARE(observed.modelPath,config.image->modelPath);CTEST_COMPARE(observed.steps,27);
         auto defaultMoss=config;defaultMoss.image->modelPath=path(root.filePath("model-a"));
         a::multimodalTools(defaultMoss)[0].execute({{"prompt","x"},{"width",8},{"height",8}},c);
-        QCOMPARE(observed.steps,27);
+        CTEST_COMPARE(observed.steps,27);
         auto registry=std::make_shared<a::ToolRegistry>();registry->add(tool);
         a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
         const auto admitted=runner.run({"alias","GenerateImage",{{"prompt","x"},{"model","moss"},{"width",8},{"height",8}}},c);
-        QVERIFY(!admitted.isError);QCOMPARE(observed.steps,27);
+        CTEST_CHECK(!admitted.isError);CTEST_COMPARE(observed.steps,27);
         const auto rejected=runner.run({"unknown","GenerateImage",{{"prompt","x"},{"model","missing"}}},c);
-        QVERIFY(rejected.isError);
+        CTEST_CHECK(rejected.isError);
         const auto before=calls.load();
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model","../model-a"}},c));
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",root.filePath("model-a")}},c));
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",true}},c));
-        QCOMPARE(calls.load(),before);
+        CTEST_THROWS(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model","../model-a"}},c));
+        CTEST_THROWS(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",root.filePath("model-a")}},c));
+        CTEST_THROWS(iiLocalLLM::Error,tool.execute({{"prompt","x"},{"model",true}},c));
+        CTEST_COMPARE(calls.load(),before);
     }
     void embeddedMetadataDoesNotReplaceHostOptions() {
-        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        QTemporaryDir root(QDir::temp().filePath("image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
-        QVERIFY(root.isValid());std::atomic_int calls=0;
+        CTEST_CHECK(root.isValid());std::atomic_int calls=0;
         const auto model=root.filePath("opaque.safetensors");
         write(model,safetensors({},{{"__iild_assets__/other/model_index.json",QJsonObject{{"_class_name","MOSSImagePipeline"}}},
             {"__iild_assets__/other/generation_config.json",QJsonObject{{"num_inference_steps",12},{"width",16},{"height",24}}}}));
@@ -340,15 +340,15 @@ private slots:
         config.image->width=8;config.image->height=8;
         auto tool=a::multimodalTools(config)[0];
         auto result=tool.execute({{"prompt","x"}},context(root));
-        QCOMPARE(observed.steps,20);QCOMPARE(observed.width,8);QCOMPARE(observed.height,8);
-        QCOMPARE(result.data["steps_source"],"host");
+        CTEST_COMPARE(observed.steps,20);CTEST_COMPARE(observed.width,8);CTEST_COMPARE(observed.height,8);
+        CTEST_COMPARE(result.data["steps_source"],"host");
         tool.execute({{"prompt","x"},{"steps",33},{"width",8}},context(root));
-        QCOMPARE(observed.steps,33);QCOMPARE(observed.width,8);QCOMPARE(observed.height,8);
+        CTEST_COMPARE(observed.steps,33);CTEST_COMPARE(observed.width,8);CTEST_COMPARE(observed.height,8);
     }
     void packagedModelsAreForwardedWithoutMetadataOverrides() {
-        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        QTemporaryDir root(QDir::temp().filePath("image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
-        QVERIFY(root.isValid());std::atomic_int calls=0;
+        CTEST_CHECK(root.isValid());std::atomic_int calls=0;
         const auto model=root.filePath("opaque.iildmodel");
         const auto zip64=root.filePath("opaque64.iildmodel"),duplicate=root.filePath("duplicate.iildmodel");
         const auto manifest=json({{"schema","iild-unified-model-v1"},{"stages",QJsonArray{QJsonObject{{"model","members/000/model.safetensors"}}}}});
@@ -363,15 +363,15 @@ private slots:
             result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
         const auto tool=a::multimodalTools(config)[0];
         const auto result=tool.execute({{"prompt","x"}},context(root));
-        QCOMPARE(steps,20);
-        tool.execute({{"prompt","x"},{"model","zip64"}},context(root));QCOMPARE(steps,20);
-        tool.execute({{"prompt","x"},{"model","duplicate"}},context(root));QCOMPARE(steps,20);
-        QCOMPARE(QDir(root.path()).entryList(QDir::Dirs|QDir::NoDotAndDotDot).size(),0);
+        CTEST_COMPARE(steps,20);
+        tool.execute({{"prompt","x"},{"model","zip64"}},context(root));CTEST_COMPARE(steps,20);
+        tool.execute({{"prompt","x"},{"model","duplicate"}},context(root));CTEST_COMPARE(steps,20);
+        CTEST_COMPARE(QDir(root.path()).entryList(QDir::Dirs|QDir::NoDotAndDotDot).size(),0);
     }
     void ggufMetadataCannotReplaceHostOptions() {
-        QTemporaryDir root(QStringLiteral(IIMULTIMODAL_TEST_RESOURCES "/image-profile-XXXXXX"));
+        QTemporaryDir root(QDir::temp().filePath("image-profile-XXXXXX"));
         PresentationCleanup cleanup{path(root.path())};
-        QVERIFY(root.isValid());std::atomic_int calls=0;
+        CTEST_CHECK(root.isValid());std::atomic_int calls=0;
         const auto moss=root.filePath("opaque.gguf"),other=root.filePath("MOSS-Image.gguf"),broken=root.filePath("broken.gguf"),krea=root.filePath("other.gguf");
         write(moss,gguf({{"general.architecture","moss_image"},
             {"iild.generation_parameters","{\"steps\":999,\"width\":1024}"}}));
@@ -387,30 +387,30 @@ private slots:
             iiLocalDiffusion::NativeGenerationResult result;result.width=request.width;result.height=request.height;
             result.rgb.assign(std::size_t(request.width)*request.height*3,1);return result;};
         auto tool=a::multimodalTools(config)[0];
-        tool.execute({{"prompt","x"}},context(root));QCOMPARE(observed.steps,23);QCOMPARE(observed.width,8);
-        tool.execute({{"prompt","x"},{"model","other"}},context(root));QCOMPARE(observed.steps,23);
-        tool.execute({{"prompt","x"},{"model","broken"}},context(root));QCOMPARE(observed.steps,23);
-        tool.execute({{"prompt","x"},{"model","krea"}},context(root));QCOMPARE(observed.steps,23);
+        tool.execute({{"prompt","x"}},context(root));CTEST_COMPARE(observed.steps,23);CTEST_COMPARE(observed.width,8);
+        tool.execute({{"prompt","x"},{"model","other"}},context(root));CTEST_COMPARE(observed.steps,23);
+        tool.execute({{"prompt","x"},{"model","broken"}},context(root));CTEST_COMPARE(observed.steps,23);
+        tool.execute({{"prompt","x"},{"model","krea"}},context(root));CTEST_COMPARE(observed.steps,23);
     }
     void pcmUsesTheBoundAudioBackendAndRejectsInvalidOutput() {
-        iiFileProvider::native::TemporaryDirectory root(IIMULTIMODAL_TEST_RESOURCES);
-        QVERIFY(root.isValid());
+        iiFileProvider::native::TemporaryDirectory root(path(QDir::tempPath()));
+        CTEST_CHECK(root.isValid());
         auto backend=std::make_shared<Audio>(); a::MultimodalServices config;
         config.outputDirectory=root.path();
         config.audio=std::make_shared<iiAudioGen::Generator>(backend);
-        auto tools=a::multimodalTools(config); QCOMPARE(tools.size(),1);
+        auto tools=a::multimodalTools(config); CTEST_COMPARE(tools.size(),1);
         auto result=tools[0].execute({{"prompt","a bell"},{"duration_seconds",0.02},{"sample_rate",16000}},context(root.path()));
-        QCOMPARE(result.data["provider"],"iiAudioGen"); QCOMPARE(backend->calls.load(),1);
-        QCOMPARE(result.data["frames"].toInteger(),320);
+        CTEST_COMPARE(result.data["provider"],"iiAudioGen"); CTEST_COMPARE(backend->calls.load(),1);
+        CTEST_COMPARE(result.data["frames"].toInteger(),320);
         const auto bytes=QByteArray::fromBase64(result.content[0].toObject()["data"].toString().toLatin1());
-        QVERIFY(bytes.startsWith("RIFF")); QCOMPARE(bytes.mid(8,4),QByteArray("WAVE"));
+        CTEST_CHECK(bytes.startsWith("RIFF")); CTEST_COMPARE(bytes.mid(8,4),QByteArray("WAVE"));
         const auto path=std::filesystem::path(result.data["path"].toString().toStdU16String());
         const auto published=iiFileProvider::native::File::read(path);
-        QCOMPARE(QByteArray(published.data(),qsizetype(published.size())),bytes);
+        CTEST_COMPARE(QByteArray(published.data(),qsizetype(published.size())),bytes);
         backend->invalid=true;
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",0.02}},context(root.path())));
+        CTEST_THROWS(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",0.02}},context(root.path())));
         iiFileProvider::native::Presentation::cancelPending(path);
-        QVERIFY(iiFileProvider::native::File::remove(path));
+        CTEST_CHECK(iiFileProvider::native::File::remove(path));
     }
     void cancellationAfterAnAudioCallDoesNotPublishPartialOutput() {
         QTemporaryDir root; auto c=context(root); auto backend=std::make_shared<Audio>();
@@ -418,8 +418,8 @@ private slots:
         a::MultimodalServices config;config.outputDirectory=std::filesystem::path(root.path().toStdU16String());
         config.audio=std::make_shared<iiAudioGen::Generator>(backend);
         auto tools=a::multimodalTools(config);
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",0.02}},c));
-        QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
+        CTEST_THROWS(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",0.02}},c));
+        CTEST_CHECK(QDir(root.path()).entryList(QDir::Files).isEmpty());
     }
     void requestedPcmBudgetIsEnforcedBeforeBackendExecution() {
         QTemporaryDir root;auto backend=std::make_shared<Audio>();a::MultimodalServices config;
@@ -427,8 +427,8 @@ private slots:
         config.audio=std::make_shared<iiAudioGen::Generator>(backend);
         config.maximumArtifactBytes=1024;config.maximumInlineBytes=512;
         auto tools=a::multimodalTools(config);
-        QVERIFY_THROWS_EXCEPTION(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",1}},context(root)));
-        QCOMPARE(backend->calls.load(),0);QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
+        CTEST_THROWS(iiLocalLLM::Error,tools[0].execute({{"prompt","bell"},{"duration_seconds",1}},context(root)));
+        CTEST_COMPARE(backend->calls.load(),0);CTEST_CHECK(QDir(root.path()).entryList(QDir::Files).isEmpty());
     }
     void realNativeDiffusionAdapterReturnsItsModelError() {
         QTemporaryDir root; std::atomic_int calls=0;auto config=services(root,calls);
@@ -436,13 +436,13 @@ private slots:
         auto tools=a::multimodalTools(config);
         try {
             tools[0].execute({{"prompt","red"},{"width",8},{"height",8}},context(root));
-            QFAIL("The missing native model unexpectedly generated an image");
+            agent_ctest::fail(__FILE__, __LINE__, "The missing native model unexpectedly generated an image");
         } catch(const iiLocalLLM::Error& error) {
             // RuntimeUnavailable would indicate a broken adapter/dependency
             // installation rather than reaching the real native model call.
-            QCOMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure);
+            CTEST_COMPARE(error.code(),iiLocalLLM::ErrorCode::RuntimeFailure);
         }
-        QCOMPARE(calls.load(),0);QVERIFY(QDir(root.path()).entryList(QDir::Files).isEmpty());
+        CTEST_COMPARE(calls.load(),0);CTEST_CHECK(QDir(root.path()).entryList(QDir::Files).isEmpty());
     }
     void engineCarriesGeneratedMediaAndHostDecisionAcrossTurns() {
         QTemporaryDir root; std::atomic_int calls=0;
@@ -455,11 +455,11 @@ private slots:
         a::Engine engine(std::make_shared<Model>(),registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
         const auto session=engine.createSession("host-text-model",root.path());
         const auto result=engine.run({session.id,"make a red image"}).result.get();
-        QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
-        QCOMPARE(result.text,"image received");QCOMPARE(calls.load(),1);
+        CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.text,"image received");CTEST_COMPARE(calls.load(),1);
         auto stored=engine.session(session.id);bool found=false;
         for(const auto& message:stored.messages)if(message.role==a::MessageRole::Tool&&!message.content.isEmpty())found=true;
-        QVERIFY(found);QVERIFY(!result.decision.isEmpty());
+        CTEST_CHECK(found);CTEST_CHECK(!result.decision.isEmpty());
     }
     void authenticatedClientsGetSeparateProviderDirectories() {
         QTemporaryDir root;std::atomic_int calls=0;QDir().mkpath(root.filePath("work"));
@@ -473,17 +473,43 @@ private slots:
         for(const auto& token:{QString(48,'a'),QString(48,'b')}) {
             const auto session=api.dispatch("agent.sessions.create",{{"model","host-model"}},token).result.get().toObject();
             const auto result=api.dispatch("agent.run",{{"session_id",session["session_id"]},{"prompt","make red"}},token).result.get().toObject();
-            QVERIFY2(result["status"]=="completed",qPrintable(QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact))));
+            CTEST_CHECK_MESSAGE(result["status"]=="completed",qPrintable(QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact))));
             const auto info=api.dispatch("agent.info",{},token).result.get().toObject();
-            QVERIFY(info["multimodal"].toObject()["image_generation"].toBool());
+            CTEST_CHECK(info["multimodal"].toObject()["image_generation"].toBool());
         }
-        QCOMPARE(calls.load(),2);
+        CTEST_COMPARE(calls.load(),2);
         const auto clients=QDir(root.filePath("state")).entryList(QDir::Dirs|QDir::NoDotAndDotDot);
-        QCOMPARE(clients.size(),2);
+        CTEST_COMPARE(clients.size(),2);
         for(const auto& client:clients)
-            QCOMPARE(QDir(root.filePath("state/")+client+"/generated").entryList({"*.png"},QDir::Files).size(),1);
-        QVERIFY(QDir(root.path()).entryList({"*.png"},QDir::Files).isEmpty());
+            CTEST_COMPARE(QDir(root.filePath("state/")+client+"/generated").entryList({"*.png"},QDir::Files).size(),1);
+        CTEST_CHECK(QDir(root.path()).entryList({"*.png"},QDir::Files).isEmpty());
     }
 };
-QTEST_GUILESS_MAIN(MultimodalServicesTests)
-#include "multimodal_services_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    if (argc > 2) {
+        std::cerr << "Expected at most one test case name\n";
+        return 2;
+    }
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    MultimodalServicesTests tests;
+    runner.run("disabledServicesDoNotAdvertiseGeneration", [&] { tests.disabledServicesDoNotAdvertiseGeneration(); });
+    runner.run("imageIsAValidPngAndProviderFileWithInlineMedia", [&] { tests.imageIsAValidPngAndProviderFileWithInlineMedia(); });
+    runner.run("validationCancellationAndPermissionPreventSideEffects", [&] { tests.validationCancellationAndPermissionPreventSideEffects(); });
+    runner.run("imageInputsAreNotRewrittenByHooksOrPermissionResponses", [&] { tests.imageInputsAreNotRewrittenByHooksOrPermissionResponses(); });
+    runner.run("imageSeedAndExplicitValuesReachTheExecutorWithoutNarrowing", [&] { tests.imageSeedAndExplicitValuesReachTheExecutorWithoutNarrowing(); });
+    runner.run("nativeAdapterRejectsMissingModelAndOversizeDefaultsBeforeInference", [&] { tests.nativeAdapterRejectsMissingModelAndOversizeDefaultsBeforeInference(); });
+    runner.run("imageBackendResolvesOnlyUnspecifiedValuesAndReportsActualSettings", [&] { tests.imageBackendResolvesOnlyUnspecifiedValuesAndReportsActualSettings(); });
+    runner.run("imageModelSelectionKeepsHostAndExplicitOptions", [&] { tests.imageModelSelectionKeepsHostAndExplicitOptions(); });
+    runner.run("embeddedMetadataDoesNotReplaceHostOptions", [&] { tests.embeddedMetadataDoesNotReplaceHostOptions(); });
+    runner.run("packagedModelsAreForwardedWithoutMetadataOverrides", [&] { tests.packagedModelsAreForwardedWithoutMetadataOverrides(); });
+    runner.run("ggufMetadataCannotReplaceHostOptions", [&] { tests.ggufMetadataCannotReplaceHostOptions(); });
+    runner.run("pcmUsesTheBoundAudioBackendAndRejectsInvalidOutput", [&] { tests.pcmUsesTheBoundAudioBackendAndRejectsInvalidOutput(); });
+    runner.run("cancellationAfterAnAudioCallDoesNotPublishPartialOutput", [&] { tests.cancellationAfterAnAudioCallDoesNotPublishPartialOutput(); });
+    runner.run("requestedPcmBudgetIsEnforcedBeforeBackendExecution", [&] { tests.requestedPcmBudgetIsEnforcedBeforeBackendExecution(); });
+    runner.run("realNativeDiffusionAdapterReturnsItsModelError", [&] { tests.realNativeDiffusionAdapterReturnsItsModelError(); });
+    runner.run("engineCarriesGeneratedMediaAndHostDecisionAcrossTurns", [&] { tests.engineCarriesGeneratedMediaAndHostDecisionAcrossTurns(); });
+    runner.run("authenticatedClientsGetSeparateProviderDirectories", [&] { tests.authenticatedClientsGetSeparateProviderDirectories(); });
+    return runner.result();
+}

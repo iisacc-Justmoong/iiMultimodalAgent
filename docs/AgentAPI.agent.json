@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/AgentAPI.md",
-    "sha256": "e59e3212b6bbecb7b7e551a1d3d07750a6acd2a86565f6c6f884d6f68ff23670",
-    "bytes": 33729,
-    "line_count": 302,
+    "sha256": "15483d9a0d30ac7399add024849fe0eea369d7ea1e885da9cc0bd7aa3568d442",
+    "bytes": 34603,
+    "line_count": 308,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -1590,6 +1590,48 @@
       "start_line": 302,
       "end_line": 302,
       "raw": "0.47부터 `agent.sessions.fork`는 artifact와 파일 체크포인트를 독립 복사한다. thin CLI도 `agent sessions fork SESSION [PARAMS_JSON_FILE]`을 제공한다. 범위와 실패 정리는 [SessionFork.md](SessionFork.md)를 따른다.\n"
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000204",
+      "start_line": 303,
+      "end_line": 303
+    },
+    {
+      "kind": "paragraph",
+      "raw": "내장 GraphQL HTTP 전송은 iiNetwork와 iiSDKCore 실행 루프로 작성한다. 호스트가 지정한 URL과 인증 헤더를 사용하며 프록시·쿠키·리디렉션을 비활성화한다. 요청 기한과 취소, 응답 크기 및 GraphQL 미디어 형식을 확인한다. 이 변경은 다른 에이전트 전송이나 공개 도구 API의 Qt 의존성을 제거하지 않는다.\n",
+      "id": "b000205",
+      "start_line": 304,
+      "end_line": 304
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000206",
+      "start_line": 305,
+      "end_line": 305
+    },
+    {
+      "kind": "paragraph",
+      "raw": "단일 스레드 WASM에서는 동기 내장 전송이 실행 루프를 구동할 수 없으므로 호스트가 GraphQLExecutor를 제공해야 한다. macOS 이외 플랫폼과 실제 HTTP·TLS 실행은 이 변경에서 검증하지 않았다.\n",
+      "id": "b000207",
+      "start_line": 306,
+      "end_line": 306
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000208",
+      "start_line": 307,
+      "end_line": 307
+    },
+    {
+      "kind": "paragraph",
+      "raw": "GraphQL 전송은 400·422 응답에서도 전송 오류로 중단된 본문을 수락하지 않는다. 전송이 취소된 경우에는 취소 오류를 전달하고, 완전히 수신한 GraphQL 오류만 응답으로 처리한다.\n",
+      "id": "b000209",
+      "start_line": 308,
+      "end_line": 308
     }
   ],
   "outline": [

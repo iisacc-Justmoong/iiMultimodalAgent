@@ -139,7 +139,8 @@ AgentHookExecutor hookAgentExecutor(EngineOptions host,std::shared_ptr<TaskStore
         registry->add(std::move(output));
         const auto base=QFileInfo(host.sessionsDirectory).canonicalFilePath();require(!base.isEmpty(),"Missing host session directory",ErrorCode::StorageFailure);
         const auto directory=iiFileProvider::Directory(base).filePath("hook-agents");require(!QFileInfo(directory).isSymLink()&&iiFileProvider::Directory().mkpath(directory)
-            &&iiFileProvider::FileDevice::setPermissions(directory,QFileDevice::ReadOwner|QFileDevice::WriteOwner|QFileDevice::ExeOwner),"Cannot create private verifier directory",ErrorCode::StorageFailure);
+            &&iiFileProvider::FileDevice::setPermissions(directory,
+                iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner),"Cannot create private verifier directory",ErrorCode::StorageFailure);
         iiFileProvider::TemporaryDirectory temporary(iiFileProvider::Directory(directory).filePath("hook-XXXXXX"));require(temporary.isValid(),"Cannot create verifier state",ErrorCode::StorageFailure);
         auto options=host;options.sessionsDirectory=temporary.path();options.maxInputCharacters=qMin(options.maxInputCharacters,request.maxInputBytes);
         options.toolFilter=[filter=host.toolFilter](const ToolDefinition& tool){return resultTool(tool)||(allowed(tool)&&(!filter||filter(tool)));};

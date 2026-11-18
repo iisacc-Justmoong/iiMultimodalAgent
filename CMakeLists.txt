@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiMultimodalAgent VERSION 0.1.0 LANGUAGES CXX)
+include(./cmake/ModuleImports.cmake)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -47,6 +48,7 @@ find_package(iiVoiceOver 0.2 CONFIG REQUIRED)
 find_package(iiFileProvider 0.6 CONFIG REQUIRED)
 find_package(iiFileProviderNative 0.8.2 CONFIG REQUIRED)
 find_package(iiSDKCore 0.20 CONFIG REQUIRED COMPONENTS Runtime HINTS "$ENV{HOME}/.local/SDK/iiSDKCore")
+find_package(iiNetwork 0.6 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiNetwork")
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Network)
 find_package(Threads REQUIRED)
 if(WIN32)
@@ -90,7 +92,7 @@ target_link_libraries(iiMultimodalAgent
     PRIVATE "$<LINK_ONLY:iiFileProvider::Native>"
     PUBLIC iiLocalLLM::iiLocalLLM iiDecision::iiDecision
         iiMultimodalAgentImageTypes iiAudioGen::iiAudioGen iiVoiceOver::iiVoiceOver iiSDKCore::Runtime
-    PRIVATE iiFileProvider::iiFileProvider Threads::Threads ${CMAKE_DL_LIBS})
+    PRIVATE iiFileProvider::iiFileProvider iiNetwork::iiNetwork Threads::Threads ${CMAKE_DL_LIBS})
 if(APPLE AND _native_provider_kind STREQUAL "SHARED_LIBRARY")
     target_link_options(iiMultimodalAgent BEFORE PUBLIC
         "LINKER:-needed_library,$<TARGET_FILE:iiFileProvider::Native>")

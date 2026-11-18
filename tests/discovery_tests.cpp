@@ -2,7 +2,9 @@
 #include "iiMultimodalAgent/agent/Engine.h"
 #include "iiMultimodalAgent/agent/McpConnections.h"
 #include "iiMultimodalAgent/mcp/HttpServer.h"
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
@@ -46,8 +48,7 @@ a::EngineOptions engineOptions(const QString& state) {
 }
 }
 class DiscoveryTests : public QObject {
-    Q_OBJECT
-private slots:
+public:
     void keywordAndDirectSearch();
     void selectionIsScopedAndPersisted();
     void sameTurnAndChangedSchemaCannotBypassDiscovery();
@@ -67,15 +68,15 @@ void DiscoveryTests::keywordAndDirectSearch() {
         tool("mcp__dreamscapes__generate", "Generate an image 이미지 생성").definition,
         tool("Read", "Read local text", false).definition};
     const auto found = a::searchTools(catalog, "+society files", 1);
-    QCOMPARE(found.data["matches"].toArray(), QJsonArray{"mcp__society__list_files"});
-    QCOMPARE(found.data["tools"].toArray().first().toObject()["inputSchema"].toObject(), catalog.first().inputSchema);
-    QCOMPARE(a::searchTools(catalog, "이미지", 5).data["matches"].toArray(), QJsonArray{"mcp__dreamscapes__generate"});
-    QCOMPARE(a::searchTools(catalog, "mcp__society", 5).data["matches"].toArray(), QJsonArray{"mcp__society__list_files"});
+    CTEST_COMPARE(found.data["matches"].toArray(), QJsonArray{"mcp__society__list_files"});
+    CTEST_COMPARE(found.data["tools"].toArray().first().toObject()["inputSchema"].toObject(), catalog.first().inputSchema);
+    CTEST_COMPARE(a::searchTools(catalog, "이미지", 5).data["matches"].toArray(), QJsonArray{"mcp__dreamscapes__generate"});
+    CTEST_COMPARE(a::searchTools(catalog, "mcp__society", 5).data["matches"].toArray(), QJsonArray{"mcp__society__list_files"});
     const auto selected = a::searchTools(catalog, "select:Read,mcp__dreamscapes__generate,missing", 5);
-    QCOMPARE(selected.data["matches"].toArray(), (QJsonArray{"Read", "mcp__dreamscapes__generate"}));
-    QCOMPARE(selected.data["missing"].toArray(), QJsonArray{"missing"});
-    QVERIFY_THROWS_EXCEPTION(Error, a::searchTools(catalog, "", 1));
-    QVERIFY_THROWS_EXCEPTION(Error, a::searchTools(catalog, "files", 0));
+    CTEST_COMPARE(selected.data["matches"].toArray(), (QJsonArray{"Read", "mcp__dreamscapes__generate"}));
+    CTEST_COMPARE(selected.data["missing"].toArray(), QJsonArray{"missing"});
+    CTEST_THROWS(Error, a::searchTools(catalog, "", 1));
+    CTEST_THROWS(Error, a::searchTools(catalog, "files", 0));
 }
 void DiscoveryTests::selectionIsScopedAndPersisted() {
     QTemporaryDir root; auto registry = std::make_shared<a::ToolRegistry>();
@@ -87,22 +88,22 @@ void DiscoveryTests::selectionIsScopedAndPersisted() {
     {
         a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
         id = engine.createSession("model://test", root.path()).id;
-        QCOMPARE(engine.run({id, "Find remote and call it"}).result.get().status, a::RunStatus::Completed);
-        QVERIFY(visible(model->requests[0], "ToolSearch")); QVERIFY(!visible(model->requests[0], "remote"));
-        QVERIFY(visible(model->requests[1], "remote"));
-        QCOMPARE(engine.session(id).messages[4].text, "remote");
+        CTEST_COMPARE(engine.run({id, "Find remote and call it"}).result.get().status, a::RunStatus::Completed);
+        CTEST_CHECK(visible(model->requests[0], "ToolSearch")); CTEST_CHECK(!visible(model->requests[0], "remote"));
+        CTEST_CHECK(visible(model->requests[1], "remote"));
+        CTEST_COMPARE(engine.session(id).messages[4].text, "remote");
         forkId = engine.forkSession(id).id;
         emptyFork = engine.forkSession(id, engine.session(id).messages.first().id).id;
         const auto other = engine.createSession("model://test", root.path());
         model->replies = {{"other", {}}};
-        QCOMPARE(engine.run({other.id, "No prior search"}).result.get().status, a::RunStatus::Completed);
-        QVERIFY(!visible(model->requests.last(), "remote"));
+        CTEST_COMPARE(engine.run({other.id, "No prior search"}).result.get().status, a::RunStatus::Completed);
+        CTEST_CHECK(!visible(model->requests.last(), "remote"));
     }
     a::Engine resumed(model, registry, std::make_shared<a::RulePolicy>(), options);
     for (const auto& session : {id, forkId, emptyFork}) {
         model->replies = {{"resumed", {}}};
-        QCOMPARE(resumed.run({session, "Continue"}).result.get().status, a::RunStatus::Completed);
-        QCOMPARE(visible(model->requests.last(), "remote"), session != emptyFork);
+        CTEST_COMPARE(resumed.run({session, "Continue"}).result.get().status, a::RunStatus::Completed);
+        CTEST_COMPARE(visible(model->requests.last(), "remote"), session != emptyFork);
     }
 }
 void DiscoveryTests::sameTurnAndChangedSchemaCannotBypassDiscovery() {
@@ -111,25 +112,25 @@ void DiscoveryTests::sameTurnAndChangedSchemaCannotBypassDiscovery() {
     model->replies = {{{}, {{"search", "ToolSearch", {{"query", "select:remote"}}}, {"premature", "remote", {}}}}, {"done", {}}};
     a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), engineOptions(root.filePath("sessions")));
     const auto id = engine.createSession("model://test", root.path()).id;
-    QCOMPARE(engine.run({id, "Search then call in the same batch"}).result.get().status, a::RunStatus::Completed);
-    QVERIFY(engine.session(id).messages[3].isError);
-    QVERIFY(visible(model->requests.last(), "remote"));
+    CTEST_COMPARE(engine.run({id, "Search then call in the same batch"}).result.get().status, a::RunStatus::Completed);
+    CTEST_CHECK(engine.session(id).messages[3].isError);
+    CTEST_CHECK(visible(model->requests.last(), "remote"));
     auto changed = tool("remote", "Changed action");
     registry->replace({"remote"}, {changed});
     model->replies = {{{}, {{"stale", "remote", {}}}}, {"done", {}}};
-    QCOMPARE(engine.run({id, "Try old schema"}).result.get().status, a::RunStatus::Completed);
-    QVERIFY(!visible(model->requests.last(), "remote"));
-    QVERIFY(engine.session(id).messages[7].isError);
+    CTEST_COMPARE(engine.run({id, "Try old schema"}).result.get().status, a::RunStatus::Completed);
+    CTEST_CHECK(!visible(model->requests.last(), "remote"));
+    CTEST_CHECK(engine.session(id).messages[7].isError);
 }
 void DiscoveryTests::atomicReplacementPreservesSnapshots() {
     a::ToolRegistry registry; registry.add(tool("owned", "Original")); registry.add(tool("other", "Host tool"));
     auto snapshot = registry.snapshot();
-    QVERIFY_THROWS_EXCEPTION(Error, registry.replace({"owned"}, {tool("other", "Collision")}));
-    QCOMPARE(registry.get("owned").definition.description, "Original");
+    CTEST_THROWS(Error, registry.replace({"owned"}, {tool("other", "Collision")}));
+    CTEST_COMPARE(registry.get("owned").definition.description, "Original");
     registry.replace({"owned"}, {tool("new", "Replacement")});
-    QVERIFY_THROWS_EXCEPTION(Error, registry.get("owned"));
-    QCOMPARE(snapshot->get("owned").definition.description, "Original");
-    QCOMPARE(registry.definitions().size(), 2);
+    CTEST_THROWS(Error, registry.get("owned"));
+    CTEST_COMPARE(snapshot->get("owned").definition.description, "Original");
+    CTEST_COMPARE(registry.definitions().size(), 2);
 }
 void DiscoveryTests::configuredHttpToolsAndNotificationRefresh() {
     QTemporaryDir root; auto exported = std::make_shared<a::ToolRegistry>(); exported->add(tool("one", "First", false));
@@ -140,24 +141,24 @@ void DiscoveryTests::configuredHttpToolsAndNotificationRefresh() {
             return QJsonObject{{"content", QJsonArray{QJsonObject{{"type", "text"}, {"text", params["name"]}}}}};
         }; return o;
     }, transport);
-    QVERIFY(server.listen());
+    CTEST_CHECK(server.listen());
     const auto config = root.filePath(".mcp.json");
     write(config, {{"mcpServers", QJsonObject{{"app", QJsonObject{{"type", "http"}, {"url", server.endpoint().toString()},
         {"headers", QJsonObject{{"Authorization", "Bearer ${TOKEN}"}}}, {"appId", "com.iisacc.example"}}}}}});
     auto registry = std::make_shared<a::ToolRegistry>(); registry->add(tool("local", "Host", false));
     a::McpConnectionOptions o; o.workingDirectory = root.path(); o.configFiles = {config}; o.environment.insert("TOKEN", "valid-token"); o.refreshIntervalMs = 25;
     a::McpConnections connections(registry, o);
-    QVERIFY2(connections.status().first().toObject()["state"] == "ready", QJsonDocument(connections.status()).toJson().constData());
-    const auto remote = registry->get("mcp__app__one"); QVERIFY(remote.definition.deferred);
-    QCOMPARE(remote.definition.metadata["app_id"].toString(), "com.iisacc.example");
-    QVERIFY(!remote.definition.readOnly); // Remote hints never grant local permission.
+    CTEST_CHECK_MESSAGE(connections.status().first().toObject()["state"] == "ready", QJsonDocument(connections.status()).toJson().constData());
+    const auto remote = registry->get("mcp__app__one"); CTEST_CHECK(remote.definition.deferred);
+    CTEST_COMPARE(remote.definition.metadata["app_id"].toString(), "com.iisacc.example");
+    CTEST_CHECK(!remote.definition.readOnly); // Remote hints never grant local permission.
     auto frozen = registry->snapshot();
     exported->replace({"one"}, {tool("two", "Second", false)});
-    const auto ids = server.sessionIds("app"); QCOMPARE(ids.size(), 1);
+    const auto ids = server.sessionIds("app"); CTEST_COMPARE(ids.size(), 1);
     server.notify(ids.first(), "notifications/tools/list_changed");
-    QTRY_VERIFY_WITH_TIMEOUT(registry->definitions().size() == 2 && registry->definitions().last().name == "mcp__app__two", 5000);
-    QCOMPARE(frozen->get("mcp__app__one").definition.name, "mcp__app__one");
-    connections.close(); QCOMPARE(registry->definitions().size(), 1);
+    CTEST_WAIT_VERIFY(registry->definitions().size() == 2 && registry->definitions().last().name == "mcp__app__two", 5000);
+    CTEST_COMPARE(frozen->get("mcp__app__one").definition.name, "mcp__app__one");
+    connections.close(); CTEST_COMPARE(registry->definitions().size(), 1);
 }
 void DiscoveryTests::configErrorsAndCredentialsStayIsolated() {
     QTemporaryDir root; const auto path = root.filePath(".mcp.json");
@@ -166,13 +167,13 @@ void DiscoveryTests::configErrorsAndCredentialsStayIsolated() {
     a::McpConnectionOptions o; o.workingDirectory = root.path(); o.configFiles = {path}; o.refreshIntervalMs = 0; o.limits.initializeTimeoutMs = 200;
     auto registry = std::make_shared<a::ToolRegistry>(); a::McpConnections connections(registry, o);
     const auto status = QJsonDocument(connections.status()).toJson();
-    QVERIFY(!status.contains("very-secret-token")); QVERIFY(!status.contains("Authorization"));
-    QCOMPARE(connections.status().first().toObject()["state"].toString(), "failed");
-    QCOMPARE(connections.status().first().toObject()["error_phase"], "connect");
-    QVERIFY(connections.status().first().toObject().contains("error_elapsed_ms"));
+    CTEST_CHECK(!status.contains("very-secret-token")); CTEST_CHECK(!status.contains("Authorization"));
+    CTEST_COMPARE(connections.status().first().toObject()["state"].toString(), "failed");
+    CTEST_COMPARE(connections.status().first().toObject()["error_phase"], "connect");
+    CTEST_CHECK(connections.status().first().toObject().contains("error_elapsed_ms"));
     write(path, {{"mcpServers", QJsonArray{}}});
-    QVERIFY_THROWS_EXCEPTION(Error, connections.reload());
-    QCOMPARE(connections.status().size(), 1);
+    CTEST_THROWS(Error, connections.reload());
+    CTEST_COMPARE(connections.status().size(), 1);
 }
 void DiscoveryTests::configuredStdioReloadAndRecovery() {
     QTemporaryDir root; QDir().mkpath(root.filePath("work"));
@@ -188,31 +189,31 @@ void DiscoveryTests::configuredStdioReloadAndRecovery() {
     };
     auto registry = std::make_shared<a::ToolRegistry>(); a::McpConnections connections(registry, o);
     auto client = connections.client("app"); auto state = client->request("test/state");
-    QCOMPARE(state["configuredValue"], "literal $(not-executed)");
-    QCOMPARE(QDir::fromNativeSeparators(state["cwd"].toString()), QFileInfo(root.filePath("work")).canonicalFilePath());
-    QCOMPARE(client->listResources().size(), 1); QCOMPARE(client->listPrompts().size(), 1);
-    QCOMPARE(client->request("test/reverse", {{"method", "roots/list"}})["response"].toObject()["result"].toObject()["roots"].toArray().size(), 1);
+    CTEST_COMPARE(state["configuredValue"], "literal $(not-executed)");
+    CTEST_COMPARE(QDir::fromNativeSeparators(state["cwd"].toString()), QFileInfo(root.filePath("work")).canonicalFilePath());
+    CTEST_COMPARE(client->listResources().size(), 1); CTEST_COMPARE(client->listPrompts().size(), 1);
+    CTEST_COMPARE(client->request("test/reverse", {{"method", "roots/list"}})["response"].toObject()["result"].toObject()["roots"].toArray().size(), 1);
     const auto old = registry->get("mcp__app__echo");
     const auto oldId = old.definition.metadata["connection_id"];
-    connections.reload(); QCOMPARE(connections.client("app"), client);
-    QCOMPARE(registry->get("mcp__app__echo").definition.metadata["connection_id"], oldId);
+    connections.reload(); CTEST_COMPARE(connections.client("app"), client);
+    CTEST_COMPARE(registry->get("mcp__app__echo").definition.metadata["connection_id"], oldId);
     try { client->request("test/exit"); } catch (const Error&) {}
-    QTRY_VERIFY_WITH_TIMEOUT(connections.client("app") != client, 5000);
-    QVERIFY(client->isClosed());
-    QVERIFY(registry->get("mcp__app__echo").definition.metadata["connection_id"] != oldId);
-    QVERIFY_THROWS_EXCEPTION(Error, old.execute({{"value", "stale"}}, {}));
+    CTEST_WAIT_VERIFY(connections.client("app") != client, 5000);
+    CTEST_CHECK(client->isClosed());
+    CTEST_CHECK(registry->get("mcp__app__echo").definition.metadata["connection_id"] != oldId);
+    CTEST_THROWS(Error, old.execute({{"value", "stale"}}, {}));
     auto replacement = entry; replacement["alwaysLoad"] = true;
     write(override, {{"mcpServers", QJsonObject{{"app", replacement}}}});
     auto recovered = connections.client("app");
-    connections.refresh(); QCOMPARE(connections.client("app"), recovered); // No implicit file reload.
-    connections.reload(); QVERIFY(recovered->isClosed()); QVERIFY(!registry->get("mcp__app__echo").definition.deferred);
+    connections.refresh(); CTEST_COMPARE(connections.client("app"), recovered); // No implicit file reload.
+    connections.reload(); CTEST_CHECK(recovered->isClosed()); CTEST_CHECK(!registry->get("mcp__app__echo").definition.deferred);
     auto active = connections.client("app");
     write(override, {{"mcpServers", QJsonObject{{"app", QJsonObject{{"disabled", true}}}}}});
-    connections.reload(); QVERIFY(active->isClosed()); QVERIFY(registry->definitions().isEmpty());
+    connections.reload(); CTEST_CHECK(active->isClosed()); CTEST_CHECK(registry->definitions().isEmpty());
     write(override, {{"mcpServers", QJsonObject{{"app", QJsonObject{{"disabled", true}, {"appId", "com.iisacc.renamed"}}}}}});
-    connections.reload(); QCOMPARE(connections.status().first().toObject()["app_id"].toString(), "com.iisacc.renamed");
+    connections.reload(); CTEST_COMPARE(connections.status().first().toObject()["app_id"].toString(), "com.iisacc.renamed");
     connections.close(); connections.close();
-    QVERIFY_THROWS_EXCEPTION(Error, connections.reload());
+    CTEST_THROWS(Error, connections.reload());
 }
 void DiscoveryTests::validationBeforeEffects() {
     QTemporaryDir root; const auto path = root.filePath("config.json");
@@ -239,13 +240,13 @@ void DiscoveryTests::validationBeforeEffects() {
     o.environment.remove("UNSET_DISCOVERY_VARIABLE");
     for (const auto& bad : invalid) {
         write(path, {{"mcpServers", QJsonObject{{"a-valid", valid}, {"z-invalid", bad}}}});
-        QVERIFY_THROWS_EXCEPTION(Error, a::McpConnections(std::make_shared<a::ToolRegistry>(), o));
-        QCOMPARE(effects, 0);
+        CTEST_THROWS(Error, a::McpConnections(std::make_shared<a::ToolRegistry>(), o));
+        CTEST_COMPARE(effects, 0);
     }
     write(root.filePath(".mcp.json"), {{"mcpServers", QJsonObject{{"app", valid}}}});
     o.configFiles.clear();
     a::McpConnections empty(std::make_shared<a::ToolRegistry>(), o);
-    QVERIFY(empty.status().isEmpty()); QCOMPARE(effects, 0); // Workspace files require explicit host selection.
+    CTEST_CHECK(empty.status().isEmpty()); CTEST_COMPARE(effects, 0); // Workspace files require explicit host selection.
 }
 void DiscoveryTests::failedConnectionAndDiscoveryDiagnostics() {
     QTemporaryDir root; const auto path = root.filePath("mcp.json"), gate = root.filePath("release-list");
@@ -257,41 +258,41 @@ void DiscoveryTests::failedConnectionAndDiscoveryDiagnostics() {
     write(path, {{"mcpServers", QJsonObject{{"peer", peer}}}});
     a::McpConnections failed(registry, o);
     auto status = failed.status().first().toObject();
-    QCOMPARE(status["state"], "failed"); QCOMPARE(status["error_code"], "timeout");
-    QCOMPARE(status["error_phase"], "connect"); QVERIFY(status["error_elapsed_ms"].toInteger() >= 200);
+    CTEST_COMPARE(status["state"], "failed"); CTEST_COMPARE(status["error_code"], "timeout");
+    CTEST_COMPARE(status["error_phase"], "connect"); CTEST_CHECK(status["error_elapsed_ms"].toInteger() >= 200);
     auto timeout = status["request_timeout"].toObject();
-    QCOMPARE(timeout["method"], "initialize"); QCOMPARE(timeout["timeout_ms"].toInt(), 200);
-    QVERIFY(timeout["elapsed_ms"].toInteger() >= 200); QVERIFY(timeout["submitted"].toBool());
-    QVERIFY(!QJsonDocument(status).toJson().contains("private-configuration"));
-    QVERIFY(registry->definitions().isEmpty()); failed.close();
+    CTEST_COMPARE(timeout["method"], "initialize"); CTEST_COMPARE(timeout["timeout_ms"].toInt(), 200);
+    CTEST_CHECK(timeout["elapsed_ms"].toInteger() >= 200); CTEST_CHECK(timeout["submitted"].toBool());
+    CTEST_CHECK(!QJsonDocument(status).toJson().contains("private-configuration"));
+    CTEST_CHECK(registry->definitions().isEmpty()); failed.close();
 
     peer["args"] = QJsonArray{"-B", MCP_TEST_PEER, "gated-list", gate};
     write(path, {{"mcpServers", QJsonObject{{"peer", peer}}}});
     o.limits.initializeTimeoutMs = 10000;
     a::McpConnections discovery(registry, o);
     status = discovery.status().first().toObject();
-    QCOMPARE(status["state"], "failed"); QCOMPARE(status["error_phase"], "discover_tools");
+    CTEST_COMPARE(status["state"], "failed"); CTEST_COMPARE(status["error_phase"], "discover_tools");
     timeout = status["request_timeout"].toObject();
-    QCOMPARE(timeout["method"], "tools/list");
+    CTEST_COMPARE(timeout["method"], "tools/list");
     // Each page receives the remaining aggregate list budget, rounded to ms.
-    QVERIFY(timeout["timeout_ms"].toInt() > 0 && timeout["timeout_ms"].toInt() <= 150);
-    QVERIFY(timeout["elapsed_ms"].toInteger() >= timeout["timeout_ms"].toInt());
-    QVERIFY(status["error_elapsed_ms"].toInteger() >= timeout["elapsed_ms"].toInteger());
-    QVERIFY(timeout["submitted"].toBool());
-    auto client = discovery.client("peer"); QVERIFY(client && client->isConnected());
-    QVERIFY(registry->definitions().isEmpty());
+    CTEST_CHECK(timeout["timeout_ms"].toInt() > 0 && timeout["timeout_ms"].toInt() <= 150);
+    CTEST_CHECK(timeout["elapsed_ms"].toInteger() >= timeout["timeout_ms"].toInt());
+    CTEST_CHECK(status["error_elapsed_ms"].toInteger() >= timeout["elapsed_ms"].toInteger());
+    CTEST_CHECK(timeout["submitted"].toBool());
+    auto client = discovery.client("peer"); CTEST_CHECK(client && client->isConnected());
+    CTEST_CHECK(registry->definitions().isEmpty());
     write(gate, {}); discovery.reload();
     status = discovery.status().first().toObject();
-    QCOMPARE(status["state"], "ready"); QCOMPARE(discovery.client("peer"), client);
-    QVERIFY(!status.contains("error_code")); QVERIFY(!status.contains("error_phase"));
-    QVERIFY(!status.contains("error_elapsed_ms")); QVERIFY(!status.contains("request_timeout"));
-    QCOMPARE(registry->definitions().size(), 2);
+    CTEST_COMPARE(status["state"], "ready"); CTEST_COMPARE(discovery.client("peer"), client);
+    CTEST_CHECK(!status.contains("error_code")); CTEST_CHECK(!status.contains("error_phase"));
+    CTEST_CHECK(!status.contains("error_elapsed_ms")); CTEST_CHECK(!status.contains("request_timeout"));
+    CTEST_COMPARE(registry->definitions().size(), 2);
     peer["command"] = root.filePath("nonexistent-server"); peer["args"] = QJsonArray{};
     write(path, {{"mcpServers", QJsonObject{{"peer", peer}}}}); discovery.reload();
     status = discovery.status().first().toObject();
-    QCOMPARE(status["state"], "failed"); QCOMPARE(status["error_code"], "runtime_unavailable");
-    QCOMPARE(status["error_phase"], "connect"); QVERIFY(status["error_elapsed_ms"].toInteger() >= 0);
-    QVERIFY(!status.contains("request_timeout")); QVERIFY(client->isClosed());
+    CTEST_COMPARE(status["state"], "failed"); CTEST_COMPARE(status["error_code"], "runtime_unavailable");
+    CTEST_COMPARE(status["error_phase"], "connect"); CTEST_CHECK(status["error_elapsed_ms"].toInteger() >= 0);
+    CTEST_CHECK(!status.contains("request_timeout")); CTEST_CHECK(client->isClosed());
 }
 void DiscoveryTests::perServerDeadlinesAndReload() {
     QTemporaryDir root; const auto path = root.filePath("mcp.json");
@@ -302,28 +303,28 @@ void DiscoveryTests::perServerDeadlinesAndReload() {
         {"initializeTimeoutMs", 3000}, {"requestTimeoutMs", 75}};
     write(path, {{"mcpServers", QJsonObject{{"slow", peer}}}});
     a::McpConnections connections(registry, o);
-    QCOMPARE(connections.status().first().toObject()["state"], "ready");
-    auto client = connections.client("slow"); QVERIFY(client);
-    try { client->request("test/slow", {{"delay", .3}}); QFAIL("Expected per-server deadline"); }
-    catch (const m::RequestTimeoutError& error) { QCOMPARE(error.timeoutMs(), 75); }
+    CTEST_COMPARE(connections.status().first().toObject()["state"], "ready");
+    auto client = connections.client("slow"); CTEST_CHECK(client);
+    try { client->request("test/slow", {{"delay", .3}}); agent_ctest::fail(__FILE__, __LINE__, "Expected per-server deadline"); }
+    catch (const m::RequestTimeoutError& error) { CTEST_COMPARE(error.timeoutMs(), 75); }
     peer["requestTimeoutMs"] = 1000;
     write(path, {{"mcpServers", QJsonObject{{"slow", peer}}}}); connections.reload();
-    QVERIFY(client->isClosed()); client = connections.client("slow"); QVERIFY(client);
-    QCOMPARE(client->request("test/slow", {{"delay", .15}, {"value", "reloaded"}})["value"], "reloaded");
+    CTEST_CHECK(client->isClosed()); client = connections.client("slow"); CTEST_CHECK(client);
+    CTEST_COMPARE(client->request("test/slow", {{"delay", .15}, {"value", "reloaded"}})["value"], "reloaded");
     // Removing the override restores the host's short initialization budget.
     peer.remove("initializeTimeoutMs");
     write(path, {{"mcpServers", QJsonObject{{"slow", peer}}}}); connections.reload();
     auto status = connections.status().first().toObject();
-    QCOMPARE(status["state"], "failed"); QCOMPARE(status["error_phase"], "connect");
+    CTEST_COMPARE(status["state"], "failed"); CTEST_COMPARE(status["error_phase"], "connect");
     // The same short budget also bounds QProcess startup. A process-start
     // deadline may fail before there is an initialize RPC to describe.
     if (status["error_code"] == "timeout")
-        QCOMPARE(status["request_timeout"].toObject()["timeout_ms"].toInt(), 100);
+        CTEST_COMPARE(status["request_timeout"].toObject()["timeout_ms"].toInt(), 100);
     else {
-        QCOMPARE(status["error_code"], "runtime_unavailable");
-        QVERIFY(!status.contains("request_timeout"));
+        CTEST_COMPARE(status["error_code"], "runtime_unavailable");
+        CTEST_CHECK(!status.contains("request_timeout"));
     }
-    QVERIFY(client->isClosed());
+    CTEST_CHECK(client->isClosed());
 }
 void DiscoveryTests::selectionBoundsPolicyAndCompaction() {
     QTemporaryDir root; auto registry = std::make_shared<a::ToolRegistry>();
@@ -335,9 +336,9 @@ void DiscoveryTests::selectionBoundsPolicyAndCompaction() {
     const auto id = engine.createSession("model://test", root.path()).id;
     model->replies = {{{}, {{"one", "ToolSearch", {{"query", "first"}}}}},
         {{}, {{"two", "ToolSearch", {{"query", "second"}}}}}, {{}, {{"denied", "second", {}}}}, {"done", {}}};
-    QCOMPARE(engine.run({id, "Select two tools"}).result.get().status, a::RunStatus::Completed);
-    QVERIFY(!visible(model->requests.last(), "first")); QVERIFY(visible(model->requests.last(), "second"));
-    QVERIFY(engine.session(id).messages[6].isError);
+    CTEST_COMPARE(engine.run({id, "Select two tools"}).result.get().status, a::RunStatus::Completed);
+    CTEST_CHECK(!visible(model->requests.last(), "first")); CTEST_CHECK(visible(model->requests.last(), "second"));
+    CTEST_CHECK(engine.session(id).messages[6].isError);
     {
         a::SessionStore store(options.sessionsDirectory); auto lease = store.acquire(id);
         a::Compaction checkpoint; checkpoint.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -346,20 +347,37 @@ void DiscoveryTests::selectionBoundsPolicyAndCompaction() {
         checkpoint.retainedUserMessageId = lease->session().messages.first().id;
         checkpoint.inputTokensBefore = 100; checkpoint.inputTokensAfter = 10; lease->compact(checkpoint);
     }
-    model->replies = {{"continued", {}}}; QCOMPARE(engine.run({id, "Continue after summary"}).result.get().status, a::RunStatus::Completed);
-    QVERIFY(visible(model->requests.last(), "second")); QVERIFY(!visible(model->requests.last(), "first"));
+    model->replies = {{"continued", {}}}; CTEST_COMPARE(engine.run({id, "Continue after summary"}).result.get().status, a::RunStatus::Completed);
+    CTEST_CHECK(visible(model->requests.last(), "second")); CTEST_CHECK(!visible(model->requests.last(), "first"));
     auto eagerOptions = engineOptions(root.filePath("eager")); eagerOptions.toolSearch.enabled = false;
     a::Engine eager(model, registry, std::make_shared<a::RulePolicy>(), eagerOptions);
     model->replies = {{"all tools", {}}};
-    QCOMPARE(eager.run({eager.createSession("model://test", root.path()).id, "Start"}).result.get().status, a::RunStatus::Completed);
-    QVERIFY(visible(model->requests.last(), "first")); QVERIFY(visible(model->requests.last(), "second")); QVERIFY(!visible(model->requests.last(), "ToolSearch"));
+    CTEST_COMPARE(eager.run({eager.createSession("model://test", root.path()).id, "Start"}).result.get().status, a::RunStatus::Completed);
+    CTEST_CHECK(visible(model->requests.last(), "first")); CTEST_CHECK(visible(model->requests.last(), "second")); CTEST_CHECK(!visible(model->requests.last(), "ToolSearch"));
 }
 void DiscoveryTests::closeDoesNotCancelTheHostsToken() {
     QTemporaryDir root; a::McpConnectionOptions options;
     options.workingDirectory = root.path(); options.refreshIntervalMs = 0;
     a::McpConnections connections(std::make_shared<a::ToolRegistry>(), options);
     CancellationToken token; connections.refresh(token); connections.close();
-    QVERIFY(!token.isCancelled());
+    CTEST_CHECK(!token.isCancelled());
 }
-QTEST_GUILESS_MAIN(DiscoveryTests)
-#include "discovery_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    DiscoveryTests tests;
+    runner.run("keywordAndDirectSearch", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.keywordAndDirectSearch(); });
+    runner.run("selectionIsScopedAndPersisted", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.selectionIsScopedAndPersisted(); });
+    runner.run("sameTurnAndChangedSchemaCannotBypassDiscovery", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.sameTurnAndChangedSchemaCannotBypassDiscovery(); });
+    runner.run("atomicReplacementPreservesSnapshots", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.atomicReplacementPreservesSnapshots(); });
+    runner.run("configuredHttpToolsAndNotificationRefresh", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.configuredHttpToolsAndNotificationRefresh(); });
+    runner.run("configErrorsAndCredentialsStayIsolated", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.configErrorsAndCredentialsStayIsolated(); });
+    runner.run("configuredStdioReloadAndRecovery", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.configuredStdioReloadAndRecovery(); });
+    runner.run("failedConnectionAndDiscoveryDiagnostics", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.failedConnectionAndDiscoveryDiagnostics(); });
+    runner.run("perServerDeadlinesAndReload", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.perServerDeadlinesAndReload(); });
+    runner.run("validationBeforeEffects", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.validationBeforeEffects(); });
+    runner.run("selectionBoundsPolicyAndCompaction", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.selectionBoundsPolicyAndCompaction(); });
+    runner.run("closeDoesNotCancelTheHostsToken", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.closeDoesNotCancelTheHostsToken(); });
+    return runner.result();
+}

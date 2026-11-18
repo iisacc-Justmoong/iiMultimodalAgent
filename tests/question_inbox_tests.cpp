@@ -4,7 +4,10 @@
 #include <iiMultimodalAgent/agent/McpServer.h>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QTimer>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include "SignalRecorder.h"
+#include <QCoreApplication>
 #include <future>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 namespace a=iiMultimodalAgent::agent;
@@ -25,85 +28,84 @@ struct Fixture {
 QString id(a::QuestionInbox& box){return box.requests().first().toMap()["request_id"].toString();}
 }
 class QuestionInboxTests:public QObject {
-    Q_OBJECT
-private slots:
+public:
     void nativeViewModelReceivesDeltasAndSendsValidatedReplies() {
         Fixture f; a::QuestionInbox box;
         auto model=std::make_shared<a::presentation::NativeQuestionViewModel>();
         a::presentation::NativeQuestionBridge bridge(&box,model);
         auto first=f.run(box.hook(),"native-first");
-        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        CTEST_WAIT_COMPARE(model->rows.get().size(),std::size_t(1));
         auto row=model->rows.get().front();
         row->editOther("Direct answer");
         auto second=f.run(box.hook(),"native-second");
-        QTRY_VERIFY(model->hasWaiting.get());
-        QCOMPARE(model->rows.get().front(),row);
-        QCOMPARE(row->other.get(),std::string("Direct answer"));
+        CTEST_WAIT_DEFAULT(model->hasWaiting.get());
+        CTEST_COMPARE(model->rows.get().front(),row);
+        CTEST_COMPARE(row->other.get(),std::string("Direct answer"));
         model->submit();
-        QTRY_COMPARE(box.requests().size(),1);
-        QCOMPARE(first.get().data["answers"].toObject()["Which renderer?"],"Direct answer");
-        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
-        QVERIFY(!row->active());
+        CTEST_WAIT_COMPARE(box.requests().size(),1);
+        CTEST_COMPARE(first.get().data["answers"].toObject()["Which renderer?"],"Direct answer");
+        CTEST_WAIT_COMPARE(model->rows.get().size(),std::size_t(1));
+        CTEST_CHECK(!row->active());
         model->rows.get().front()->options.front()->toggled(true);
         model->submit();
-        QTRY_VERIFY(box.requests().isEmpty());
-        QCOMPARE(second.get().data["answers"].toObject()["Which renderer?"],"Qt");
-        QVERIFY(!model->open.get());
+        CTEST_WAIT_DEFAULT(box.requests().isEmpty());
+        CTEST_COMPARE(second.get().data["answers"].toObject()["Which renderer?"],"Qt");
+        CTEST_CHECK(!model->open.get());
     }
     void nativeViewModelRecoversAMissedRequestEvent() {
         Fixture f; a::QuestionInbox box;
         auto model=std::make_shared<a::presentation::NativeQuestionViewModel>();
         a::presentation::NativeQuestionBridge bridge(&box,model);
         auto first=f.run(box.hook(),"recovery-first");
-        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        CTEST_WAIT_COMPARE(model->rows.get().size(),std::size_t(1));
         const auto firstId=box.requests().first().toMap()["request_id"].toString().toStdString();
-        QVERIFY(model->change.send({firstId,std::nullopt,0})); // Simulate a missed notification.
+        CTEST_CHECK(model->change.send({firstId,std::nullopt,0})); // Simulate a missed notification.
         auto second=f.run(box.hook(),"recovery-second");
-        QTRY_VERIFY(model->hasWaiting.get());
-        QCOMPARE(model->read.send({})->requests.size(),std::size_t(2));
-        model->skip(); QTRY_COMPARE(box.requests().size(),1);
-        model->decline(); QTRY_VERIFY(box.requests().isEmpty());
-        QVERIFY(!first.get().isError); QVERIFY(second.get().isError);
+        CTEST_WAIT_DEFAULT(model->hasWaiting.get());
+        CTEST_COMPARE(model->read.send({})->requests.size(),std::size_t(2));
+        model->skip(); CTEST_WAIT_COMPARE(box.requests().size(),1);
+        model->decline(); CTEST_WAIT_DEFAULT(box.requests().isEmpty());
+        CTEST_CHECK(!first.get().isError); CTEST_CHECK(second.get().isError);
     }
     void retiredNativeBridgeCannotSubmit() {
         Fixture f; a::QuestionInbox box;
         auto model=std::make_shared<a::presentation::NativeQuestionViewModel>();
         auto bridge=std::make_unique<a::presentation::NativeQuestionBridge>(&box,model);
         auto pending=f.run(box.hook(),"retired");
-        QTRY_COMPARE(model->rows.get().size(),std::size_t(1));
+        CTEST_WAIT_COMPARE(model->rows.get().size(),std::size_t(1));
         bridge.reset();
-        model->submit(); QCOMPARE(box.requests().size(),1);
-        QVERIFY(box.reject(id(box))); QVERIFY(pending.get().isError);
+        model->submit(); CTEST_COMPARE(box.requests().size(),1);
+        CTEST_CHECK(box.reject(id(box))); CTEST_CHECK(pending.get().isError);
     }
     void changedRequestCanBeQueriedWithoutReadingTheWholeQueue() {
         Fixture f; a::QuestionInbox box;
-        QSignalSpy deltas(&box, &a::QuestionInbox::requestDelta);
-        QSignalSpy reconciled(&box, &a::QuestionInbox::requestsReconciled);
+        agent_ctest::SignalRecorder deltas(&box, &a::QuestionInbox::requestDelta);
+        agent_ctest::SignalRecorder reconciled(&box, &a::QuestionInbox::requestsReconciled);
         auto first=f.run(box.hook(),"first");
-        QTRY_COMPARE(deltas.size(),1);
+        CTEST_WAIT_COMPARE(deltas.size(),1);
         const auto firstId=deltas.last().at(0).toString();
         const auto selected=box.requestSnapshot(firstId);
-        QCOMPARE(selected.position,0);
-        QCOMPARE(selected.request["request_id"].toString(),firstId);
+        CTEST_COMPARE(selected.position,0);
+        CTEST_COMPARE(selected.request["request_id"].toString(),firstId);
         auto second=f.run(box.hook(),"second");
-        QTRY_COMPARE(deltas.size(),2);
+        CTEST_WAIT_COMPARE(deltas.size(),2);
         const auto secondId=deltas.last().at(0).toString();
-        QCOMPARE(box.requestSnapshot(secondId).position,1);
-        QVERIFY(box.submit(firstId,{}));
-        QTRY_COMPARE(deltas.size(),3);
-        QCOMPARE(box.requestSnapshot(firstId).position,-1);
-        QCOMPARE(box.requestSnapshot(secondId).position,0);
+        CTEST_COMPARE(box.requestSnapshot(secondId).position,1);
+        CTEST_CHECK(box.submit(firstId,{}));
+        CTEST_WAIT_COMPARE(deltas.size(),3);
+        CTEST_COMPARE(box.requestSnapshot(firstId).position,-1);
+        CTEST_COMPARE(box.requestSnapshot(secondId).position,0);
         box.refresh();
-        QCOMPARE(reconciled.size(),1); // Explicit recovery is reported without a fake change.
-        QVERIFY(box.reject(secondId));
-        QVERIFY(!first.get().isError); QVERIFY(second.get().isError);
+        CTEST_COMPARE(reconciled.size(),1); // Explicit recovery is reported without a fake change.
+        CTEST_CHECK(box.reject(secondId));
+        CTEST_CHECK(!first.get().isError); CTEST_CHECK(second.get().isError);
     }
     void idleInboxDoesNotPoll() {
         a::QuestionInbox box;
-        QVERIFY(box.findChildren<QTimer*>().isEmpty());
-        QSignalSpy changed(&box,&a::QuestionInbox::requestsChanged);
-        QTest::qWait(150);
-        QCOMPARE(changed.size(),0);
+        CTEST_CHECK(box.findChildren<QTimer*>().isEmpty());
+        agent_ctest::SignalRecorder changed(&box,&a::QuestionInbox::requestsChanged);
+        agent_ctest::processFor(150);
+        CTEST_COMPARE(changed.size(),0);
     }
     void mcpQuestionWaitDoesNotLockAppMutations() {
         Fixture f;a::QuestionInbox box;
@@ -112,72 +114,92 @@ private slots:
         a::McpServerOptions options;options.workingDirectory=f.root.path();options.tools.hooks={box.hook()};
         auto server=a::mcpServerOptions(f.registry,f.policy,options);iiMultimodalAgent::mcp::ServerRequestContext context;context.sessionId="connection";
         bool marked=false;for(const auto& row:server.lists.at("tools/list")(context))if(row.toObject()["name"]=="AskUserQuestion")
-            marked=row.toObject()["_meta"].toObject()["iisacc/userInteraction"]==true;QVERIFY(marked);
+            marked=row.toObject()["_meta"].toObject()["iisacc/userInteraction"]==true;CTEST_CHECK(marked);
         auto call=server.handlers.at("tools/call");
         auto pending=std::async(std::launch::async,[&]{return call({{"name","AskUserQuestion"},{"arguments",question()}},context);});
-        QTRY_COMPARE(box.requests().size(),1);
+        CTEST_WAIT_COMPARE(box.requests().size(),1);
         auto navigating=std::async(std::launch::async,[&]{return call({{"name","navigate"},{"arguments",QJsonObject{}}},context);});
         const auto independent=navigating.wait_for(std::chrono::seconds(1))==std::future_status::ready;
-        box.close();QVERIFY(pending.get()["isError"].toBool());QVERIFY(!navigating.get()["isError"].toBool());QVERIFY(independent);
+        box.close();CTEST_CHECK(pending.get()["isError"].toBool());CTEST_CHECK(!navigating.get()["isError"].toBool());CTEST_CHECK(independent);
     }
     void workerQuestionAppearsAndReceivesGuiAnswer() {
-        Fixture f;a::QuestionInbox box;auto pending=f.run(box.hook());QTRY_COMPARE(box.requests().size(),1);
-        const auto request=box.requests().first().toMap();QCOMPARE(request["session_id"].toString(),"owner");
-        QVERIFY(box.submit(id(box),{{"Which renderer?","Native Qt"}},{{"Which renderer?",QVariantMap{{"notes","사용자 메모"}}}}));
-        auto result=pending.get();QVERIFY2(!result.isError,qPrintable(result.text));QCOMPARE(result.data["answers"].toObject()["Which renderer?"],"Native Qt");
-        QCOMPARE(result.data["annotations"].toObject()["Which renderer?"].toObject()["notes"],"사용자 메모");QVERIFY(box.requests().isEmpty());
+        Fixture f;a::QuestionInbox box;auto pending=f.run(box.hook());CTEST_WAIT_COMPARE(box.requests().size(),1);
+        const auto request=box.requests().first().toMap();CTEST_COMPARE(request["session_id"].toString(),"owner");
+        CTEST_CHECK(box.submit(id(box),{{"Which renderer?","Native Qt"}},{{"Which renderer?",QVariantMap{{"notes","사용자 메모"}}}}));
+        auto result=pending.get();CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_COMPARE(result.data["answers"].toObject()["Which renderer?"],"Native Qt");
+        CTEST_COMPARE(result.data["annotations"].toObject()["Which renderer?"].toObject()["notes"],"사용자 메모");CTEST_CHECK(box.requests().isEmpty());
     }
     void stableSnapshotsDoNotResetTheUi() {
-        Fixture f;a::QuestionInbox box;auto pending=f.run(box.hook());QTRY_COMPARE(box.requests().size(),1);
-        QSignalSpy changed(&box,&a::QuestionInbox::requestsChanged);for(int i=0;i<10;++i)box.refresh();QCOMPARE(changed.size(),0);
-        const auto first=id(box);QVERIFY(box.submit(first,{}));QVERIFY(!pending.get().isError);QCOMPARE(changed.size(),1);
-        QVERIFY(!box.submit(first,{{"Which renderer?","late"}}));QVERIFY(!box.errorString().isEmpty());
+        Fixture f;a::QuestionInbox box;auto pending=f.run(box.hook());CTEST_WAIT_COMPARE(box.requests().size(),1);
+        agent_ctest::SignalRecorder changed(&box,&a::QuestionInbox::requestsChanged);for(int i=0;i<10;++i)box.refresh();CTEST_COMPARE(changed.size(),0);
+        const auto first=id(box);CTEST_CHECK(box.submit(first,{}));CTEST_CHECK(!pending.get().isError);CTEST_COMPARE(changed.size(),1);
+        CTEST_CHECK(!box.submit(first,{{"Which renderer?","late"}}));CTEST_CHECK(!box.errorString().isEmpty());
     }
     void malformedUiInputDoesNotConsumeTheRequest() {
-        Fixture f;a::QuestionInbox box;auto pending=f.run(box.hook());QTRY_COMPARE(box.requests().size(),1);const auto key=id(box);
-        QVERIFY(!box.submit(key,{{"unasked","fake"}}));QCOMPARE(box.requests().size(),1);
-        QVERIFY(!box.submit(key,{{"Which renderer?",42}}));QCOMPARE(box.requests().size(),1);
-        QVERIFY(box.submit(key,{{"Which renderer?","Qt"}}));QVERIFY(box.errorString().isEmpty());QVERIFY(!pending.get().isError);
+        Fixture f;a::QuestionInbox box;auto pending=f.run(box.hook());CTEST_WAIT_COMPARE(box.requests().size(),1);const auto key=id(box);
+        CTEST_CHECK(!box.submit(key,{{"unasked","fake"}}));CTEST_COMPARE(box.requests().size(),1);
+        CTEST_CHECK(!box.submit(key,{{"Which renderer?",42}}));CTEST_COMPARE(box.requests().size(),1);
+        CTEST_CHECK(box.submit(key,{{"Which renderer?","Qt"}}));CTEST_CHECK(box.errorString().isEmpty());CTEST_CHECK(!pending.get().isError);
     }
     void concurrentOwnersAreAnsweredIndependently() {
-        Fixture f;a::QuestionInbox box;auto first=f.run(box.hook(),"first");QTRY_COMPARE(box.requests().size(),1);const auto firstId=id(box);
-        auto second=f.run(box.hook(),"second");QTRY_COMPARE(box.requests().size(),2);QCOMPARE(id(box),firstId);
+        Fixture f;a::QuestionInbox box;auto first=f.run(box.hook(),"first");CTEST_WAIT_COMPARE(box.requests().size(),1);const auto firstId=id(box);
+        auto second=f.run(box.hook(),"second");CTEST_WAIT_COMPARE(box.requests().size(),2);CTEST_COMPARE(id(box),firstId);
         const auto secondId=box.requests().last().toMap()["request_id"].toString();
-        QVERIFY(box.submit(secondId,{{"Which renderer?","SECOND"}}));QCOMPARE(second.get().data["answers"].toObject()["Which renderer?"],"SECOND");
-        QCOMPARE(box.requests().size(),1);QCOMPARE(id(box),firstId);QVERIFY(box.reject(firstId,"Declined"));QVERIFY(first.get().isError);
+        CTEST_CHECK(box.submit(secondId,{{"Which renderer?","SECOND"}}));CTEST_COMPARE(second.get().data["answers"].toObject()["Which renderer?"],"SECOND");
+        CTEST_COMPARE(box.requests().size(),1);CTEST_COMPARE(id(box),firstId);CTEST_CHECK(box.reject(firstId,"Declined"));CTEST_CHECK(first.get().isError);
     }
     void cancellationExpiryAndDestructionReleaseWorkers() {
         Fixture f;a::QuestionInbox box;CancellationToken token;auto pending=f.run(box.hook(),"cancelled",token);
-        QTRY_COMPARE(box.requests().size(),1);token.cancel();QVERIFY_THROWS_EXCEPTION(Error,(void)pending.get());box.refresh();QVERIFY(box.requests().isEmpty());
+        CTEST_WAIT_COMPARE(box.requests().size(),1);token.cancel();CTEST_THROWS(Error,(void)pending.get());box.refresh();CTEST_CHECK(box.requests().isEmpty());
         a::PermissionRequestsOptions config;config.timeoutMs=100;a::QuestionInbox timed(config);
-        auto expires=f.run(timed.hook(),"expired");QVERIFY(expires.get().isError);timed.refresh();QVERIFY(timed.requests().isEmpty());
-        auto owned=std::make_unique<a::QuestionInbox>();auto closing=f.run(owned->hook(),"closing");QTRY_COMPARE(owned->requests().size(),1);
-        owned.reset();QVERIFY(closing.get().isError);
+        auto expires=f.run(timed.hook(),"expired");CTEST_CHECK(expires.get().isError);timed.refresh();CTEST_CHECK(timed.requests().isEmpty());
+        auto owned=std::make_unique<a::QuestionInbox>();auto closing=f.run(owned->hook(),"closing");CTEST_WAIT_COMPARE(owned->requests().size(),1);
+        owned.reset();CTEST_CHECK(closing.get().isError);
     }
     void borrowedChannelSurvivesViewDestruction() {
         auto broker=std::make_shared<a::PermissionRequests>();{
-            a::QuestionInbox box(broker);QVERIFY(box.requests().isEmpty());
-        }QVERIFY(!broker->pending()["closed"].toBool());
+            a::QuestionInbox box(broker);CTEST_CHECK(box.requests().isEmpty());
+        }CTEST_CHECK(!broker->pending()["closed"].toBool());
     }
     void sharedChannelPublishesChangesToEachView() {
         Fixture f;auto broker=std::make_shared<a::PermissionRequests>();
         auto first=std::make_unique<a::QuestionInbox>(broker);a::QuestionInbox second(broker);
         auto pending=f.run(first->hook());
-        QTRY_COMPARE(first->requests().size(),1);QTRY_COMPARE(second.requests().size(),1);
-        a::QuestionInbox late(broker);QCOMPARE(late.requests().size(),1);
-        const auto key=id(second);QCOMPARE(id(*first),key);
+        CTEST_WAIT_COMPARE(first->requests().size(),1);CTEST_WAIT_COMPARE(second.requests().size(),1);
+        a::QuestionInbox late(broker);CTEST_COMPARE(late.requests().size(),1);
+        const auto key=id(second);CTEST_COMPARE(id(*first),key);
         first.reset();
-        QVERIFY(second.submit(key,{{"Which renderer?","Native"}}));
-        QCOMPARE(second.requests().size(),0);QVERIFY(!pending.get().isError);
-        QTRY_COMPARE(late.requests().size(),0);QTest::qWait(20);QCOMPARE(second.requests().size(),0);
-        QVERIFY(!broker->pending()["closed"].toBool());
+        CTEST_CHECK(second.submit(key,{{"Which renderer?","Native"}}));
+        CTEST_COMPARE(second.requests().size(),0);CTEST_CHECK(!pending.get().isError);
+        CTEST_WAIT_COMPARE(late.requests().size(),0);agent_ctest::processFor(20);CTEST_COMPARE(second.requests().size(),0);
+        CTEST_CHECK(!broker->pending()["closed"].toBool());
     }
     void viewCanRetireDuringChangeNotification() {
         Fixture f;auto box=std::make_unique<a::QuestionInbox>();auto pending=f.run(box->hook());
-        QTRY_COMPARE(box->requests().size(),1);const auto key=id(*box);
+        CTEST_WAIT_COMPARE(box->requests().size(),1);const auto key=id(*box);
         QObject::connect(box.get(),&a::QuestionInbox::requestsChanged,box.get(),[&]{box.reset();});
-        QVERIFY(box->submit(key,{}));QVERIFY(!box);QVERIFY(!pending.get().isError);
+        CTEST_CHECK(box->submit(key,{}));CTEST_CHECK(!box);CTEST_CHECK(!pending.get().isError);
     }
 };
-QTEST_GUILESS_MAIN(QuestionInboxTests)
-#include "question_inbox_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    if (argc > 2) { std::cerr << "Expected a case name" << std::endl; return 1; }
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    QuestionInboxTests tests;
+    runner.run("nativeViewModelReceivesDeltasAndSendsValidatedReplies", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.nativeViewModelReceivesDeltasAndSendsValidatedReplies(); });
+    runner.run("nativeViewModelRecoversAMissedRequestEvent", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.nativeViewModelRecoversAMissedRequestEvent(); });
+    runner.run("retiredNativeBridgeCannotSubmit", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.retiredNativeBridgeCannotSubmit(); });
+    runner.run("changedRequestCanBeQueriedWithoutReadingTheWholeQueue", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.changedRequestCanBeQueriedWithoutReadingTheWholeQueue(); });
+    runner.run("idleInboxDoesNotPoll", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.idleInboxDoesNotPoll(); });
+    runner.run("mcpQuestionWaitDoesNotLockAppMutations", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.mcpQuestionWaitDoesNotLockAppMutations(); });
+    runner.run("workerQuestionAppearsAndReceivesGuiAnswer", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.workerQuestionAppearsAndReceivesGuiAnswer(); });
+    runner.run("stableSnapshotsDoNotResetTheUi", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.stableSnapshotsDoNotResetTheUi(); });
+    runner.run("malformedUiInputDoesNotConsumeTheRequest", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.malformedUiInputDoesNotConsumeTheRequest(); });
+    runner.run("concurrentOwnersAreAnsweredIndependently", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.concurrentOwnersAreAnsweredIndependently(); });
+    runner.run("cancellationExpiryAndDestructionReleaseWorkers", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.cancellationExpiryAndDestructionReleaseWorkers(); });
+    runner.run("borrowedChannelSurvivesViewDestruction", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.borrowedChannelSurvivesViewDestruction(); });
+    runner.run("sharedChannelPublishesChangesToEachView", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.sharedChannelPublishesChangesToEachView(); });
+    runner.run("viewCanRetireDuringChangeNotification", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.viewCanRetireDuringChangeNotification(); });
+    return runner.result();
+}

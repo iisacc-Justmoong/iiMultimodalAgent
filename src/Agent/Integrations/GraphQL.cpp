@@ -1,13 +1,9 @@
 #include "GraphQL.h"
-#include <QtCore/QElapsedTimer>
-#include <QtCore/QEventLoop>
+#include "GraphQLTransport.h"
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QRegularExpression>
-#include <QtCore/QTimer>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkProxy>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QSslSocket>
+#include <utility>
 
 namespace iiMultimodalAgent::agent {
 namespace {
@@ -17,48 +13,8 @@ void require(bool value,const char* message,ErrorCode code=ErrorCode::InvalidArg
 QJsonObject nativeExecute(const GraphQLEndpoint& endpoint,const QJsonObject& payload,
     const CancellationToken& cancellation,int timeout,int maximum) {
     cancellation.throwIfCancelled();
-    QNetworkAccessManager manager;manager.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
-    QNetworkRequest request(endpoint.url);
-    auto ssl=QSslConfiguration::defaultConfiguration();ssl.setPeerVerifyMode(QSslSocket::VerifyPeer);request.setSslConfiguration(ssl);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
-    request.setAttribute(QNetworkRequest::CookieLoadControlAttribute,QNetworkRequest::Manual);
-    request.setAttribute(QNetworkRequest::CookieSaveControlAttribute,QNetworkRequest::Manual);
-    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute,QNetworkRequest::AlwaysNetwork);
-    request.setAttribute(QNetworkRequest::CacheSaveControlAttribute,false);
-    request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
-    request.setRawHeader("Accept","application/graphql-response+json, application/json");
-    if(!endpoint.authorization.isEmpty())request.setRawHeader("Authorization",endpoint.authorization);
-    auto reply=std::unique_ptr<QNetworkReply>(manager.post(request,QJsonDocument(payload).toJson(QJsonDocument::Compact)));
-    reply->setReadBufferSize(65536);
-    QEventLoop loop;QTimer timer;QElapsedTimer elapsed;elapsed.start();timer.setInterval(10);
-    QByteArray body;bool overflow=false,timedOut=false;
-    auto drain=[&] {
-        if(!reply->isOpen())return;
-        body+=reply->read(maximum+1-body.size());
-        if(body.size()>maximum){overflow=true;reply->abort();loop.quit();}
-    };
-    QObject::connect(reply.get(),&QNetworkReply::readyRead,&loop,drain);
-    QObject::connect(reply.get(),&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    QObject::connect(&timer,&QTimer::timeout,&loop,[&] {
-        if(cancellation.isCancelled() || elapsed.elapsed()>=timeout) {
-            timedOut=!cancellation.isCancelled();reply->abort();loop.quit();
-        }
-    });
-    timer.start();if(!reply->isFinished())loop.exec();drain();cancellation.throwIfCancelled();
-    require(!timedOut,"GraphQL request timed out",ErrorCode::Timeout);
-    require(!overflow,"GraphQL response exceeds byte limit",ErrorCode::ResourceLimit);
-    const auto status=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    require((status>=200 && status<300 && reply->error()==QNetworkReply::NoError) || status==400 || status==422,
-        "GraphQL HTTP request failed",ErrorCode::RuntimeFailure);
-    const auto mime=reply->rawHeader("Content-Type").split(';').first().trimmed().toLower();
-    require(mime=="application/json" || mime=="application/graphql-response+json",
-        "GraphQL response must use a JSON media type",ErrorCode::ProtocolError);
-    QJsonParseError error;const auto document=QJsonDocument::fromJson(body,&error);
-    require(error.error==QJsonParseError::NoError && document.isObject(),"Invalid GraphQL response JSON",ErrorCode::ProtocolError);
-    const auto result=document.object();
-    if(status>=400) require(result.value("errors").isArray() && !result.value("errors").toArray().isEmpty(),
-        "GraphQL HTTP error response has no errors",ErrorCode::ProtocolError);
-    return result;
+    auto request = detail::graphQLRequest(endpoint, payload, timeout, maximum);
+    return detail::graphQLResponse(detail::graphQLExchange(std::move(request), cancellation), cancellation, maximum);
 }
 }
 Tool graphQLTool(GraphQLOptions options,GraphQLExecutor executor) {

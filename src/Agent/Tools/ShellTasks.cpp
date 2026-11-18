@@ -14,8 +14,8 @@
 
 namespace iiMultimodalAgent::agent {
 namespace {
-const auto privateFile = QFileDevice::ReadOwner | QFileDevice::WriteOwner;
-const auto privateDirectory = privateFile | QFileDevice::ExeOwner;
+const auto privateFile = iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner;
+const auto privateDirectory = privateFile | iiFileProvider::FileDevice::ExeOwner;
 void require(bool ok, const QString& message, ErrorCode code = ErrorCode::InvalidArgument) { if (!ok) throw Error(code, message); }
 bool sessionValid(const QString& id) { return !id.isEmpty() && id.size() <= 512 && !id.contains(QChar(0)); }
 bool taskValid(const QString& id) { static const QRegularExpression pattern("\\Ash-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"); return pattern.match(id).hasMatch(); }

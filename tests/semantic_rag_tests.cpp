@@ -3,7 +3,8 @@
 #include <QtCore/QDir>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include <QCoreApplication>
 #include <limits>
 
 using namespace iiLocalLLM;
@@ -69,56 +70,55 @@ struct Fixture {
 };
 }
 
-class SemanticRagTests final : public QObject {
-    Q_OBJECT
-private slots:
+class SemanticRagTests final {
+public:
     void semanticMatchesBeyondLexicalAndRetainsProvenance() {
         Fixture f;
         f.knowledge->upsert(source("art", "The painting stays safe in its original archive."));
         f.knowledge->upsert(source("meal", "A recipe contains tomatoes."));
-        QVERIFY(f.knowledge->search("recover work", 5).isEmpty());
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover work", 5));
+        CTEST_CHECK(f.knowledge->search("recover work", 5).isEmpty());
+        CTEST_THROWS(Error, (void)f.semantic->search("recover work", 5));
         f.semantic->refresh();
         const auto hits = f.semantic->search("recover work", 5);
-        QCOMPARE(hits.size(), 1); QCOMPARE(hits.front().sourceId, QString("art"));
-        QCOMPARE(hits.front().sourceUri, QString("society://asset/art"));
-        QCOMPARE(hits.front().revision, QString("v1"));
-        QCOMPARE(hits.front().locator, QString("canvas:art"));
-        QCOMPARE(hits.front().sha256.size(), 64);
-        QVERIFY(hits.front().rankingScore > 0.99);
-        QCOMPARE(f.embeddings->documents, 2); QCOMPARE(f.embeddings->queries, 1);
+        CTEST_COMPARE(hits.size(), 1); CTEST_COMPARE(hits.front().sourceId, QString("art"));
+        CTEST_COMPARE(hits.front().sourceUri, QString("society://asset/art"));
+        CTEST_COMPARE(hits.front().revision, QString("v1"));
+        CTEST_COMPARE(hits.front().locator, QString("canvas:art"));
+        CTEST_COMPARE(hits.front().sha256.size(), 64);
+        CTEST_CHECK(hits.front().rankingScore > 0.99);
+        CTEST_COMPARE(f.embeddings->documents, 2); CTEST_COMPARE(f.embeddings->queries, 1);
         auto model = std::make_shared<AnswerModel>();
         const auto answer = a::Rag(f.semantic, model).answer("recover work", "fixture");
-        QCOMPARE(answer.status, a::RagStatus::Answered);
-        QCOMPARE(answer.evidence.front().sourceId, QString("art"));
-        QVERIFY(model->observed.messages.back().text.contains("The painting stays safe"));
+        CTEST_COMPARE(answer.status, a::RagStatus::Answered);
+        CTEST_COMPARE(answer.evidence.front().sourceId, QString("art"));
+        CTEST_CHECK(model->observed.messages.back().text.contains("The painting stays safe"));
     }
     void changesAndModelVersionsRequireRefreshWithoutStaleHits() {
         Fixture f;
         f.knowledge->upsert(source("art", "A painting is archived."));
         f.knowledge->upsert(source("meal", "A recipe is saved."));
-        f.semantic->refresh(); QCOMPARE(f.embeddings->documents, 2);
-        f.semantic->refresh(); QCOMPARE(f.embeddings->documents, 2);
+        f.semantic->refresh(); CTEST_COMPARE(f.embeddings->documents, 2);
+        f.semantic->refresh(); CTEST_COMPARE(f.embeddings->documents, 2);
         f.knowledge->upsert(source("art", "The painting changed.", "v2"));
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover", 5));
-        f.semantic->refresh(); QCOMPARE(f.embeddings->documents, 3);
-        QCOMPARE(f.semantic->search("recover", 5).front().revision, QString("v2"));
-        QVERIFY(f.knowledge->remove("art"));
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover", 5));
-        f.semantic->refresh(); QVERIFY(f.semantic->search("recover", 5).isEmpty());
+        CTEST_THROWS(Error, (void)f.semantic->search("recover", 5));
+        f.semantic->refresh(); CTEST_COMPARE(f.embeddings->documents, 3);
+        CTEST_COMPARE(f.semantic->search("recover", 5).front().revision, QString("v2"));
+        CTEST_CHECK(f.knowledge->remove("art"));
+        CTEST_THROWS(Error, (void)f.semantic->search("recover", 5));
+        f.semantic->refresh(); CTEST_CHECK(f.semantic->search("recover", 5).isEmpty());
         f.embeddings->version = "fixture-model-v2";
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover", 5));
-        f.semantic->refresh(); QCOMPARE(f.embeddings->documents, 4);
+        CTEST_THROWS(Error, (void)f.semantic->search("recover", 5));
+        f.semantic->refresh(); CTEST_COMPARE(f.embeddings->documents, 4);
     }
     void invalidEmbeddingsAndDamagedCachesFailClosed() {
         Fixture f; f.knowledge->upsert(source("art", "A painting.")); f.semantic->refresh();
-        QFile before(f.vectors); QVERIFY(before.open(QIODevice::ReadOnly)); const auto original = before.readAll(); before.close();
+        QFile before(f.vectors); CTEST_CHECK(before.open(QIODevice::ReadOnly)); const auto original = before.readAll(); before.close();
         f.knowledge->upsert(source("art", "New painting.")); f.embeddings->invalid = true;
-        QVERIFY_THROWS_EXCEPTION(Error, f.semantic->refresh());
-        QVERIFY(before.open(QIODevice::ReadOnly)); QCOMPARE(before.readAll(), original); before.close();
-        QVERIFY(before.open(QIODevice::WriteOnly | QIODevice::Truncate)); before.write("bad"); before.close();
-        QVERIFY_THROWS_EXCEPTION(Error, f.semantic->refresh());
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover", 5));
+        CTEST_THROWS(Error, f.semantic->refresh());
+        CTEST_CHECK(before.open(QIODevice::ReadOnly)); CTEST_COMPARE(before.readAll(), original); before.close();
+        CTEST_CHECK(before.open(QIODevice::WriteOnly | QIODevice::Truncate)); before.write("bad"); before.close();
+        CTEST_THROWS(Error, f.semantic->refresh());
+        CTEST_THROWS(Error, (void)f.semantic->search("recover", 5));
     }
     void hybridIncludesLexicalAndSemanticMatches() {
         Fixture f;
@@ -127,21 +127,21 @@ private slots:
         f.semantic->refresh();
         a::HybridKnowledgeRetriever hybrid(f.knowledge, f.semantic);
         const auto hits = hybrid.search("recover", 10);
-        QCOMPARE(hits.size(), 2);
+        CTEST_COMPARE(hits.size(), 2);
         // The keyword hit appears in both ranked lists, so reciprocal rank
         // fusion boosts it above the semantic-only hit.
-        QCOMPARE(hits.front().sourceId, QString("keyword"));
-        QCOMPARE(hits.back().sourceId, QString("art"));
+        CTEST_COMPARE(hits.front().sourceId, QString("keyword"));
+        CTEST_COMPARE(hits.back().sourceId, QString("art"));
         const auto lexical = f.knowledge->search("recover", 5);
-        QVERIFY(!lexical.isEmpty()); QCOMPARE(lexical.front().sourceId, QString("keyword"));
+        CTEST_CHECK(!lexical.isEmpty()); CTEST_COMPARE(lexical.front().sourceId, QString("keyword"));
     }
     void cancellationAndBadQueryStopWork() {
         Fixture f; f.knowledge->upsert(source("art", "A painting."));
         CancellationToken token; token.cancel();
-        QVERIFY_THROWS_EXCEPTION(Error, f.semantic->refresh(token));
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover", 5, token));
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search(" ", 5));
-        QVERIFY_THROWS_EXCEPTION(Error, (void)a::SemanticKnowledgeIndex(f.knowledge, f.embeddings, f.root.filePath("sources.json")));
+        CTEST_THROWS(Error, f.semantic->refresh(token));
+        CTEST_THROWS(Error, (void)f.semantic->search("recover", 5, token));
+        CTEST_THROWS(Error, (void)f.semantic->search(" ", 5));
+        CTEST_THROWS(Error, (void)a::SemanticKnowledgeIndex(f.knowledge, f.embeddings, f.root.filePath("sources.json")));
     }
     void modelSizedChunksKeepExactUtf8Offsets() {
         Fixture f;
@@ -152,45 +152,58 @@ private slots:
         a::SemanticKnowledgeIndex shortChunks(f.knowledge, f.embeddings, f.vectors, options);
         shortChunks.refresh();
         const auto hits = shortChunks.search("recover", 5);
-        QVERIFY(!hits.isEmpty());
+        CTEST_CHECK(!hits.isEmpty());
         for (const auto& hit : hits) {
-            QVERIFY(hit.text.size() <= 64);
-            QCOMPARE(text.toUtf8().mid(hit.startByte, hit.endByte - hit.startByte), hit.text.toUtf8());
+            CTEST_CHECK(hit.text.size() <= 64);
+            CTEST_COMPARE(text.toUtf8().mid(hit.startByte, hit.endByte - hit.startByte), hit.text.toUtf8());
         }
-        QVERIFY(f.embeddings->documents > 1);
+        CTEST_CHECK(f.embeddings->documents > 1);
     }
     void changingSourcesDuringRefreshCannotPublishMixedVectors() {
         Fixture f; f.knowledge->upsert(source("art", "A painting.")); f.semantic->refresh();
-        QFile file(f.vectors); QVERIFY(file.open(QIODevice::ReadOnly)); const auto original = file.readAll(); file.close();
+        QFile file(f.vectors); CTEST_CHECK(file.open(QIODevice::ReadOnly)); const auto original = file.readAll(); file.close();
         f.knowledge->upsert(source("art", "The painting changed."));
         f.embeddings->onDocument = [&] { f.knowledge->upsert(source("other", "A recipe.")); };
-        QVERIFY_THROWS_EXCEPTION(Error, f.semantic->refresh());
-        QVERIFY(file.open(QIODevice::ReadOnly)); QCOMPARE(file.readAll(), original); file.close();
+        CTEST_THROWS(Error, f.semantic->refresh());
+        CTEST_CHECK(file.open(QIODevice::ReadOnly)); CTEST_COMPARE(file.readAll(), original); file.close();
         f.semantic->refresh();
         f.embeddings->wrongQueryDimension = true;
-        QVERIFY_THROWS_EXCEPTION(Error, (void)f.semantic->search("recover", 5));
+        CTEST_THROWS(Error, (void)f.semantic->search("recover", 5));
     }
     void localProviderUsesServiceAndFingerprintsModelConfiguration() {
         Fixture f;
-        const auto package = f.root.filePath("package"); QVERIFY(QDir().mkpath(package));
-        QFile weights(QDir(package).filePath("model.test")); QVERIFY(weights.open(QIODevice::WriteOnly));
-        QCOMPARE(weights.write("fixture"), qint64(7)); weights.close();
+        const auto package = f.root.filePath("package"); CTEST_CHECK(QDir().mkpath(package));
+        QFile weights(QDir(package).filePath("model.test")); CTEST_CHECK(weights.open(QIODevice::WriteOnly));
+        CTEST_COMPARE(weights.write("fixture"), qint64(7)); weights.close();
         ModelManifest manifest{"local-embed", "test", "test", "none", 128, {"embedding"}, "model.test"};
-        QFile metadata(QDir(package).filePath("manifest.json")); QVERIFY(metadata.open(QIODevice::WriteOnly));
-        QVERIFY(metadata.write(QJsonDocument(manifestObject(manifest)).toJson()) > 0); metadata.close();
+        QFile metadata(QDir(package).filePath("manifest.json")); CTEST_CHECK(metadata.open(QIODevice::WriteOnly));
+        CTEST_CHECK(metadata.write(QJsonDocument(manifestObject(manifest)).toJson()) > 0); metadata.close();
         ServiceOptions options; options.modelsDirectory = f.root.filePath("models"); options.keepAliveMs = 300000;
         Service service(options); service.registerRuntime(std::make_shared<LocalRuntime>()).get();
         (void)service.installModel(package).get(); (void)service.loadModel({"model://local-embed", 128}).get();
         a::LocalEmbeddingProvider provider(service, {"model://local-embed", "query: ", "passage: "});
-        const auto first = provider.fingerprint(); QCOMPARE(first.size(), 64);
-        QCOMPARE(provider.embed("hello", a::EmbeddingPurpose::Query, {})[0], 1.0f);
-        QCOMPARE(provider.embed("hello", a::EmbeddingPurpose::Document, {})[1], 1.0f);
+        const auto first = provider.fingerprint(); CTEST_COMPARE(first.size(), 64);
+        CTEST_COMPARE(provider.embed("hello", a::EmbeddingPurpose::Query, {})[0], 1.0f);
+        CTEST_COMPARE(provider.embed("hello", a::EmbeddingPurpose::Document, {})[1], 1.0f);
         service.unloadModel("model://local-embed").get();
-        QVERIFY_THROWS_EXCEPTION(Error, (void)provider.fingerprint());
+        CTEST_THROWS(Error, (void)provider.fingerprint());
         (void)service.loadModel({"model://local-embed", 128, {{"fixture_config", "changed"}}}).get();
-        QVERIFY(provider.fingerprint() != first);
+        CTEST_CHECK(provider.fingerprint() != first);
     }
 };
 
-QTEST_GUILESS_MAIN(SemanticRagTests)
-#include "semantic_rag_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    SemanticRagTests tests;
+    runner.run("semanticMatchesBeyondLexicalAndRetainsProvenance", [&] { tests.semanticMatchesBeyondLexicalAndRetainsProvenance(); });
+    runner.run("changesAndModelVersionsRequireRefreshWithoutStaleHits", [&] { tests.changesAndModelVersionsRequireRefreshWithoutStaleHits(); });
+    runner.run("invalidEmbeddingsAndDamagedCachesFailClosed", [&] { tests.invalidEmbeddingsAndDamagedCachesFailClosed(); });
+    runner.run("hybridIncludesLexicalAndSemanticMatches", [&] { tests.hybridIncludesLexicalAndSemanticMatches(); });
+    runner.run("cancellationAndBadQueryStopWork", [&] { tests.cancellationAndBadQueryStopWork(); });
+    runner.run("modelSizedChunksKeepExactUtf8Offsets", [&] { tests.modelSizedChunksKeepExactUtf8Offsets(); });
+    runner.run("changingSourcesDuringRefreshCannotPublishMixedVectors", [&] { tests.changingSourcesDuringRefreshCannotPublishMixedVectors(); });
+    runner.run("localProviderUsesServiceAndFingerprintsModelConfiguration", [&] { tests.localProviderUsesServiceAndFingerprintsModelConfiguration(); });
+    return runner.result();
+}

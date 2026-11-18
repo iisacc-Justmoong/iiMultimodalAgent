@@ -123,7 +123,8 @@ QString privateDirectory(QString path,const QString& workspace){
         const auto up=QFileInfo(cursor).absolutePath();if(up==cursor)break;cursor=up;}
     require(iiFileProvider::Directory().mkpath(path),"Cannot create team state",ErrorCode::StorageFailure);path=QFileInfo(path).canonicalFilePath();
     require(!path.isEmpty()&&!nested(path,workspace)&&!nested(workspace,path),"Team state and workspace must be disjoint");
-    require(iiFileProvider::FileDevice::setPermissions(path,QFileDevice::ReadOwner|QFileDevice::WriteOwner|QFileDevice::ExeOwner),"Cannot protect team state",ErrorCode::StorageFailure);return path;
+    require(iiFileProvider::FileDevice::setPermissions(path,
+                iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner),"Cannot protect team state",ErrorCode::StorageFailure);return path;
 }
 }
 class Teams::Impl {

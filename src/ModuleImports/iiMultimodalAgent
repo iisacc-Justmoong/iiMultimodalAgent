@@ -1,0 +1,69 @@
+#pragma once
+
+// C++ public entry for iiMultimodalAgent; the linked components select the API.
+
+#if defined(IISDK_IMPORT_IIMULTIMODALAGENT_CORE)
+#include <iiMultimodalAgent/agent/Types.h>
+#include <iiMultimodalAgent/agent/Tools.h>
+#include <iiMultimodalAgent/agent/SessionStore.h>
+#include <iiMultimodalAgent/agent/Engine.h>
+#include <iiMultimodalAgent/agent/ProjectContext.h>
+#include <iiMultimodalAgent/agent/Compaction.h>
+#include <iiMultimodalAgent/agent/Api.h>
+#include <iiMultimodalAgent/agent/McpTools.h>
+#include <iiMultimodalAgent/agent/McpServer.h>
+#include <iiMultimodalAgent/agent/ToolSearch.h>
+#include <iiMultimodalAgent/agent/McpConnections.h>
+#include <iiMultimodalAgent/agent/Plugins.h>
+#include <iiMultimodalAgent/agent/PluginRuntime.h>
+#include <iiMultimodalAgent/agent/Procedures.h>
+#include <iiMultimodalAgent/agent/DecisionGate.h>
+#include <iiMultimodalAgent/agent/DecisionProtocol.h>
+#include <iiMultimodalAgent/agent/TaskStore.h>
+#include <iiMultimodalAgent/agent/InputQueue.h>
+#include <iiMultimodalAgent/agent/Skills.h>
+#include <iiMultimodalAgent/agent/Subagents.h>
+#include <iiMultimodalAgent/agent/Teams.h>
+#include <iiMultimodalAgent/agent/AgentProfiles.h>
+#include <iiMultimodalAgent/agent/PermissionRules.h>
+#include <iiMultimodalAgent/agent/PermissionSettings.h>
+#include <iiMultimodalAgent/agent/PermissionRequests.h>
+#include <iiMultimodalAgent/agent/CommandHooks.h>
+#include <iiMultimodalAgent/agent/AsyncHooks.h>
+#include <iiMultimodalAgent/agent/PlanMode.h>
+#include <iiMultimodalAgent/agent/UserQuestions.h>
+#include <iiMultimodalAgent/agent/QuestionInbox.h>
+#include <iiMultimodalAgent/agent/ProjectMemory.h>
+#include <iiMultimodalAgent/agent/NativeQuestionViewModel.h>
+#include <iiMultimodalAgent/agent/NativeQuestionPresentationC.h>
+#include <iiMultimodalAgent/agent/NativeQuestionBridge.h>
+#include <iiMultimodalAgent/agent/MemoryRecall.h>
+#include <iiMultimodalAgent/agent/Rag.h>
+#include <iiMultimodalAgent/agent/SemanticRag.h>
+#include <iiMultimodalAgent/agent/MemoryExtraction.h>
+#include <iiMultimodalAgent/agent/MemoryContext.h>
+#include <iiMultimodalAgent/agent/Worktrees.h>
+#include <iiMultimodalAgent/agent/Lsp.h>
+#include <iiMultimodalAgent/agent/WebFetch.h>
+#include <iiMultimodalAgent/agent/GraphQL.h>
+#include <iiMultimodalAgent/agent/MemoryDream.h>
+#include <iiMultimodalAgent/agent/Notebook.h>
+#include <iiMultimodalAgent/agent/FileCheckpoints.h>
+#include <iiMultimodalAgent/agent/SessionHistory.h>
+#include <iiMultimodalAgent/agent/ShellTasks.h>
+#include <iiMultimodalAgent/agent/ObjectTools.h>
+#include <iiMultimodalAgent/mcp/Client.h>
+#include <iiMultimodalAgent/mcp/HttpClient.h>
+#include <iiMultimodalAgent/mcp/Server.h>
+#include <iiMultimodalAgent/mcp/HttpServer.h>
+#include <iiMultimodalAgent/mcp/LocalApplications.h>
+#include <iiMultimodalAgent/Export.h>
+#include <iiMultimodalAgent/Inference.h>
+#include <iiMultimodalAgent/Modalities.h>
+#include <iiMultimodalAgent/agent/MultimodalTools.h>
+#include <iiMultimodalAgent.h>
+#endif
+
+#if defined(IISDK_IMPORT_IIMULTIMODALAGENT_DIAGNOSTICS)
+#include <iiMultimodalAgent/diagnostics/FailureReport.h>
+#endif

@@ -8,7 +8,9 @@
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include "../third_party/cpp-httplib/httplib.h"
 #include <thread>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
@@ -88,8 +90,7 @@ struct Observer final:a::Model {
 };
 }
 class McpOutputHooksTests final:public QObject {
-    Q_OBJECT
-private slots:
+public:
     void cppArrayPreservesMcpContentWithoutRetainingOldData() {
         QTemporaryDir root;Remote remote;
         const QJsonArray content{textBlock(replacement),QJsonObject{{"type","image"},{"data","AA=="},{"mimeType","image/png"}},
@@ -101,10 +102,10 @@ private slots:
             if(input.kind==a::HookKind::AfterTool) {result.updatedMCPToolOutput=content;result.feedback="post context";}return result;
         };
         const auto result=run(remote,root.path(),{hook});
-        QVERIFY(!result.isError);QVERIFY(result.data.isEmpty());QCOMPARE(result.content,content);QCOMPARE(result.metadata["app"],"fixture");
-        QCOMPARE(result.text,replacement+"\nResource: selected (test://selected)\ntest://note\nembedded note\npre context\npost context");
-        QVERIFY(remote.registry->get(remoteName).isMcp);QVERIFY(remote.registry->snapshot()->get(remoteName).isMcp);
-        QVERIFY(!a::toJson(remote.registry->get(remoteName).definition).contains("isMcp"));
+        CTEST_CHECK(!result.isError);CTEST_CHECK(result.data.isEmpty());CTEST_COMPARE(result.content,content);CTEST_COMPARE(result.metadata["app"],"fixture");
+        CTEST_COMPARE(result.text,replacement+"\nResource: selected (test://selected)\ntest://note\nembedded note\npre context\npost context");
+        CTEST_CHECK(remote.registry->get(remoteName).isMcp);CTEST_CHECK(remote.registry->snapshot()->get(remoteName).isMcp);
+        CTEST_CHECK(!a::toJson(remote.registry->get(remoteName).definition).contains("isMcp"));
     }
     void cppInvalidReplacementRetainsObservationAndBlockDecision() {
         QTemporaryDir root;Remote remote;
@@ -114,8 +115,8 @@ private slots:
             }return result;
         };
         QJsonArray diagnostics;const auto result=run(remote,root.path(),{hook},original,[&](const a::Event& event){if(event.kind==a::EventKind::Hook)diagnostics.append(event.data);});
-        QVERIFY(result.isError);QCOMPARE(result.data["value"],original);QVERIFY(result.text.endsWith("\nblocked context"));
-        QCOMPARE(diagnostics.size(),1);QCOMPARE(diagnostics[0].toObject()["outcome"],"non_blocking_error");
+        CTEST_CHECK(result.isError);CTEST_COMPARE(result.data["value"],original);CTEST_CHECK(result.text.endsWith("\nblocked context"));
+        CTEST_COMPARE(diagnostics.size(),1);CTEST_COMPARE(diagnostics[0].toObject()["outcome"],"non_blocking_error");
     }
     void apiRunAndSessionExposeTheReplacedObservation() {
         QTemporaryDir root;Remote remote;HttpHook endpoint(response(replacement));
@@ -125,13 +126,13 @@ private slots:
         auto model=std::make_shared<Observer>();a::Api api(model,remote.registry,policy(),options);
         const auto call=[&](const QString& method,const QJsonObject& params) {return api.dispatch(method,params,credential).result.get().toObject();};
         const auto id=call("agent.sessions.create",{{"model","fixture"}}).value("session_id");
-        const auto result=call("agent.run",{{"session_id",id},{"prompt","observe"}});QCOMPARE(result["status"],"completed");QCOMPARE(result["text"],replacement);
+        const auto result=call("agent.run",{{"session_id",id},{"prompt","observe"}});CTEST_COMPARE(result["status"],"completed");CTEST_COMPARE(result["text"],replacement);
         bool found=false;for(const auto& value:call("agent.sessions.get",{{"session_id",id}})["messages"].toArray()) {
             const auto message=value.toObject();if(message["role"]!="tool")continue;
-            found=true;QCOMPARE(message["text"],replacement);QVERIFY(message["data"].toObject().isEmpty());
-            QCOMPARE(message["content"].toArray(),QJsonArray{textBlock(replacement)});
+            found=true;CTEST_COMPARE(message["text"],replacement);CTEST_CHECK(message["data"].toObject().isEmpty());
+            CTEST_COMPARE(message["content"].toArray(),QJsonArray{textBlock(replacement)});
         }
-        QVERIFY(found);QCOMPARE(remote.calls.load(),1);
+        CTEST_CHECK(found);CTEST_COMPARE(remote.calls.load(),1);
     }
     void mcpReexportDropsOnlyTheRewritableOutputSchema() {
         QTemporaryDir root;Remote remote;
@@ -142,20 +143,20 @@ private slots:
             if(enabled)bridge.tools.hooks={[](const a::HookInput& input,const auto&) {a::HookResult result;
                 if(input.kind==a::HookKind::AfterTool)result.updatedMCPToolOutput=replacement;return result;}};
             const auto protocol=a::mcpServerOptions(remote.registry,policy(),bridge);
-            m::HttpServer server([protocol](const auto&){return protocol;},transport());QVERIFY(server.listen());m::HttpClient client(connection(server));
+            m::HttpServer server([protocol](const auto&){return protocol;},transport());CTEST_CHECK(server.listen());m::HttpClient client(connection(server));
             bool imported=false,local=false;
             for(const auto& value:client.listTools()) {
                 const auto definition=value.toObject();
-                if(definition["name"]==remoteName){imported=true;QCOMPARE(definition.contains("outputSchema"),!enabled);}
-                if(definition["name"]=="native"){local=true;QCOMPARE(definition["outputSchema"].toObject(),schema());}
+                if(definition["name"]==remoteName){imported=true;CTEST_COMPARE(definition.contains("outputSchema"),!enabled);}
+                if(definition["name"]=="native"){local=true;CTEST_COMPARE(definition["outputSchema"].toObject(),schema());}
             }
-            QVERIFY(imported&&local);
-            const auto result=client.callTool(remoteName,{{"value",original}});QVERIFY(!result["isError"].toBool());
-            if(enabled){QVERIFY(result["structuredContent"].toObject().isEmpty());QCOMPARE(result["content"].toArray(),QJsonArray{textBlock(replacement)});}
-            else QCOMPARE(result["structuredContent"].toObject()["value"],original);
-            QCOMPARE(result["_meta"].toObject()["app"],"fixture");
-            QVERIFY(client.callTool(remoteName,{{"value","bad-output"}})["isError"].toBool());
-            QCOMPARE(client.callTool("native",{{"value",original}})["structuredContent"].toObject()["value"],original);
+            CTEST_CHECK(imported&&local);
+            const auto result=client.callTool(remoteName,{{"value",original}});CTEST_CHECK(!result["isError"].toBool());
+            if(enabled){CTEST_CHECK(result["structuredContent"].toObject().isEmpty());CTEST_COMPARE(result["content"].toArray(),QJsonArray{textBlock(replacement)});}
+            else CTEST_COMPARE(result["structuredContent"].toObject()["value"],original);
+            CTEST_COMPARE(result["_meta"].toObject()["app"],"fixture");
+            CTEST_CHECK(client.callTool(remoteName,{{"value","bad-output"}})["isError"].toBool());
+            CTEST_COMPARE(client.callTool("native",{{"value",original}})["structuredContent"].toObject()["value"],original);
         }
     }
     void httpReplacementReachesModelTranscriptAndToolFinished() {
@@ -164,18 +165,18 @@ private slots:
         auto model=std::make_shared<Observer>();a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.hooks={hooks.callback()};
         a::Engine engine(model,remote.registry,policy(),options);const auto session=engine.createSession("fixture",root.path());
         a::Event finished;const auto result=engine.run({session.id,"observe"},[&](const a::Event& event){if(event.kind==a::EventKind::ToolFinished)finished=event;}).result.get();
-        QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.text,replacement);QCOMPARE(remote.calls.load(),1);
-        QCOMPARE(model->observed.text,replacement);QVERIFY(model->observed.data.isEmpty());QCOMPARE(model->observed.content,QJsonArray{textBlock(replacement)});
-        QCOMPARE(model->observed.metadata["app"],"fixture");QCOMPARE(finished.text,replacement);QVERIFY(finished.data["result"].toObject().isEmpty());
-        QCOMPARE(finished.data["content"].toArray(),model->observed.content);
+        CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(result.text,replacement);CTEST_COMPARE(remote.calls.load(),1);
+        CTEST_COMPARE(model->observed.text,replacement);CTEST_CHECK(model->observed.data.isEmpty());CTEST_COMPARE(model->observed.content,QJsonArray{textBlock(replacement)});
+        CTEST_COMPARE(model->observed.metadata["app"],"fixture");CTEST_COMPARE(finished.text,replacement);CTEST_CHECK(finished.data["result"].toObject().isEmpty());
+        CTEST_COMPARE(finished.data["content"].toArray(),model->observed.content);
         const auto stored=engine.session(session.id);bool found=false;
         for(const auto& message:stored.messages)if(message.role==a::MessageRole::Tool) {
-            found=true;QCOMPARE(message.text,replacement);QVERIFY(message.data.isEmpty());QCOMPARE(message.content,model->observed.content);
-            QVERIFY(!QJsonDocument(a::toJson(message)).toJson().contains(original.toUtf8()));
+            found=true;CTEST_COMPARE(message.text,replacement);CTEST_CHECK(message.data.isEmpty());CTEST_COMPARE(message.content,model->observed.content);
+            CTEST_CHECK(!QJsonDocument(a::toJson(message)).toJson().contains(original.toUtf8()));
         }
-        QVERIFY(found);endpoint.server.stop();endpoint.thread.join();
-        QCOMPARE(endpoint.request["hook_event_name"],"PostToolUse");
-        QCOMPARE(endpoint.request["tool_response"].toObject()["data"].toObject()["value"],original);
+        CTEST_CHECK(found);endpoint.server.stop();endpoint.thread.join();
+        CTEST_COMPARE(endpoint.request["hook_event_name"],"PostToolUse");
+        CTEST_COMPARE(endpoint.request["tool_response"].toObject()["data"].toObject()["value"],original);
     }
 #if defined(Q_OS_UNIX) && !defined(Q_OS_IOS) && !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
     void wrongEventNonzeroExitAndStopCannotApplyOutput() {
@@ -186,19 +187,19 @@ private slots:
             a::HookInput input{event=="PreToolUse"?a::HookKind::BeforeTool:event=="Stop"?a::HookKind::Stop:event=="PermissionRequest"?a::HookKind::PermissionRequest:a::HookKind::AfterTool,
                 "s","r",{"call",remoteName,{}},{},{}};
             input.result.isError=event=="PostToolUseFailure";const auto result=hooks.callback()(input,{});
-            QVERIFY(!result.updatedMCPToolOutput);QCOMPARE(result.diagnostics.last().toObject()["outcome"],"non_blocking_error");
+            CTEST_CHECK(!result.updatedMCPToolOutput);CTEST_COMPARE(result.diagnostics.last().toObject()["outcome"],"non_blocking_error");
         }
         for(const int code:{1,2}) {
             auto value=command(replacement);value["command"]=value["command"].toString()+QString("; exit %1").arg(code);
             a::CommandHooks hooks(settings({value}),hookOptions(root.path()));const auto result=run(remote,root.path(),{hooks.callback()});
-            QCOMPARE(result.data["value"],original);QVERIFY(result.text!=replacement);
+            CTEST_COMPARE(result.data["value"],original);CTEST_CHECK(result.text!=replacement);
         }
         auto stop=response(replacement);stop["continue"]=false;stop["stopReason"]="stop after effect";
         a::CommandHooks hooks(settings({QJsonObject{{"type","command"},{"command",output(stop)}}}),hookOptions(root.path()));
         const auto before=remote.calls.load();bool finished=false;
-        try {run(remote,root.path(),{hooks.callback()},original,[&](const a::Event& event){finished|=event.kind==a::EventKind::ToolFinished;});QFAIL("Stop did not propagate");}
-        catch(const Error& error){QCOMPARE(error.code(),ErrorCode::Cancelled);}
-        QVERIFY(!finished);QCOMPARE(remote.calls.load(),before+1);
+        try {run(remote,root.path(),{hooks.callback()},original,[&](const a::Event& event){finished|=event.kind==a::EventKind::ToolFinished;});agent_ctest::fail(__FILE__, __LINE__, "Stop did not propagate");}
+        catch(const Error& error){CTEST_COMPARE(error.code(),ErrorCode::Cancelled);}
+        CTEST_CHECK(!finished);CTEST_COMPARE(remote.calls.load(),before+1);
     }
     void cancellingAPostHookKeepsTheCompletedExternalEffect() {
         QTemporaryDir root;Remote remote;
@@ -213,25 +214,25 @@ private slots:
             }catch(const Error& error){return error.code();}
         });
         // Cancel before joining even if the fixture's readiness assertion fails.
-        const bool started=QTest::qWaitFor([&]{return QFileInfo::exists(root.filePath("hook-started"));},5000);token.cancel();
-        QCOMPARE(pending.get(),ErrorCode::Cancelled);QVERIFY(started);QVERIFY(!finished.load());QCOMPARE(remote.calls.load(),1);
+        const bool started=agent_ctest::waitFor([&]{return QFileInfo::exists(root.filePath("hook-started"));},5000);token.cancel();
+        CTEST_COMPARE(pending.get(),ErrorCode::Cancelled);CTEST_CHECK(started);CTEST_CHECK(!finished.load());CTEST_COMPARE(remote.calls.load(),1);
     }
     void commandReplacementClearsOriginalStructuredOutput() {
         QTemporaryDir root;Remote remote;
         a::CommandHooks hooks(settings({command(replacement)}),hookOptions(root.path()));
         const auto result=run(remote,root.path(),{hooks.callback()});
-        QVERIFY(!result.isError);QCOMPARE(result.text,replacement);QVERIFY(result.data.isEmpty());
-        QCOMPARE(result.content,QJsonArray{textBlock(replacement)});QCOMPARE(result.metadata["app"],"fixture");QCOMPARE(remote.calls.load(),1);
+        CTEST_CHECK(!result.isError);CTEST_COMPARE(result.text,replacement);CTEST_CHECK(result.data.isEmpty());
+        CTEST_COMPARE(result.content,QJsonArray{textBlock(replacement)});CTEST_COMPARE(result.metadata["app"],"fixture");CTEST_COMPARE(remote.calls.load(),1);
     }
     void emptyArraysClearWhileFalseValuesDoNotReplace() {
         QTemporaryDir root;Remote remote;
         for(const QJsonValue value:{QJsonValue(QJsonValue::Null),QJsonValue(false),QJsonValue(0),QJsonValue("")}) {
             a::CommandHooks hooks(settings({command(value)}),hookOptions(root.path()));
-            const auto result=run(remote,root.path(),{hooks.callback()});QCOMPARE(result.data["value"],original);QVERIFY(result.text.contains(original));
+            const auto result=run(remote,root.path(),{hooks.callback()});CTEST_COMPARE(result.data["value"],original);CTEST_CHECK(result.text.contains(original));
         }
         a::CommandHooks hooks(settings({command(QJsonArray{})}),hookOptions(root.path()));
         const auto result=run(remote,root.path(),{hooks.callback()});
-        QVERIFY(!result.isError);QVERIFY(result.text.isEmpty());QVERIFY(result.content.isEmpty());QVERIFY(result.data.isEmpty());
+        CTEST_CHECK(!result.isError);CTEST_CHECK(result.text.isEmpty());CTEST_CHECK(result.content.isEmpty());CTEST_CHECK(result.data.isEmpty());
     }
     void malformedReplacementCannotEraseAValidEarlierResult() {
         QTemporaryDir root;Remote remote;
@@ -240,8 +241,8 @@ private slots:
             auto late=command(value);late["command"]="sleep .05; "+late["command"].toString();
             a::CommandHooks hooks(settings({late,command(replacement)}),hookOptions(root.path()));
             QJsonArray diagnostics;const auto result=run(remote,root.path(),{hooks.callback()},original,[&](const a::Event& e){if(e.kind==a::EventKind::Hook)diagnostics.append(e.data);});
-            QVERIFY(!result.isError);QCOMPARE(result.text,replacement);QVERIFY(result.data.isEmpty());
-            bool invalid=false;for(const auto& d:diagnostics)invalid|=d.toObject()["outcome"]=="non_blocking_error";QVERIFY(invalid);
+            CTEST_CHECK(!result.isError);CTEST_COMPARE(result.text,replacement);CTEST_CHECK(result.data.isEmpty());
+            bool invalid=false;for(const auto& d:diagnostics)invalid|=d.toObject()["outcome"]=="non_blocking_error";CTEST_CHECK(invalid);
         }
     }
     void callbacksObserveReplacementAndKeepAdditionalContext() {
@@ -251,8 +252,8 @@ private slots:
         a::ToolResult seen;
         auto observer=[&](const a::HookInput& input,const auto&){if(input.kind==a::HookKind::AfterTool)seen=input.result;return a::HookResult{};};
         const auto result=run(remote,root.path(),{first.callback(),observer,second.callback()});
-        QVERIFY(seen.text.startsWith("last\n"));QVERIFY(seen.data.isEmpty());QCOMPARE(seen.content,QJsonArray{textBlock("last")});
-        QCOMPARE(result.text,replacement+"\nfirst context\nsecond context\nthird context");QVERIFY(!result.isError);
+        CTEST_CHECK(seen.text.startsWith("last\n"));CTEST_CHECK(seen.data.isEmpty());CTEST_COMPARE(seen.content,QJsonArray{textBlock("last")});
+        CTEST_COMPARE(result.text,replacement+"\nfirst context\nsecond context\nthird context");CTEST_CHECK(!result.isError);
     }
     void nativeMetadataSpoofsErrorsAndDeniedCallsRetainTheirResults() {
         QTemporaryDir root;Remote remote;
@@ -261,13 +262,32 @@ private slots:
         a::Tool spoof;spoof.definition=native.definition;spoof.execute=[](const auto&,const auto&){return a::ToolResult{original,{{"value",original}}};};remote.registry->add(spoof);
         a::CommandHooks hooks(settings({command(replacement)}),hookOptions(root.path()));
         const auto nativeResult=a::ToolRunner(remote.registry,policy(),{{hooks.callback()}}).run({"call",spoof.definition.name,{{"value",original}}},{"s","r",root.path()});
-        QCOMPARE(nativeResult.text,original);QCOMPARE(nativeResult.data["value"],original);
-        for(const auto& value:QStringList{"tool-error","bad-output"}) {const auto result=run(remote,root.path(),{hooks.callback()},value);QVERIFY(result.isError);QVERIFY(result.text!=replacement);}
+        CTEST_COMPARE(nativeResult.text,original);CTEST_COMPARE(nativeResult.data["value"],original);
+        for(const auto& value:QStringList{"tool-error","bad-output"}) {const auto result=run(remote,root.path(),{hooks.callback()},value);CTEST_CHECK(result.isError);CTEST_CHECK(result.text!=replacement);}
         const auto before=remote.calls.load();
         a::ToolRunner denied(remote.registry,std::make_shared<a::RulePolicy>(a::PermissionMode::DontAsk),{{hooks.callback()}});
-        QVERIFY(denied.run({"call",remoteName,{{"value",original}}},{"s","r",root.path()}).isError);QCOMPARE(remote.calls.load(),before);
+        CTEST_CHECK(denied.run({"call",remoteName,{{"value",original}}},{"s","r",root.path()}).isError);CTEST_COMPARE(remote.calls.load(),before);
     }
 #endif
 };
-QTEST_GUILESS_MAIN(McpOutputHooksTests)
-#include "mcp_output_hooks_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    McpOutputHooksTests tests;
+    runner.run("cppArrayPreservesMcpContentWithoutRetainingOldData", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.cppArrayPreservesMcpContentWithoutRetainingOldData(); });
+    runner.run("cppInvalidReplacementRetainsObservationAndBlockDecision", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.cppInvalidReplacementRetainsObservationAndBlockDecision(); });
+    runner.run("apiRunAndSessionExposeTheReplacedObservation", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.apiRunAndSessionExposeTheReplacedObservation(); });
+    runner.run("mcpReexportDropsOnlyTheRewritableOutputSchema", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.mcpReexportDropsOnlyTheRewritableOutputSchema(); });
+    runner.run("httpReplacementReachesModelTranscriptAndToolFinished", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.httpReplacementReachesModelTranscriptAndToolFinished(); });
+#if defined(Q_OS_UNIX) && !defined(Q_OS_IOS) && !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
+    runner.run("wrongEventNonzeroExitAndStopCannotApplyOutput", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.wrongEventNonzeroExitAndStopCannotApplyOutput(); });
+    runner.run("cancellingAPostHookKeepsTheCompletedExternalEffect", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.cancellingAPostHookKeepsTheCompletedExternalEffect(); });
+    runner.run("commandReplacementClearsOriginalStructuredOutput", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.commandReplacementClearsOriginalStructuredOutput(); });
+    runner.run("emptyArraysClearWhileFalseValuesDoNotReplace", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.emptyArraysClearWhileFalseValuesDoNotReplace(); });
+    runner.run("malformedReplacementCannotEraseAValidEarlierResult", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.malformedReplacementCannotEraseAValidEarlierResult(); });
+    runner.run("callbacksObserveReplacementAndKeepAdditionalContext", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.callbacksObserveReplacementAndKeepAdditionalContext(); });
+    runner.run("nativeMetadataSpoofsErrorsAndDeniedCallsRetainTheirResults", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.nativeMetadataSpoofsErrorsAndDeniedCallsRetainTheirResults(); });
+#endif
+    return runner.result();
+}

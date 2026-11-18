@@ -8,7 +8,8 @@
 #include <QtCore/QUuid>
 #include <QtCore/QCryptographicHash>
 #include <QtCore/QLockFile>
-#include <QtTest/QTest>
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include <iiFileProviderPresentation.h>
 #include <thread>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
@@ -17,7 +18,7 @@ namespace {
 void write(const QString& path,const QByteArray& bytes){if(!QDir().mkpath(QFileInfo(path).absolutePath()))throw std::runtime_error("mkdir");QFile f(path);if(!f.open(QIODevice::WriteOnly)||f.write(bytes)!=bytes.size())throw std::runtime_error("write");}
 QByteArray read(const QString& path){QFile f(path);if(!f.open(QIODevice::ReadOnly))throw std::runtime_error("read");return f.readAll();}
 struct Fixture {
-    QTemporaryDir root{QDir::current().filePath("fork-test-XXXXXX")};
+    QTemporaryDir root{QDir::temp().filePath("fork-test-XXXXXX")};
     QString work=root.filePath("work"),state=root.filePath("sessions");
     a::SessionStore store{state};
     Fixture(){if(!QDir().mkpath(work))throw std::runtime_error("work");}
@@ -35,51 +36,50 @@ class EditModel:public a::Model {public:
 a::EngineOptions options(const Fixture& f){a::EngineOptions o{.decision={.enabled=false}};o.sessionsDirectory=f.state;o.fileCheckpointsEnabled=true;o.skills.enabled=false;o.toolSearch.enabled=false;o.projectContext.enabled=false;o.compaction.automatic=false;return o;}
 std::shared_ptr<a::ToolRegistry> registry(const Fixture& f){auto r=std::make_shared<a::ToolRegistry>();a::registerWorkspaceTools(*r,f.work);return r;}
 }
-class SessionForkTests:public QObject {
- Q_OBJECT
-private slots:
+class SessionForkTests final {
+public:
  void fullForkClonesBytesPermissionsAndNestedReferences(){
     Fixture f;const auto parent=f.store.create("fixture",{},f.work);const auto from=f.artifacts(parent.id);
     const auto bytes=QByteArray("raw\0bytes\r\n",11);write(from+"/nested/result",bytes);write(from+"/.unreferenced","direct control output");
-    QVERIFY(QFile::setPermissions(from+"/nested/result",QFileDevice::ReadOwner|QFileDevice::WriteOwner));
+    CTEST_CHECK(QFile::setPermissions(from+"/nested/result",QFileDevice::ReadOwner|QFileDevice::WriteOwner));
     {auto lease=f.store.acquire(parent.id);a::Message user{"u",a::MessageRole::User,"Inspect "+from+"/nested/result"};
         user.data={{"path",from+"/nested/result"}};user.content={QJsonObject{{"type","text"},{"text",from+"/nested/result"}}};
         user.metadata={{"nested",QJsonArray{from+"/nested/result"}}};lease->append(user);}
-    const auto fork=f.store.fork(parent.id);const auto to=f.artifacts(fork.id);QCOMPARE(fork.parentSessionId,parent.id);
-    QCOMPARE(read(to+"/nested/result"),bytes);QCOMPARE(read(to+"/.unreferenced"),"direct control output");
-    QCOMPARE(QFileInfo(to+"/nested/result").permissions(),QFileInfo(from+"/nested/result").permissions());
-    const auto message=a::toJson(fork.messages.first());const auto json=QJsonDocument(message).toJson();QVERIFY(!json.contains(from.toUtf8()));QVERIFY(json.contains(to.toUtf8()));
-    write(to+"/nested/result","child");QCOMPARE(read(from+"/nested/result"),bytes);
-    write(from+"/nested/result","parent");QCOMPARE(read(to+"/nested/result"),"child");
-    QCOMPARE(f.store.load(fork.id).messages,fork.messages);QVERIFY(f.store.load(parent.id).messages.first().text.contains(from));
+    const auto fork=f.store.fork(parent.id);const auto to=f.artifacts(fork.id);CTEST_COMPARE(fork.parentSessionId,parent.id);
+    CTEST_COMPARE(read(to+"/nested/result"),bytes);CTEST_COMPARE(read(to+"/.unreferenced"),"direct control output");
+    CTEST_COMPARE(QFileInfo(to+"/nested/result").permissions(),QFileInfo(from+"/nested/result").permissions());
+    const auto message=a::toJson(fork.messages.first());const auto json=QJsonDocument(message).toJson();CTEST_CHECK(!json.contains(from.toUtf8()));CTEST_CHECK(json.contains(to.toUtf8()));
+    write(to+"/nested/result","child");CTEST_COMPARE(read(from+"/nested/result"),bytes);
+    write(from+"/nested/result","parent");CTEST_COMPARE(read(to+"/nested/result"),"child");
+    CTEST_COMPARE(f.store.load(fork.id).messages,fork.messages);CTEST_CHECK(f.store.load(parent.id).messages.first().text.contains(from));
  }
  void boundedForkDoesNotCopyFutureOrUnreferencedArtifacts(){
     Fixture f;const auto parent=f.store.create("fixture",{},f.work);const auto from=f.artifacts(parent.id);
     write(from+"/early","early");write(from+"/ear","short prefix");write(from+"/later","later");write(from+"/orphan","orphan");
     {auto lease=f.store.acquire(parent.id);lease->append({"early",a::MessageRole::User,from+"/early"});lease->append({"later",a::MessageRole::User,from+"/later"});}
-    const auto fork=f.store.fork(parent.id,"early");QCOMPARE(fork.messages.size(),1);QCOMPARE(read(f.artifacts(fork.id)+"/early"),"early");
-    QVERIFY(!QFileInfo::exists(f.artifacts(fork.id)+"/later"));QVERIFY(!QFileInfo::exists(f.artifacts(fork.id)+"/orphan"));
-    QVERIFY(!QFileInfo::exists(f.artifacts(fork.id)+"/ear"));
+    const auto fork=f.store.fork(parent.id,"early");CTEST_COMPARE(fork.messages.size(),1);CTEST_COMPARE(read(f.artifacts(fork.id)+"/early"),"early");
+    CTEST_CHECK(!QFileInfo::exists(f.artifacts(fork.id)+"/later"));CTEST_CHECK(!QFileInfo::exists(f.artifacts(fork.id)+"/orphan"));
+    CTEST_CHECK(!QFileInfo::exists(f.artifacts(fork.id)+"/ear"));
  }
  void unsafeArtifactsLeaveNoPublishedOrPartialFork(){
     Fixture f;const auto parent=f.store.create("fixture",{},f.work);const auto from=f.artifacts(parent.id);
-    write(from+"/a","safe");write(f.root.filePath("outside"),"private");QVERIFY(createNativeTestLink(f.root.filePath("outside"),from+"/z"));
-    QVERIFY_THROWS_EXCEPTION(Error,f.store.fork(parent.id));QCOMPARE(f.store.list(),QStringList{parent.id});
-    QCOMPARE(QDir(f.state).entryList(QDir::Dirs|QDir::NoDotAndDotDot),QStringList{parent.id});QCOMPARE(read(f.root.filePath("outside")),"private");
+    write(from+"/a","safe");write(f.root.filePath("outside"),"private");CTEST_CHECK(createNativeTestLink(f.root.filePath("outside"),from+"/z"));
+    CTEST_THROWS(Error,f.store.fork(parent.id));CTEST_COMPARE(f.store.list(),QStringList{parent.id});
+    CTEST_COMPARE(QDir(f.state).entryList(QDir::Dirs|QDir::NoDotAndDotDot),QStringList{parent.id});CTEST_COMPARE(read(f.root.filePath("outside")),"private");
  }
  void unreadableArtifactDirectoryCannotSilentlyLoseFiles(){
     Fixture f;const auto parent=f.store.create("fixture",{},f.work);const auto from=f.artifacts(parent.id);write(from+"/nested/result","evidence");
 #ifdef Q_OS_WIN
     const auto artifact=from+"/nested/result";
     HANDLE blocked=CreateFileW(reinterpret_cast<LPCWSTR>(artifact.utf16()),GENERIC_READ,0,nullptr,OPEN_EXISTING,0,nullptr);
-    QVERIFY(blocked!=INVALID_HANDLE_VALUE);
+    CTEST_CHECK(blocked!=INVALID_HANDLE_VALUE);
     bool failed=false;try{(void)f.store.fork(parent.id);}catch(const Error&){failed=true;}
-    CloseHandle(blocked);QVERIFY(failed);QCOMPARE(f.store.list(),QStringList{parent.id});
+    CloseHandle(blocked);CTEST_CHECK(failed);CTEST_COMPARE(f.store.list(),QStringList{parent.id});
 #else
     for(const auto& directory:QStringList{from,from+"/nested"}){
-        const auto permissions=QFileInfo(directory).permissions();QVERIFY(QFile::setPermissions(directory,{}));bool failed=false;
+        const auto permissions=QFileInfo(directory).permissions();CTEST_CHECK(QFile::setPermissions(directory,{}));bool failed=false;
         try{(void)f.store.fork(parent.id);}catch(const Error&){failed=true;}
-        const bool restored=QFile::setPermissions(directory,permissions);QVERIFY(restored);QVERIFY(failed);QCOMPARE(f.store.list(),QStringList{parent.id});
+        const bool restored=QFile::setPermissions(directory,permissions);CTEST_CHECK(restored);CTEST_CHECK(failed);CTEST_COMPARE(f.store.list(),QStringList{parent.id});
     }
 #endif
  }
@@ -90,40 +90,40 @@ private slots:
         lease->append({"t",a::MessageRole::Tool,"Full output: "+from+"/result",{},"call"});lease->append({"next",a::MessageRole::User,"continue"});
         a::Compaction c;c.id=QUuid::createUuid().toString(QUuid::WithoutBraces);c.atMessageId="next";c.throughMessageId="t";
         c.summary="Evidence in "+from+"/result";c.inputTokensBefore=200;c.inputTokensAfter=100;lease->compact(c);}
-    const auto child=f.store.fork(parent.id);const auto to=f.artifacts(child.id);QCOMPARE(child.compactions.size(),1);
-    QCOMPARE(child.messages[1].toolCalls.first().arguments["path"].toString(),to+"/result");QCOMPARE(child.compactions.first().summary,"Evidence in "+to+"/result");
-    QVERIFY(a::pendingToolCalls(child.messages).isEmpty());QCOMPARE(f.store.load(child.id).compactions.first().summary,child.compactions.first().summary);
-    const auto early=f.store.fork(parent.id,"t");QVERIFY(early.compactions.isEmpty());QCOMPARE(read(f.artifacts(early.id)+"/result"),"evidence");
+    const auto child=f.store.fork(parent.id);const auto to=f.artifacts(child.id);CTEST_COMPARE(child.compactions.size(),1);
+    CTEST_COMPARE(child.messages[1].toolCalls.first().arguments["path"].toString(),to+"/result");CTEST_COMPARE(child.compactions.first().summary,"Evidence in "+to+"/result");
+    CTEST_CHECK(a::pendingToolCalls(child.messages).isEmpty());CTEST_COMPARE(f.store.load(child.id).compactions.first().summary,child.compactions.first().summary);
+    const auto early=f.store.fork(parent.id,"t");CTEST_CHECK(early.compactions.isEmpty());CTEST_COMPARE(read(f.artifacts(early.id)+"/result"),"evidence");
  }
  void engineForkRetainsCheckpointAndParentRemovalDoesNotBreakChild(){
     Fixture f;write(f.work+"/file","original\r\n");auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);
     a::Engine engine(std::make_shared<EditModel>(),registry(f),policy,options(f));const auto parent=engine.createSession("fixture",f.work).id;
-    const auto run=engine.run({parent,"edit"}).result.get();QVERIFY2(run.status==a::RunStatus::Completed,qPrintable(run.errorMessage));
+    const auto run=engine.run({parent,"edit"}).result.get();CTEST_CHECK_MESSAGE(run.status==a::RunStatus::Completed,qPrintable(run.errorMessage));
     const auto message=engine.session(parent).messages.first().id;const auto manual=engine.checkpointFiles(parent)["message_id"].toString();
-    const auto child=engine.forkSession(parent);QCOMPARE(engine.fileCheckpoints(child.id)["snapshots"].toArray().size(),2);
+    const auto child=engine.forkSession(parent);CTEST_COMPARE(engine.fileCheckpoints(child.id)["snapshots"].toArray().size(),2);
     auto disabled=options(f);disabled.fileCheckpointsEnabled=false;a::Engine paused(std::make_shared<EditModel>(),registry(f),policy,disabled);
-    const auto preserved=paused.forkSession(parent);QCOMPARE(engine.fileCheckpoints(preserved.id)["snapshots"].toArray().size(),2);
-    const auto prefix=engine.forkSession(parent,message);QCOMPARE(prefix.messages.size(),1);QCOMPARE(engine.fileCheckpoints(prefix.id)["snapshots"].toArray().size(),1);
+    const auto preserved=paused.forkSession(parent);CTEST_COMPARE(engine.fileCheckpoints(preserved.id)["snapshots"].toArray().size(),2);
+    const auto prefix=engine.forkSession(parent,message);CTEST_COMPARE(prefix.messages.size(),1);CTEST_COMPARE(engine.fileCheckpoints(prefix.id)["snapshots"].toArray().size(),1);
     for(const auto& path:QStringList{f.state+"/file-checkpoints/"+parent,f.artifacts(parent)}) {
         // Simulate removal after the provider has stopped publishing derived
         // information into these parent-owned directories.
         iiFileProvider::native::Presentation::cancelPending(std::filesystem::path(path.toStdU16String()));
-        QVERIFY(QDir(path).removeRecursively());
+        CTEST_CHECK(QDir(path).removeRecursively());
     }
-    QVERIFY(!engine.rewindFiles(child.id,message).isError);QCOMPARE(read(f.work+"/file"),"original\r\n");
-    QVERIFY(!engine.rewindFiles(child.id,manual).isError);QCOMPARE(read(f.work+"/file"),"edited");
-    a::Engine reopened(std::make_shared<EditModel>(),registry(f),policy,options(f));QVERIFY(!reopened.rewindFiles(child.id,message).isError);QCOMPARE(read(f.work+"/file"),"original\r\n");
+    CTEST_CHECK(!engine.rewindFiles(child.id,message).isError);CTEST_COMPARE(read(f.work+"/file"),"original\r\n");
+    CTEST_CHECK(!engine.rewindFiles(child.id,manual).isError);CTEST_COMPARE(read(f.work+"/file"),"edited");
+    a::Engine reopened(std::make_shared<EditModel>(),registry(f),policy,options(f));CTEST_CHECK(!reopened.rewindFiles(child.id,message).isError);CTEST_COMPARE(read(f.work+"/file"),"original\r\n");
  }
  void oversizedArtifactsAndPrepublicationFailureAreAtomic(){
     Fixture f;const auto parent=f.store.create("fixture",{},f.work);const auto from=f.artifacts(parent.id);write(from+"/large",{});
-    {QFile file(from+"/large");QVERIFY(file.open(QIODevice::WriteOnly));QVERIFY(file.resize(64*1024*1024+1));}
-    QVERIFY_THROWS_EXCEPTION(Error,f.store.fork(parent.id));QCOMPARE(f.store.list(),QStringList{parent.id});
+    {QFile file(from+"/large");CTEST_CHECK(file.open(QIODevice::WriteOnly));CTEST_CHECK(file.resize(64*1024*1024+1));}
+    CTEST_THROWS(Error,f.store.fork(parent.id));CTEST_COMPARE(f.store.list(),QStringList{parent.id});
     write(from+"/large","small");QString proposed;
-    QVERIFY_THROWS_EXCEPTION(Error,f.store.fork(parent.id,{},[&](const a::Session& child){proposed=child.id;
+    CTEST_THROWS(Error,f.store.fork(parent.id,{},[&](const a::Session& child){proposed=child.id;
         if(f.store.list()!=QStringList{parent.id})throw std::runtime_error("published too early");
         if(read(f.artifacts(child.id)+"/large")!="small")throw std::runtime_error("copy not prepared");
         throw Error(ErrorCode::StorageFailure,"injected external-state failure");}));
-    QVERIFY(!proposed.isEmpty());QVERIFY(!QFileInfo::exists(f.state+'/'+proposed));QCOMPARE(f.store.list(),QStringList{parent.id});
+    CTEST_CHECK(!proposed.isEmpty());CTEST_CHECK(!QFileInfo::exists(f.state+'/'+proposed));CTEST_COMPARE(f.store.list(),QStringList{parent.id});
  }
  void boundedCheckpointsExcludeFutureOnlyFilesAndCorruptionRollsBack(){
     Fixture f;const auto parent=f.store.create("fixture",{},f.work);const auto first=QUuid::createUuid().toString(QUuid::WithoutBraces),later=QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -132,12 +132,12 @@ private slots:
     write(f.work+"/early","before");history.checkpoint(first,c);history.track(f.work+"/early",QByteArray("before"),c);write(f.work+"/early","after");
     c.fileCheckpointId=later;history.checkpoint(later,c);history.track(f.work+"/late",{},c);write(f.work+"/late","future");
     auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);a::Engine engine(std::make_shared<EditModel>(),registry(f),policy,options(f));
-    const auto child=engine.forkSession(parent.id,first);QVERIFY(!engine.rewindFiles(child.id,first).isError);QCOMPARE(read(f.work+"/early"),"before");QCOMPARE(read(f.work+"/late"),"future");
+    const auto child=engine.forkSession(parent.id,first);CTEST_CHECK(!engine.rewindFiles(child.id,first).isError);CTEST_COMPARE(read(f.work+"/early"),"before");CTEST_COMPARE(read(f.work+"/late"),"future");
     const auto digest=QString::fromLatin1(QCryptographicHash::hash("before",QCryptographicHash::Sha256).toHex());
     write(f.state+"/file-checkpoints/"+parent.id+'/'+digest+".blob","corrupt");const auto before=f.store.list();
-    QVERIFY_THROWS_EXCEPTION(Error,engine.forkSession(parent.id));QCOMPARE(f.store.list(),before);
-    QCOMPARE(QDir(f.state+"/file-checkpoints").entryList(QDir::Dirs|QDir::NoDotAndDotDot).size(),2);
-    QVERIFY(!engine.rewindFiles(child.id,first).isError);
+    CTEST_THROWS(Error,engine.forkSession(parent.id));CTEST_COMPARE(f.store.list(),before);
+    CTEST_COMPARE(QDir(f.state+"/file-checkpoints").entryList(QDir::Dirs|QDir::NoDotAndDotDot).size(),2);
+    CTEST_CHECK(!engine.rewindFiles(child.id,first).isError);
  }
  void failedPermissionInheritanceDoesNotPublishOrLeakBackups(){
     struct Policy:public a::PermissionPolicy{
@@ -147,18 +147,18 @@ private slots:
         void forgetSession(const a::ToolContext& c)const override{forgotten=c.sessionId;}
     };
     Fixture f;auto policy=std::make_shared<Policy>();a::Engine engine(std::make_shared<EditModel>(),registry(f),policy,options(f));const auto parent=engine.createSession("fixture",f.work).id;
-    engine.checkpointFiles(parent);write(f.artifacts(parent)+"/file","backup");QVERIFY_THROWS_EXCEPTION(Error,engine.forkSession(parent));
-    QVERIFY(!policy->child.isEmpty());QCOMPARE(policy->forgotten,policy->child);QCOMPARE(engine.sessions(),QStringList{parent});
-    QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(5)));
-    QVERIFY(!QFileInfo::exists(f.state+'/'+policy->child));QVERIFY(!QFileInfo::exists(f.state+"/file-checkpoints/"+policy->child));QCOMPARE(read(f.artifacts(parent)+"/file"),"backup");
+    engine.checkpointFiles(parent);write(f.artifacts(parent)+"/file","backup");CTEST_THROWS(Error,engine.forkSession(parent));
+    CTEST_CHECK(!policy->child.isEmpty());CTEST_COMPARE(policy->forgotten,policy->child);CTEST_COMPARE(engine.sessions(),QStringList{parent});
+    CTEST_CHECK(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(5)));
+    CTEST_CHECK(!QFileInfo::exists(f.state+'/'+policy->child));CTEST_CHECK(!QFileInfo::exists(f.state+"/file-checkpoints/"+policy->child));CTEST_COMPARE(read(f.artifacts(parent)+"/file"),"backup");
  }
  void checkpointLockAndCancellationLeaveDestinationAbsent(){
     Fixture f;auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);a::Engine engine(std::make_shared<EditModel>(),registry(f),policy,options(f));
     const auto parent=engine.createSession("fixture",f.work).id;engine.checkpointFiles(parent);write(f.artifacts(parent)+"/data","owned");
-    QLockFile lock(f.state+"/file-checkpoints/"+parent+"/history.lock");lock.setStaleLockTime(0);QVERIFY(lock.tryLock(0));
-    QVERIFY_THROWS_EXCEPTION(Error,engine.forkSession(parent));QCOMPARE(engine.sessions(),QStringList{parent});lock.unlock();
+    QLockFile lock(f.state+"/file-checkpoints/"+parent+"/history.lock");lock.setStaleLockTime(0);CTEST_CHECK(lock.tryLock(0));
+    CTEST_THROWS(Error,engine.forkSession(parent));CTEST_COMPARE(engine.sessions(),QStringList{parent});lock.unlock();
     const auto child=QUuid::createUuid().toString(QUuid::WithoutBraces);a::ToolContext c{parent,{},f.work};c.cancellation.cancel();
-    a::FileCheckpoints history(f.state+"/file-checkpoints");QVERIFY_THROWS_EXCEPTION(Error,history.fork(c,child));QVERIFY(!QFileInfo::exists(f.state+"/file-checkpoints/"+child));
+    a::FileCheckpoints history(f.state+"/file-checkpoints");CTEST_THROWS(Error,history.fork(c,child));CTEST_CHECK(!QFileInfo::exists(f.state+"/file-checkpoints/"+child));
  }
  void mcpForkRejectsBusyOwnerAndHonorsHostDenial(){
     struct Waiting:public a::Model {std::atomic<bool> waiting=false,release=false;
@@ -171,16 +171,32 @@ private slots:
     const auto call=[&](QString name,QJsonObject args=QJsonObject{}){return server.handlers.at("tools/call")({{"name",name},{"arguments",args}},c);};
     auto running=std::async(std::launch::async,[&]{return call("iiLocalLLM.agent.run",{{"prompt","wait"}});});
     struct Release{std::shared_ptr<Waiting> model;~Release(){model->release=true;}} release{model};
-    QTRY_VERIFY_WITH_TIMEOUT(model->waiting.load(),5000);
+    CTEST_WAIT_VERIFY(model->waiting.load(),5000);
     auto attempted=std::async(std::launch::async,[&]{return call("iiLocalLLM.agent.fork");});
     const bool ready=attempted.wait_for(std::chrono::seconds(5))==std::future_status::ready;model->release=true;
-    const auto rejected=attempted.get();QVERIFY(!running.get()["isError"].toBool());QVERIFY(ready);QVERIFY(rejected["isError"].toBool());QCOMPARE(engine->sessions().size(),1);
-    const auto child=call("iiLocalLLM.agent.fork");QVERIFY2(!child["isError"].toBool(),QJsonDocument(child).toJson().constData());QCOMPARE(engine->sessions().size(),2);
+    const auto rejected=attempted.get();CTEST_CHECK(!running.get()["isError"].toBool());CTEST_CHECK(ready);CTEST_CHECK(rejected["isError"].toBool());CTEST_COMPARE(engine->sessions().size(),1);
+    const auto child=call("iiLocalLLM.agent.fork");CTEST_CHECK_MESSAGE(!child["isError"].toBool(),QJsonDocument(child).toJson().constData());CTEST_COMPARE(engine->sessions().size(),2);
     auto denied=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass,QList<a::PermissionRule>{{"iiLocalLLM.agent.fork",a::PermissionBehavior::Deny}});
     const auto locked=a::mcpServerOptions(tools,denied,config);const auto deniedResult=locked.handlers.at("tools/call")({{"name","iiLocalLLM.agent.fork"},{"arguments",QJsonObject{}}},c);
-    QVERIFY(deniedResult["isError"].toBool());QCOMPARE(engine->sessions().size(),2);
+    CTEST_CHECK(deniedResult["isError"].toBool());CTEST_COMPARE(engine->sessions().size(),2);
     server.onClosed(c.sessionId);
  }
 };
-QTEST_GUILESS_MAIN(SessionForkTests)
-#include "session_fork_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    SessionForkTests tests;
+    runner.run("fullForkClonesBytesPermissionsAndNestedReferences", [&] { tests.fullForkClonesBytesPermissionsAndNestedReferences(); });
+    runner.run("boundedForkDoesNotCopyFutureOrUnreferencedArtifacts", [&] { tests.boundedForkDoesNotCopyFutureOrUnreferencedArtifacts(); });
+    runner.run("unsafeArtifactsLeaveNoPublishedOrPartialFork", [&] { tests.unsafeArtifactsLeaveNoPublishedOrPartialFork(); });
+    runner.run("unreadableArtifactDirectoryCannotSilentlyLoseFiles", [&] { tests.unreadableArtifactDirectoryCannotSilentlyLoseFiles(); });
+    runner.run("compactionAndToolReferencesUseCopiedArtifacts", [&] { tests.compactionAndToolReferencesUseCopiedArtifacts(); });
+    runner.run("engineForkRetainsCheckpointAndParentRemovalDoesNotBreakChild", [&] { tests.engineForkRetainsCheckpointAndParentRemovalDoesNotBreakChild(); });
+    runner.run("oversizedArtifactsAndPrepublicationFailureAreAtomic", [&] { tests.oversizedArtifactsAndPrepublicationFailureAreAtomic(); });
+    runner.run("boundedCheckpointsExcludeFutureOnlyFilesAndCorruptionRollsBack", [&] { tests.boundedCheckpointsExcludeFutureOnlyFilesAndCorruptionRollsBack(); });
+    runner.run("failedPermissionInheritanceDoesNotPublishOrLeakBackups", [&] { tests.failedPermissionInheritanceDoesNotPublishOrLeakBackups(); });
+    runner.run("checkpointLockAndCancellationLeaveDestinationAbsent", [&] { tests.checkpointLockAndCancellationLeaveDestinationAbsent(); });
+    runner.run("mcpForkRejectsBusyOwnerAndHonorsHostDenial", [&] { tests.mcpForkRejectsBusyOwnerAndHonorsHostDenial(); });
+    return runner.result();
+}

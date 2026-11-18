@@ -3,7 +3,8 @@
 #include <QtCore/QFile>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QUuid>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include <QCoreApplication>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 namespace a = iiMultimodalAgent::agent;
 namespace {
@@ -44,22 +45,21 @@ struct Host {
     }
 };
 }
-class SkillPermissionTests final : public QObject {
-    Q_OBJECT
-private slots:
+class SkillPermissionTests final {
+public:
     void directGrantExpiresAcrossRunsForksAndRestart() {
         Host h; h.skill(); auto policy = std::make_shared<a::RulePolicy>();
         QString session, fork;
         {
             a::Engine engine(h.model,h.registry,policy,h.options); session=engine.createSession("fixture",h.workspace).id;
             a::RunRequest r{session}; r.skill="writer";
-            QCOMPARE(engine.run(r).result.get().text,"ALLOWED"); QCOMPARE(h.writes,1);
+            CTEST_COMPARE(engine.run(r).result.get().text,"ALLOWED"); CTEST_COMPARE(h.writes,1);
             fork=engine.forkSession(session).id;
-            QCOMPARE(engine.run({session,"again"}).result.get().text,"DENIED");
-            QCOMPARE(engine.run({fork,"again"}).result.get().text,"DENIED"); QCOMPARE(h.writes,1);
+            CTEST_COMPARE(engine.run({session,"again"}).result.get().text,"DENIED");
+            CTEST_COMPARE(engine.run({fork,"again"}).result.get().text,"DENIED"); CTEST_COMPARE(h.writes,1);
         }
         a::Engine reopened(h.model,h.registry,policy,h.options);
-        QCOMPARE(reopened.run({session,"after restart"}).result.get().text,"DENIED"); QCOMPARE(h.writes,1);
+        CTEST_COMPARE(reopened.run({session,"after restart"}).result.get().text,"DENIED"); CTEST_COMPARE(h.writes,1);
     }
     void nativeInvocationNeedsPermissionAndAppliesInSameBatch() {
         for (bool allow : {false,true}) {
@@ -72,8 +72,8 @@ private slots:
             a::Engine engine(h.model,h.registry,std::make_shared<a::RulePolicy>(),h.options);
             const auto id=engine.createSession("fixture",h.workspace).id;
             const auto result=engine.run({id,"invoke"},[&](const a::Event& e){if(e.kind==a::EventKind::PermissionRequested&&e.data["name"]=="Skill")preview=e.data;}).result.get();
-            QCOMPARE(result.status,a::RunStatus::Completed); QCOMPARE(h.writes,allow?1:0); QCOMPARE(asks,allow?1:2);
-            QVERIFY(preview["permission_preview"].toObject()["_meta"].toObject()["skill"].toObject()["allowed_tools"].toArray().contains("Write"));
+            CTEST_COMPARE(result.status,a::RunStatus::Completed); CTEST_COMPARE(h.writes,allow?1:0); CTEST_COMPARE(asks,allow?1:2);
+            CTEST_CHECK(preview["permission_preview"].toObject()["_meta"].toObject()["skill"].toObject()["allowed_tools"].toArray().contains("Write"));
         }
     }
     void approvedSnapshotSurvivesFileChangeAndHookRetargeting() {
@@ -87,13 +87,13 @@ private slots:
             check(decision.reason.contains("Write"),"missing exact grant"); h.skill("allowed-tools: [Bash]\n","CHANGED"); return true;
         };
         a::Engine engine(h.model,h.registry,std::make_shared<a::RulePolicy>(),h.options);const auto id=engine.createSession("fixture",h.workspace).id;
-        QCOMPARE(engine.run({id,"invoke"}).result.get().status,a::RunStatus::Completed); QCOMPARE(asks,1);QCOMPARE(h.writes,1);
+        CTEST_COMPARE(engine.run({id,"invoke"}).result.get().status,a::RunStatus::Completed); CTEST_COMPARE(asks,1);CTEST_COMPARE(h.writes,1);
         bool found=false;
         for(const auto& m:engine.session(id).messages)if(m.metadata.contains("iilocal.skill_parent")){
-            found=true; QVERIFY(m.text.contains("ORIGINAL")); QVERIFY(!m.text.contains("CHANGED"));
-            QCOMPARE(m.metadata["iilocal.skill"].toObject()["allowed_tools"].toArray(),QJsonArray{"Write"});
+            found=true; CTEST_CHECK(m.text.contains("ORIGINAL")); CTEST_CHECK(!m.text.contains("CHANGED"));
+            CTEST_COMPARE(m.metadata["iilocal.skill"].toObject()["allowed_tools"].toArray(),QJsonArray{"Write"});
         }
-        QVERIFY(found);
+        CTEST_CHECK(found);
     }
     void denyAskPlanAndPostHookVetoRemainAuthoritative() {
         for(int scenario=0;scenario<4;++scenario){
@@ -102,7 +102,7 @@ private slots:
             if(scenario==3)h.options.hooks.append([](const a::HookInput& i,const auto&){a::HookResult r;r.block=i.kind==a::HookKind::AfterTool&&i.call.name=="Skill";return r;});
             auto mode=scenario==2?a::PermissionMode::Plan:a::PermissionMode::Default;
             a::Engine engine(h.model,h.registry,std::make_shared<a::RulePolicy>(mode,rules),h.options);const auto id=engine.createSession("fixture",h.workspace).id;
-            QCOMPARE(engine.run({id,"invoke"}).result.get().status,a::RunStatus::Completed);QCOMPARE(h.writes,0);
+            CTEST_COMPARE(engine.run({id,"invoke"}).result.get().status,a::RunStatus::Completed);CTEST_COMPARE(h.writes,0);
         }
     }
     void forkGrantIsChildOnlyAndResumeUsesCurrentCallerScope() {
@@ -112,17 +112,17 @@ private slots:
         auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Default,QList<a::PermissionRule>{{"Skill(writer)",a::PermissionBehavior::Allow}});
         auto agents=std::make_shared<a::Subagents>(h.model,h.registry,policy,h.options,sub);a::Subagents::attach(h.options,agents);
         a::Engine engine(h.model,h.registry,policy,h.options);const auto id=engine.createSession("fixture",h.workspace).id;
-        QCOMPARE(engine.run({id,"invoke"}).result.get().status,a::RunStatus::Completed);QCOMPARE(h.writes,1);
-        auto jobs=agents->list(id);QCOMPARE(jobs.size(),1);
+        CTEST_COMPARE(engine.run({id,"invoke"}).result.get().status,a::RunStatus::Completed);CTEST_COMPARE(h.writes,1);
+        auto jobs=agents->list(id);CTEST_COMPARE(jobs.size(),1);
         a::ToolContext context{id,"resume",h.workspace};context.sessionSnapshot=std::make_shared<a::Session>(engine.session(id));
         const auto resumed=agents->run(context,{{"resume",jobs[0].toObject()["agentId"]},{"prompt","again"}});
-        QVERIFY(!resumed.isError);QCOMPARE(h.writes,1);QCOMPARE(resumed.data["result"].toObject()["text"],"DENIED");
+        CTEST_CHECK(!resumed.isError);CTEST_COMPARE(h.writes,1);CTEST_COMPARE(resumed.data["result"].toObject()["text"],"DENIED");
     }
     void metadataSyntaxAndUnsupportedArgumentsFailClosed() {
         Host h;h.skill("allowed-tools: 'Read, Bash(git status:*) Write(src/**)'\n");
-        const auto info=a::discoverSkills(h.workspace).skills[0];QVERIFY(info.unsupportedFeatures.isEmpty());
-        QCOMPARE(info.toJson()["allowed_tools"].toArray(),QJsonArray({"Read","Bash(git status:*)","Write(src/**)"}));
-        h.skill("allowed-tools: 'Bash(unclosed'\n");QVERIFY_THROWS_EXCEPTION(Error,a::discoverSkills(h.workspace));
+        const auto info=a::discoverSkills(h.workspace).skills[0];CTEST_CHECK(info.unsupportedFeatures.isEmpty());
+        CTEST_COMPARE(info.toJson()["allowed_tools"].toArray(),QJsonArray({"Read","Bash(git status:*)","Write(src/**)"}));
+        h.skill("allowed-tools: 'Bash(unclosed'\n");CTEST_THROWS(Error,a::discoverSkills(h.workspace));
     }
     void queuedPromptsResetSkillGrantsButNotificationsDoNot() {
         for(bool notification:{false,true}) {
@@ -131,8 +131,8 @@ private slots:
             const auto result=engine.run(request,[&](const a::Event& event){
                 if(!sent&&event.kind==a::EventKind::ToolFinished){sent=true;engine.enqueueInput(id,{{"kind",notification?"notification":"prompt"},{"priority","next"},{"text","again"}});}
             }).result.get();
-            QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(h.writes,notification?2:1);
-            QCOMPARE(result.text,notification?"ALLOWED":"DENIED");
+            CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(h.writes,notification?2:1);
+            CTEST_COMPARE(result.text,notification?"ALLOWED":"DENIED");
         }
     }
     void recoveredPromptDoesNotRestoreAuthority() {
@@ -143,11 +143,11 @@ private slots:
             const auto result=engine.run({id,"invoke"},[](const a::Event& e){
                 if(e.kind==a::EventKind::Message&&e.data["metadata"].toObject().contains("iilocal.skill_result"))throw std::runtime_error("observer stopped");
             }).result.get();
-            QCOMPARE(result.errorCode,ErrorCode::ConsumerFailure);QCOMPARE(h.writes,0);
+            CTEST_COMPARE(result.errorCode,ErrorCode::ConsumerFailure);CTEST_COMPARE(h.writes,0);
         }
         a::Engine reopened(h.model,h.registry,policy,h.options);
-        QCOMPARE(reopened.run({id,"continue"}).result.get().text,"DENIED");QCOMPARE(h.writes,0);
-        int injected=0;for(const auto& m:reopened.session(id).messages)injected+=m.metadata.contains("iilocal.skill_parent");QCOMPARE(injected,1);
+        CTEST_COMPARE(reopened.run({id,"continue"}).result.get().text,"DENIED");CTEST_COMPARE(h.writes,0);
+        int injected=0;for(const auto& m:reopened.session(id).messages)injected+=m.metadata.contains("iilocal.skill_parent");CTEST_COMPARE(injected,1);
     }
     void ordinaryChildrenInheritCurrentScopeButPreloadsAndResumeDoNotGrant() {
         Host h;h.skill();auto policy=std::make_shared<a::RulePolicy>();
@@ -157,13 +157,13 @@ private slots:
         a::Engine engine(h.model,h.registry,policy,h.options);const auto session=engine.createSession("fixture",h.workspace);
         a::ToolContext context{session.id,"launch",h.workspace};context.sessionSnapshot=std::make_shared<a::Session>(session);
         const QJsonObject args{{"subagent_type","writer"},{"prompt","write once"}};
-        auto first=agents->run(context,args);QVERIFY(!first.isError);QCOMPARE(h.writes,0); // Preloaded body alone grants nothing.
+        auto first=agents->run(context,args);CTEST_CHECK(!first.isError);CTEST_COMPARE(h.writes,0); // Preloaded body alone grants nothing.
         context.allowedTools={"Write"};auto background=args;background["run_in_background"]=true;
-        auto second=agents->run(context,background);QVERIFY(!second.isError);context.allowedTools.clear();
+        auto second=agents->run(context,background);CTEST_CHECK(!second.isError);context.allowedTools.clear();
         const auto done=agents->output(session.id,second.data["agentId"].toString(),true,10000);
-        QCOMPARE(done["status"],"completed");QCOMPARE(h.writes,1); // Accepted background scope was frozen.
+        CTEST_COMPARE(done["status"],"completed");CTEST_COMPARE(h.writes,1); // Accepted background scope was frozen.
         const auto resumed=agents->run(context,{{"resume",second.data["agentId"]},{"prompt","write again"}});
-        QVERIFY(!resumed.isError);QCOMPARE(h.writes,1);QCOMPARE(resumed.data["result"].toObject()["text"],"DENIED");
+        CTEST_CHECK(!resumed.isError);CTEST_COMPARE(h.writes,1);CTEST_COMPARE(resumed.data["result"].toObject()["text"],"DENIED");
     }
     void automaticCompactionPreservesOnlyCurrentRunGrants() {
         Host h;h.skill();h.model->budget=true;h.options.compaction.automatic=true;h.options.compaction.keepRecentGroups=1;
@@ -172,10 +172,25 @@ private slots:
             lease->append({{},a::MessageRole::User,"old request"});lease->append({{},a::MessageRole::Assistant,{},{{"old-call","Read",{}}}});
             lease->append({{},a::MessageRole::Tool,QString(3000,'x'),{},"old-call"});lease->append({{},a::MessageRole::Assistant,"old result"});}
         a::RunRequest request{id};request.skill="writer";request.generation.maxTokens=256;
-        const auto result=engine.run(request).result.get();QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
-        QCOMPARE(result.usage.compactions,1);QCOMPARE(h.writes,1);
-        QCOMPARE(engine.run({id,"after compaction"}).result.get().text,"DENIED");QCOMPARE(h.writes,1);
+        const auto result=engine.run(request).result.get();CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.usage.compactions,1);CTEST_COMPARE(h.writes,1);
+        CTEST_COMPARE(engine.run({id,"after compaction"}).result.get().text,"DENIED");CTEST_COMPARE(h.writes,1);
     }
 };
-QTEST_GUILESS_MAIN(SkillPermissionTests)
-#include "skill_permission_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    SkillPermissionTests tests;
+    runner.run("directGrantExpiresAcrossRunsForksAndRestart", [&] { tests.directGrantExpiresAcrossRunsForksAndRestart(); });
+    runner.run("nativeInvocationNeedsPermissionAndAppliesInSameBatch", [&] { tests.nativeInvocationNeedsPermissionAndAppliesInSameBatch(); });
+    runner.run("approvedSnapshotSurvivesFileChangeAndHookRetargeting", [&] { tests.approvedSnapshotSurvivesFileChangeAndHookRetargeting(); });
+    runner.run("denyAskPlanAndPostHookVetoRemainAuthoritative", [&] { tests.denyAskPlanAndPostHookVetoRemainAuthoritative(); });
+    runner.run("forkGrantIsChildOnlyAndResumeUsesCurrentCallerScope", [&] { tests.forkGrantIsChildOnlyAndResumeUsesCurrentCallerScope(); });
+    runner.run("metadataSyntaxAndUnsupportedArgumentsFailClosed", [&] { tests.metadataSyntaxAndUnsupportedArgumentsFailClosed(); });
+    runner.run("queuedPromptsResetSkillGrantsButNotificationsDoNot", [&] { tests.queuedPromptsResetSkillGrantsButNotificationsDoNot(); });
+    runner.run("recoveredPromptDoesNotRestoreAuthority", [&] { tests.recoveredPromptDoesNotRestoreAuthority(); });
+    runner.run("ordinaryChildrenInheritCurrentScopeButPreloadsAndResumeDoNotGrant", [&] { tests.ordinaryChildrenInheritCurrentScopeButPreloadsAndResumeDoNotGrant(); });
+    runner.run("automaticCompactionPreservesOnlyCurrentRunGrants", [&] { tests.automaticCompactionPreservesOnlyCurrentRunGrants(); });
+    return runner.result();
+}

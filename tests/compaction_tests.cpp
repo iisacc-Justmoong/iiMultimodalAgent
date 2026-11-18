@@ -1,6 +1,8 @@
 #include "iiMultimodalAgent/agent/Engine.h"
 #include <iiFileProviderDevice.h>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QUuid>
@@ -72,8 +74,7 @@ public:
     }
 };
 class CompactionTests : public QObject {
-    Q_OBJECT
-private slots:
+public:
     void oversizedEagerCatalogUsesDiscoveryWithoutChangingTheNativeWindow() {
         iiFileProvider::TemporaryDirectory root;a::EngineOptions options{.decision={.enabled=false}};
         options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;options.taskToolsEnabled=false;
@@ -85,9 +86,9 @@ private slots:
         auto model=std::make_shared<CatalogBudgetModel>();
         a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
         auto session=engine.createSession("model://test",root.path());a::RunRequest request{session.id,"Inspect the workspace"};request.generation.maxTokens=64;
-        const auto result=engine.run(request).result.get();QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
-        QCOMPARE(model->turn,3);QCOMPARE(result.usage.compactions,0);QCOMPARE(registry->definitions().size(),3);
-        for(const auto& definition:registry->definitions())QVERIFY(!definition.deferred);
+        const auto result=engine.run(request).result.get();CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));
+        CTEST_COMPARE(model->turn,3);CTEST_COMPARE(result.usage.compactions,0);CTEST_COMPARE(registry->definitions().size(),3);
+        for(const auto& definition:registry->definitions())CTEST_CHECK(!definition.deferred);
     }
     void newRequestMayUseTheWindowAboveTheProactiveWatermark() {
         iiFileProvider::TemporaryDirectory root;a::EngineOptions options{.decision={.enabled=false}};
@@ -97,13 +98,13 @@ private slots:
         const auto session=engine.createSession("model://fixture",root.path()).id;
         a::RunRequest request{session,QString(3500,'x')};request.generation.maxTokens=64;
         const auto result=engine.run(request).result.get();
-        QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.usage.compactions,0);
-        QVERIFY(model->requests.size()==1);const auto budget=model->measure(model->requests.first(),{}).value();
-        QVERIFY(budget.inputTokens>qint64((budget.contextTokens-64)*options.compaction.triggerFraction));
-        QVERIFY(budget.inputTokens+64<=budget.contextTokens);
+        CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(result.usage.compactions,0);
+        CTEST_CHECK(model->requests.size()==1);const auto budget=model->measure(model->requests.first(),{}).value();
+        CTEST_CHECK(budget.inputTokens>qint64((budget.contextTokens-64)*options.compaction.triggerFraction));
+        CTEST_CHECK(budget.inputTokens+64<=budget.contextTokens);
         const auto other=engine.createSession("model://fixture",root.path()).id;
         a::RunRequest overflow{other,QString(4200,'x')};overflow.generation.maxTokens=64;
-        QCOMPARE(engine.run(overflow).result.get().status,a::RunStatus::Failed);
+        CTEST_COMPARE(engine.run(overflow).result.get().status,a::RunStatus::Failed);
     }
     void automaticMicroCompactionAndRecall() {
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
@@ -113,13 +114,13 @@ private slots:
         { a::SessionStore store(options.sessionsDirectory); auto lease = store.acquire(session.id); populate(*lease); }
         QList<a::EventKind> events;
         const auto result = engine.run({session.id, "continue"}, [&](const a::Event& e) { events.append(e.kind); }).result.get();
-        QVERIFY2(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
-        QCOMPARE(result.usage.compactions, 1); QCOMPARE(result.usage.summaryGeneratedTokens, 0);
-        QVERIFY(events.contains(a::EventKind::Compacted));
-        session = engine.session(session.id); QCOMPARE(session.messages[2].text.size(), 3000);
-        QCOMPARE(session.compactions.size(), 1); QVERIFY(session.compactions.first().summary.isEmpty());
-        QVERIFY(model->requests.last().messages.last().text.contains(QString(100, 'x')));
-        QVERIFY(a::pendingToolCalls(a::modelMessages(session)).isEmpty());
+        CTEST_CHECK_MESSAGE(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.usage.compactions, 1); CTEST_COMPARE(result.usage.summaryGeneratedTokens, 0);
+        CTEST_CHECK(events.contains(a::EventKind::Compacted));
+        session = engine.session(session.id); CTEST_COMPARE(session.messages[2].text.size(), 3000);
+        CTEST_COMPARE(session.compactions.size(), 1); CTEST_CHECK(session.compactions.first().summary.isEmpty());
+        CTEST_CHECK(model->requests.last().messages.last().text.contains(QString(100, 'x')));
+        CTEST_CHECK(a::pendingToolCalls(a::modelMessages(session)).isEmpty());
     }
     void rollingSummaryAndExactLatestInput() {
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
@@ -131,23 +132,23 @@ private slots:
           for (int i = 0; i < 6; ++i) lease->append({"a" + QString::number(i), a::MessageRole::Assistant, QString(1200, QChar(char('a' + i)))}); }
         const auto original = engine.session(session.id).messages;
         const auto result = engine.compact({session.id}).result.get();
-        QVERIFY2(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
-        QCOMPARE(result.turns, 0); QCOMPARE(result.usage.compactions, 1);
-        QVERIFY(result.usage.summaryGeneratedTokens >= 40); // Multiple bounded chunks, not silent head truncation.
-        session = engine.session(session.id); QCOMPARE(session.messages, original);
-        const auto visible = a::modelMessages(session); QCOMPARE(visible[1].text, "Exact current requirement");
-        QVERIFY(visible.size() < original.size()); QCOMPARE(session.compactions.last().retainedUserMessageId, "u1");
+        CTEST_CHECK_MESSAGE(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.turns, 0); CTEST_COMPARE(result.usage.compactions, 1);
+        CTEST_CHECK(result.usage.summaryGeneratedTokens >= 40); // Multiple bounded chunks, not silent head truncation.
+        session = engine.session(session.id); CTEST_COMPARE(session.messages, original);
+        const auto visible = a::modelMessages(session); CTEST_COMPARE(visible[1].text, "Exact current requirement");
+        CTEST_CHECK(visible.size() < original.size()); CTEST_COMPARE(session.compactions.last().retainedUserMessageId, "u1");
         for (const auto& r : model->requests) {
-            QVERIFY(r.summarizing); QVERIFY(r.tools.isEmpty());
-            QVERIFY(r.messages.last().text.contains("Exact current requirement"));
+            CTEST_CHECK(r.summarizing); CTEST_CHECK(r.tools.isEmpty());
+            CTEST_CHECK(r.messages.last().text.contains("Exact current requirement"));
         }
         const auto summaryCalls = model->requests.size();
         const auto repeated = engine.compact({session.id}).result.get();
-        QCOMPARE(repeated.errorCode, ErrorCode::ContextOverflow);
-        QCOMPARE(model->requests.size(), summaryCalls); // No raw prefix progress: do not spend another summary call.
-        QCOMPARE(engine.session(session.id).compactions.size(), 1);
+        CTEST_COMPARE(repeated.errorCode, ErrorCode::ContextOverflow);
+        CTEST_COMPARE(model->requests.size(), summaryCalls); // No raw prefix progress: do not spend another summary call.
+        CTEST_COMPARE(engine.session(session.id).compactions.size(), 1);
         const auto continued = engine.run({session.id, "Resume from the summary"}).result.get();
-        QCOMPARE(continued.status, a::RunStatus::Completed); QCOMPARE(model->requests.last().messages.last().text, "Resume from the summary");
+        CTEST_COMPARE(continued.status, a::RunStatus::Completed); CTEST_COMPARE(model->requests.last().messages.last().text, "Resume from the summary");
     }
     void summaryCancellationAndInvalidOutputDoNotCommit() {
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
@@ -156,24 +157,24 @@ private slots:
         const auto session = engine.createSession("model://test", root.path());
         { a::SessionStore store(options.sessionsDirectory); auto lease = store.acquire(session.id); populate(*lease); }
         auto handle = engine.compact({session.id});
-        QTRY_VERIFY_WITH_TIMEOUT(model->summaryStarted.load(), 3000);
-        QCOMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::ModelInUse);
-        handle.cancel(); QCOMPARE(handle.result.get().status, a::RunStatus::Cancelled);
-        QVERIFY(engine.session(session.id).compactions.isEmpty()); QCOMPARE(engine.session(session.id).messages.size(), 5);
+        CTEST_WAIT_VERIFY(model->summaryStarted.load(), 3000);
+        CTEST_COMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::ModelInUse);
+        handle.cancel(); CTEST_COMPARE(handle.result.get().status, a::RunStatus::Cancelled);
+        CTEST_CHECK(engine.session(session.id).compactions.isEmpty()); CTEST_COMPARE(engine.session(session.id).messages.size(), 5);
         model->waitOnSummary = false; model->invalidSummary = true;
-        QCOMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::ProtocolError);
-        QVERIFY(engine.session(session.id).compactions.isEmpty());
+        CTEST_COMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::ProtocolError);
+        CTEST_CHECK(engine.session(session.id).compactions.isEmpty());
     }
     void compactedReadsCannotAuthorizeEdits() {
         iiFileProvider::TemporaryDirectory root; auto registry = std::make_shared<a::ToolRegistry>(); a::registerWorkspaceTools(*registry, root.path());
         a::ToolRunner runner(registry, std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
         a::ToolContext context; context.sessionId = "read-session"; context.workingDirectory = root.path(); context.artifactsDirectory = root.filePath("artifacts");
-        QVERIFY(!runner.run({"w", "Write", {{"path", "file.txt"}, {"content", "before"}}}, context).isError);
-        QVERIFY(!runner.run({"r", "Read", {{"path", "file.txt"}}}, context).isError);
+        CTEST_CHECK(!runner.run({"w", "Write", {{"path", "file.txt"}, {"content", "before"}}}, context).isError);
+        CTEST_CHECK(!runner.run({"r", "Read", {{"path", "file.txt"}}}, context).isError);
         context.contextRevision = 1;
-        QVERIFY(runner.run({"w2", "Write", {{"path", "file.txt"}, {"content", "after"}}}, context).isError);
-        QVERIFY(!runner.run({"r2", "Read", {{"path", "file.txt"}}}, context).isError);
-        QVERIFY(!runner.run({"w3", "Write", {{"path", "file.txt"}, {"content", "after"}}}, context).isError);
+        CTEST_CHECK(runner.run({"w2", "Write", {{"path", "file.txt"}, {"content", "after"}}}, context).isError);
+        CTEST_CHECK(!runner.run({"r2", "Read", {{"path", "file.txt"}}}, context).isError);
+        CTEST_CHECK(!runner.run({"w3", "Write", {{"path", "file.txt"}, {"content", "after"}}}, context).isError);
     }
     void automaticSummaryPreservesCurrentPrompt() {
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
@@ -184,10 +185,10 @@ private slots:
           lease->append({"u1", a::MessageRole::User, "Earlier requirement"});
           for (int i = 0; i < 6; ++i) lease->append({"a" + QString::number(i), a::MessageRole::Assistant, QString(1200, 'x')}); }
         const auto result = engine.run({session.id, "Exact current requirement"}).result.get();
-        QVERIFY2(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
-        QCOMPARE(result.usage.compactions, 1); QVERIFY(result.usage.summaryGeneratedTokens > 0);
-        QCOMPARE(model->requests.last().messages.last().text, "Exact current requirement");
-        QCOMPARE(engine.session(session.id).messages.size(), 9);
+        CTEST_CHECK_MESSAGE(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.usage.compactions, 1); CTEST_CHECK(result.usage.summaryGeneratedTokens > 0);
+        CTEST_COMPARE(model->requests.last().messages.last().text, "Exact current requirement");
+        CTEST_COMPARE(engine.session(session.id).messages.size(), 9);
     }
     void boundedFailuresHooksAndDisabledAutomatic() {
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
@@ -202,19 +203,19 @@ private slots:
         a::Engine engine(model, std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), options);
         const auto session = engine.createSession("model://test", root.path());
         { a::SessionStore store(options.sessionsDirectory); auto lease = store.acquire(session.id); populate(*lease); }
-        QCOMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::InvalidArgument);
-        QCOMPARE(beforeHooks, 1); QCOMPARE(afterHooks, 1); QVERIFY(engine.session(session.id).compactions.isEmpty());
+        CTEST_COMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::InvalidArgument);
+        CTEST_COMPARE(beforeHooks, 1); CTEST_COMPARE(afterHooks, 1); CTEST_CHECK(engine.session(session.id).compactions.isEmpty());
         reject = false; model->oversizedSummary = true;
-        QCOMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::ContextOverflow);
-        QVERIFY(engine.session(session.id).compactions.isEmpty());
+        CTEST_COMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::ContextOverflow);
+        CTEST_CHECK(engine.session(session.id).compactions.isEmpty());
         model->oversizedSummary = false;
         auto config = options; config.compaction.automatic = false;
         a::Engine disabled(model, std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), config);
         model->window = 2048;
-        QCOMPARE(disabled.run({session.id, "continue"}).result.get().errorCode, ErrorCode::ContextOverflow);
-        QVERIFY(engine.session(session.id).compactions.isEmpty());
+        CTEST_COMPARE(disabled.run({session.id, "continue"}).result.get().errorCode, ErrorCode::ContextOverflow);
+        CTEST_CHECK(engine.session(session.id).compactions.isEmpty());
         config.compaction.triggerFraction = std::numeric_limits<double>::quiet_NaN();
-        QVERIFY_THROWS_EXCEPTION(Error, a::Engine(model, std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), config));
+        CTEST_THROWS(Error, a::Engine(model, std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), config));
     }
     void oldAdaptersAndOversizedCurrentInputFailExplicitly() {
         class Unmeasured : public a::Model {
@@ -223,45 +224,45 @@ private slots:
         iiFileProvider::TemporaryDirectory root; a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
         a::Engine engine(std::make_shared<Unmeasured>(), std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), options);
         const auto session = engine.createSession("model://test", root.path());
-        QCOMPARE(engine.run({session.id, "hello"}).result.get().status, a::RunStatus::Completed);
-        QCOMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::RuntimeUnavailable);
+        CTEST_COMPARE(engine.run({session.id, "hello"}).result.get().status, a::RunStatus::Completed);
+        CTEST_COMPARE(engine.compact({session.id}).result.get().errorCode, ErrorCode::RuntimeUnavailable);
         auto model = std::make_shared<BudgetModel>();
         a::Engine measured(model, std::make_shared<a::ToolRegistry>(), std::make_shared<a::RulePolicy>(), options);
-        QCOMPARE(measured.run({session.id, QString(5000, 'x')}).result.get().errorCode, ErrorCode::ContextOverflow);
+        CTEST_COMPARE(measured.run({session.id, QString(5000, 'x')}).result.get().errorCode, ErrorCode::ContextOverflow);
         const auto restored = engine.session(session.id);
-        QCOMPARE(restored.messages.last().text.size(), 5000); QVERIFY(restored.compactions.isEmpty());
+        CTEST_COMPARE(restored.messages.last().text.size(), 5000); CTEST_CHECK(restored.compactions.isEmpty());
     }
     void durableViewRetainsOriginalAndToolPairs() {
         iiFileProvider::TemporaryDirectory root; a::SessionStore store(root.path()); auto s = store.create("model://test", {}, root.path());
         {
             auto lease = store.acquire(s.id); populate(*lease); const auto original = lease->session().messages;
             lease->compact(checkpoint(lease->session()));
-            QCOMPARE(lease->session().messages, original);
+            CTEST_COMPARE(lease->session().messages, original);
             const auto visible = a::modelMessages(lease->session());
-            QCOMPARE(visible.size(), original.size()); QCOMPARE(visible[2].toolCallId, "call1");
-            QVERIFY(visible[2].text.contains("t1")); QVERIFY(visible[2].text.size() < 500);
-            QVERIFY(visible[2].data.isEmpty()); QVERIFY(a::pendingToolCalls(visible).isEmpty());
+            CTEST_COMPARE(visible.size(), original.size()); CTEST_COMPARE(visible[2].toolCallId, "call1");
+            CTEST_CHECK(visible[2].text.contains("t1")); CTEST_CHECK(visible[2].text.size() < 500);
+            CTEST_CHECK(visible[2].data.isEmpty()); CTEST_CHECK(a::pendingToolCalls(visible).isEmpty());
         }
-        s = store.load(s.id); QCOMPARE(s.compactions.size(), 1); QCOMPARE(s.messages[2].text.size(), 3000);
-        const auto copy = store.fork(s.id); QCOMPARE(a::modelMessages(copy), a::modelMessages(s));
-        const auto earlier = store.fork(s.id, "a2"); QVERIFY(earlier.compactions.isEmpty());
-        QVERIFY_THROWS_EXCEPTION(Error, store.fork(s.id, "a1"));
+        s = store.load(s.id); CTEST_COMPARE(s.compactions.size(), 1); CTEST_COMPARE(s.messages[2].text.size(), 3000);
+        const auto copy = store.fork(s.id); CTEST_COMPARE(a::modelMessages(copy), a::modelMessages(s));
+        const auto earlier = store.fork(s.id, "a2"); CTEST_CHECK(earlier.compactions.isEmpty());
+        CTEST_THROWS(Error, store.fork(s.id, "a1"));
     }
     void summaryBoundaryAndCheckpointValidation() {
         iiFileProvider::TemporaryDirectory root; a::SessionStore store(root.path()); auto s = store.create("model://test", {}, root.path());
         auto lease = store.acquire(s.id); populate(*lease);
         auto c = checkpoint(lease->session(), true); c.throughMessageId = "a1";
-        QVERIFY_THROWS_EXCEPTION(Error, lease->compact(c)); // Cannot split call1 from its result.
+        CTEST_THROWS(Error, lease->compact(c)); // Cannot split call1 from its result.
         c.throughMessageId = "t1"; c.atMessageId = "unknown";
-        QVERIFY_THROWS_EXCEPTION(Error, lease->compact(c));
+        CTEST_THROWS(Error, lease->compact(c));
         c.atMessageId = "u2"; lease->compact(c);
         const auto visible = a::modelMessages(lease->session());
-        QCOMPARE(visible.size(), 3); QVERIFY(visible.first().text.contains(c.summary));
-        QCOMPARE(visible.last().text, "Now implement them exactly");
-        QVERIFY(a::pendingToolCalls(visible).isEmpty());
-        QVERIFY_THROWS_EXCEPTION(Error, lease->compact(c)); // Duplicate / stale previous checkpoint.
+        CTEST_COMPARE(visible.size(), 3); CTEST_CHECK(visible.first().text.contains(c.summary));
+        CTEST_COMPARE(visible.last().text, "Now implement them exactly");
+        CTEST_CHECK(a::pendingToolCalls(visible).isEmpty());
+        CTEST_THROWS(Error, lease->compact(c)); // Duplicate / stale previous checkpoint.
         auto bad = checkpoint(lease->session()); bad.clearedToolMessageIds = {"u2"};
-        QVERIFY_THROWS_EXCEPTION(Error, lease->compact(bad));
+        CTEST_THROWS(Error, lease->compact(bad));
     }
     void versionOneMigrationAndTornCheckpoint() {
         QString stage = "create";
@@ -274,22 +275,39 @@ private slots:
                 auto lease = store.acquire(s.id); populate(*lease);
                 originalMessages = lease->session().messages;
             }
-            QFile file(root.filePath(s.id + "/transcript.jsonl")); QVERIFY(file.open(QIODevice::ReadOnly));
+            QFile file(root.filePath(s.id + "/transcript.jsonl")); CTEST_CHECK(file.open(QIODevice::ReadOnly));
             auto bytes = file.readAll(); file.close(); bytes.replace("\"version\":2", "\"version\":1");
-            QVERIFY(file.open(QIODevice::WriteOnly)); QCOMPARE(file.write(bytes), bytes.size()); file.close();
+            CTEST_CHECK(file.open(QIODevice::WriteOnly)); CTEST_COMPARE(file.write(bytes), bytes.size()); file.close();
             stage = "migrate and compact";
             { auto lease = store.acquire(s.id); lease->compact(checkpoint(lease->session(), true)); }
-            QVERIFY(file.open(QIODevice::ReadOnly)); QVERIFY(file.readLine().contains("\"version\":2")); file.close();
-            QVERIFY(file.open(QIODevice::Append)); file.write("{\"type\":\"compaction\""); file.close();
+            CTEST_CHECK(file.open(QIODevice::ReadOnly)); CTEST_CHECK(file.readLine().contains("\"version\":2")); file.close();
+            CTEST_CHECK(file.open(QIODevice::Append)); file.write("{\"type\":\"compaction\""); file.close();
             stage = "recover torn checkpoint";
-            s = store.load(s.id); QCOMPARE(s.compactions.size(), 1); QCOMPARE(s.messages, originalMessages);
-            QCOMPARE(store.load(s.id).messages, originalMessages);
-            QVERIFY(file.open(QIODevice::Append)); file.write("{\"type\":\"compaction\",\"checkpoint\":{}}\n"); file.close();
-            QVERIFY_THROWS_EXCEPTION(Error, store.load(s.id)); // Complete corrupt records are never silently discarded.
+            s = store.load(s.id); CTEST_COMPARE(s.compactions.size(), 1); CTEST_COMPARE(s.messages, originalMessages);
+            CTEST_COMPARE(store.load(s.id).messages, originalMessages);
+            CTEST_CHECK(file.open(QIODevice::Append)); file.write("{\"type\":\"compaction\",\"checkpoint\":{}}\n"); file.close();
+            CTEST_THROWS(Error, store.load(s.id)); // Complete corrupt records are never silently discarded.
         } catch (const std::exception& error) {
-            QFAIL(qPrintable(stage + ": " + QString::fromUtf8(error.what())));
+            agent_ctest::fail(__FILE__, __LINE__, qPrintable(stage + ": " + QString::fromUtf8(error.what())));
         }
     }
 };
-QTEST_GUILESS_MAIN(CompactionTests)
-#include "compaction_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    CompactionTests tests;
+    runner.run("oversizedEagerCatalogUsesDiscoveryWithoutChangingTheNativeWindow", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.oversizedEagerCatalogUsesDiscoveryWithoutChangingTheNativeWindow(); });
+    runner.run("newRequestMayUseTheWindowAboveTheProactiveWatermark", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.newRequestMayUseTheWindowAboveTheProactiveWatermark(); });
+    runner.run("automaticMicroCompactionAndRecall", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.automaticMicroCompactionAndRecall(); });
+    runner.run("rollingSummaryAndExactLatestInput", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.rollingSummaryAndExactLatestInput(); });
+    runner.run("summaryCancellationAndInvalidOutputDoNotCommit", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.summaryCancellationAndInvalidOutputDoNotCommit(); });
+    runner.run("compactedReadsCannotAuthorizeEdits", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.compactedReadsCannotAuthorizeEdits(); });
+    runner.run("automaticSummaryPreservesCurrentPrompt", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.automaticSummaryPreservesCurrentPrompt(); });
+    runner.run("boundedFailuresHooksAndDisabledAutomatic", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.boundedFailuresHooksAndDisabledAutomatic(); });
+    runner.run("oldAdaptersAndOversizedCurrentInputFailExplicitly", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.oldAdaptersAndOversizedCurrentInputFailExplicitly(); });
+    runner.run("durableViewRetainsOriginalAndToolPairs", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.durableViewRetainsOriginalAndToolPairs(); });
+    runner.run("summaryBoundaryAndCheckpointValidation", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.summaryBoundaryAndCheckpointValidation(); });
+    runner.run("versionOneMigrationAndTornCheckpoint", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.versionOneMigrationAndTornCheckpoint(); });
+    return runner.result();
+}

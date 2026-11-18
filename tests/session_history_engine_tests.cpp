@@ -3,7 +3,8 @@
 #include <iiMultimodalAgent/agent/McpServer.h>
 #include <iiMultimodalAgent/mcp/Server.h>
 #include <iiFileProviderDevice.h>
-#include <QtTest/QTest>
+#include "QtEventWait.h"
+#include <QCoreApplication>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QThread>
@@ -23,7 +24,7 @@ public:
     }
 };
 struct Fixture {
-    iiFileProvider::TemporaryDirectory root{QDir::current().filePath("history-engine-XXXXXX")};QString work=root.filePath("work");
+    iiFileProvider::TemporaryDirectory root{QDir::temp().filePath("history-engine-XXXXXX")};QString work=root.filePath("work");
     std::shared_ptr<Model> model=std::make_shared<Model>();std::shared_ptr<a::ToolRegistry> tools=std::make_shared<a::ToolRegistry>();
     std::shared_ptr<a::RulePolicy> policy=std::make_shared<a::RulePolicy>();a::EngineOptions options{.decision={.enabled=false}};
     Fixture(){QDir().mkpath(work);a::registerWorkspaceTools(*tools,work);options.sessionsDirectory=root.filePath("sessions");
@@ -38,57 +39,65 @@ QJsonObject rpc(iiMultimodalAgent::mcp::ServerSession& server,int id,const QStri
     throw std::runtime_error("MCP response timed out");
 }
 }
-class SessionHistoryEngineTests:public QObject {
-    Q_OBJECT
-private slots:
+class SessionHistoryEngineTests final {
+public:
     void modelSearchFindsSavedSessionAndDirectSearchDoesNotMutateHistory() {
         Fixture f;a::Engine engine(f.model,f.tools,f.policy,f.options);
-        auto old=engine.createSession("fixture",f.work).id;QCOMPARE(engine.run({old,"DEPLOY_LABEL is ORCHID"}).result.get().status,a::RunStatus::Completed);
+        auto old=engine.createSession("fixture",f.work).id;CTEST_COMPARE(engine.run({old,"DEPLOY_LABEL is ORCHID"}).result.get().status,a::RunStatus::Completed);
         const auto current=engine.createSession("fixture",f.work).id;f.model->search=true;
-        const auto result=engine.run({current,"Find the previous deployment label."}).result.get();QCOMPARE(result.status,a::RunStatus::Completed);
-        const auto found=f.model->seen["matches"].toArray();QCOMPARE(found.size(),1);QCOMPARE(found.first().toObject()["session_id"].toString(),old);
-        const auto count=engine.session(current).messages.size();QVERIFY(!engine.runSessionSearch(current,{{"query","ORCHID"}}).isError);
-        QCOMPARE(engine.session(current).messages.size(),count);QCOMPARE(engine.session(old).messages.size(),2);
+        const auto result=engine.run({current,"Find the previous deployment label."}).result.get();CTEST_COMPARE(result.status,a::RunStatus::Completed);
+        const auto found=f.model->seen["matches"].toArray();CTEST_COMPARE(found.size(),1);CTEST_COMPARE(found.first().toObject()["session_id"].toString(),old);
+        const auto count=engine.session(current).messages.size();CTEST_CHECK(!engine.runSessionSearch(current,{{"query","ORCHID"}}).isError);
+        CTEST_COMPARE(engine.session(current).messages.size(),count);CTEST_COMPARE(engine.session(old).messages.size(),2);
     }
     void activeRunAllowsReadAndExplicitDenyWins() {
         Fixture f;a::Engine engine(f.model,f.tools,f.policy,f.options);const auto id=engine.createSession("fixture",f.work).id;
-        f.model->slow=true;auto handle=engine.run({id,"active needle"});QTRY_VERIFY_WITH_TIMEOUT(f.model->started,3000);
-        const auto searched=engine.runSessionSearch(id,{{"query","active needle"},{"session_ids",QJsonArray{id}}});QVERIFY(!searched.isError);QCOMPARE(searched.data["matches"].toArray().size(),1);
-        handle.cancel();QCOMPARE(handle.result.get().status,a::RunStatus::Cancelled);f.model->slow=false;
+        f.model->slow=true;auto handle=engine.run({id,"active needle"});CTEST_WAIT_VERIFY(f.model->started,3000);
+        const auto searched=engine.runSessionSearch(id,{{"query","active needle"},{"session_ids",QJsonArray{id}}});CTEST_CHECK(!searched.isError);CTEST_COMPARE(searched.data["matches"].toArray().size(),1);
+        handle.cancel();CTEST_COMPARE(handle.result.get().status,a::RunStatus::Cancelled);f.model->slow=false;
         auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass,QList<a::PermissionRule>{{"SessionSearch",a::PermissionBehavior::Deny}});
-        a::Engine denied(f.model,f.tools,policy,f.options);QVERIFY(denied.runSessionSearch(id,{{"query","active needle"},{"session_ids",QJsonArray{id}}}).isError);
-        f.options.sessionHistoryEnabled=false;a::Engine disabled(f.model,f.tools,f.policy,f.options);QVERIFY(!disabled.sessionSearchTool());
-        QVERIFY_THROWS_EXCEPTION(Error,disabled.runSessionSearch(id,{{"query","needle"}}));
+        a::Engine denied(f.model,f.tools,policy,f.options);CTEST_CHECK(denied.runSessionSearch(id,{{"query","active needle"},{"session_ids",QJsonArray{id}}}).isError);
+        f.options.sessionHistoryEnabled=false;a::Engine disabled(f.model,f.tools,f.policy,f.options);CTEST_CHECK(!disabled.sessionSearchTool());
+        CTEST_THROWS(Error,disabled.runSessionSearch(id,{{"query","needle"}}));
     }
     void apiSeparatesClientsAndRejectsHostScopeArguments() {
         Fixture f;a::ApiOptions options{.engine={.decision={.enabled=false}}};options.stateDirectory=f.root.filePath("api");options.workingDirectory=f.work;
         options.engine=f.options;options.engine.sessionsDirectory.clear();options.clientTokens={{"society",QString(48,'a')},{"dreamscapes",QString(48,'b')}};
-        a::Api host(f.model,f.tools,f.policy,options);QVERIFY(api(host,"agent.info")["session_history_enabled"].toBool());
+        a::Api host(f.model,f.tools,f.policy,options);CTEST_CHECK(api(host,"agent.info")["session_history_enabled"].toBool());
         const auto id=api(host,"agent.sessions.create",{{"model","fixture"}})["session_id"].toString();
         const auto other=api(host,"agent.sessions.create",{{"model","fixture"}},QString(48,'b'))["session_id"].toString();
         api(host,"agent.run",{{"session_id",id},{"prompt","SOC_SECRET"}});api(host,"agent.run",{{"session_id",other},{"prompt","DREAM_SECRET"}},QString(48,'b'));
-        const auto page=api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"},{"session_ids",QJsonArray{id}}});QVERIFY(!page["is_error"].toBool());QCOMPARE(page["result"].toObject()["matches"].toArray().size(),1);
-        QVERIFY_THROWS_EXCEPTION(Error,api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"}},QString(48,'b')));
-        QVERIFY(api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"},{"session_ids",QJsonArray{other}}})["is_error"].toBool());
-        QVERIFY(api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"},{"workspace",f.work}})["is_error"].toBool());
+        const auto page=api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"},{"session_ids",QJsonArray{id}}});CTEST_CHECK(!page["is_error"].toBool());CTEST_COMPARE(page["result"].toObject()["matches"].toArray().size(),1);
+        CTEST_THROWS(Error,api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"}},QString(48,'b')));
+        CTEST_CHECK(api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"},{"session_ids",QJsonArray{other}}})["is_error"].toBool());
+        CTEST_CHECK(api(host,"agent.sessions.search",{{"session_id",id},{"query","SECRET"},{"workspace",f.work}})["is_error"].toBool());
     }
     void mcpBindsSearchToConnectionAndAdvertisesDefinition() {
         Fixture f;int beforeTools=0;f.options.hooks.append([&](const a::HookInput& input,const auto&) {
             if(input.kind==a::HookKind::BeforeTool&&input.call.name=="SessionSearch")++beforeTools;return a::HookResult{};
         });auto engine=std::make_shared<a::Engine>(f.model,f.tools,f.policy,f.options);
-        const auto old=engine->createSession("fixture",f.work).id;QCOMPARE(engine->run({old,"MCP_HISTORY_NEEDLE"}).result.get().status,a::RunStatus::Completed);
+        const auto old=engine->createSession("fixture",f.work).id;CTEST_COMPARE(engine->run({old,"MCP_HISTORY_NEEDLE"}).result.get().status,a::RunStatus::Completed);
         a::McpServerOptions options;options.engine=engine;options.model="fixture";options.workingDirectory=f.work;
         options.tools.hooks=f.options.hooks;
         iiMultimodalAgent::mcp::ServerSession server(a::mcpServerOptions(f.tools,f.policy,options));
         const auto init=rpc(server,1,"initialize",{{"protocolVersion","2025-11-25"},{"capabilities",QJsonObject{}},{"clientInfo",QJsonObject{{"name","test"},{"version","1"}}}});
-        QVERIFY(QJsonDocument(init).toJson().contains("iisacc/sessionHistory"));server.receive(QJsonObject{{"jsonrpc","2.0"},{"method","notifications/initialized"}});
+        CTEST_CHECK(QJsonDocument(init).toJson().contains("iisacc/sessionHistory"));server.receive(QJsonObject{{"jsonrpc","2.0"},{"method","notifications/initialized"}});
         const auto found=rpc(server,2,"tools/call",{{"name","SessionSearch"},{"arguments",QJsonObject{{"query","MCP_HISTORY_NEEDLE"}}}});
-        QVERIFY2(!found.contains("error")&&!found["result"].toObject()["isError"].toBool(),QJsonDocument(found).toJson().constData());
-        QVERIFY2(found["result"].toObject()["structuredContent"].toObject()["matches"].toArray().size()==1,QJsonDocument(found).toJson().constData());
-        QCOMPARE(beforeTools,1);
+        CTEST_CHECK_MESSAGE(!found.contains("error")&&!found["result"].toObject()["isError"].toBool(),QJsonDocument(found).toJson().constData());
+        CTEST_CHECK_MESSAGE(found["result"].toObject()["structuredContent"].toObject()["matches"].toArray().size()==1,QJsonDocument(found).toJson().constData());
+        CTEST_COMPARE(beforeTools,1);
         const auto forged=rpc(server,3,"tools/call",{{"name","SessionSearch"},{"arguments",QJsonObject{{"query","needle"},{"session_id",old}}}});
-        QVERIFY(forged.contains("error")||forged["result"].toObject()["isError"].toBool());
+        CTEST_CHECK(forged.contains("error")||forged["result"].toObject()["isError"].toBool());
     }
 };
-QTEST_GUILESS_MAIN(SessionHistoryEngineTests)
-#include "session_history_engine_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    SessionHistoryEngineTests tests;
+    runner.run("modelSearchFindsSavedSessionAndDirectSearchDoesNotMutateHistory", [&] { tests.modelSearchFindsSavedSessionAndDirectSearchDoesNotMutateHistory(); });
+    runner.run("activeRunAllowsReadAndExplicitDenyWins", [&] { tests.activeRunAllowsReadAndExplicitDenyWins(); });
+    runner.run("apiSeparatesClientsAndRejectsHostScopeArguments", [&] { tests.apiSeparatesClientsAndRejectsHostScopeArguments(); });
+    runner.run("mcpBindsSearchToConnectionAndAdvertisesDefinition", [&] { tests.mcpBindsSearchToConnectionAndAdvertisesDefinition(); });
+    return runner.result();
+}

@@ -37,7 +37,8 @@ QString boundedPath(const QString& root,const QString& relative,bool required=tr
 }
 void privateDirectory(const QString& path) {
     require(!QFileInfo(path).isSymLink() && iiFileProvider::Directory().mkpath(path),"Cannot create plugin directory",ErrorCode::StorageFailure);
-    require(iiFileProvider::FileDevice::setPermissions(path,QFileDevice::ReadOwner|QFileDevice::WriteOwner|QFileDevice::ExeOwner),
+    require(iiFileProvider::FileDevice::setPermissions(path,
+                iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner),
         "Cannot make plugin directory private",ErrorCode::StorageFailure);
 }
 QJsonObject jsonFile(const QString& root,const QString& path,const CancellationToken& token={}) {

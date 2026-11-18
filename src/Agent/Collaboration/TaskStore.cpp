@@ -19,8 +19,8 @@
 namespace iiMultimodalAgent::agent {
 namespace {
 constexpr qint64 maxInteger = 9007199254740991LL;
-const auto ownerFile = QFileDevice::ReadOwner | QFileDevice::WriteOwner;
-const auto ownerDirectory = ownerFile | QFileDevice::ExeOwner;
+const auto ownerFile = iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner;
+const auto ownerDirectory = ownerFile | iiFileProvider::FileDevice::ExeOwner;
 void require(bool ok, const QString& text, ErrorCode code = ErrorCode::InvalidArgument) {
     if (!ok) throw Error(code, text);
 }

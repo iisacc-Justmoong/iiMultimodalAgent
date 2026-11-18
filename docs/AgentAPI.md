@@ -300,3 +300,9 @@ C++ `NotebookEdit`와 `agent.notebooks.read/edit`, CLI `agent notebooks`, MCP `i
 C++ 네이티브 Write·Edit·NotebookEdit의 원본을 사용자 메시지 경계에 기록하고 목록·수동 생성·파일 복원을 제공한다. 인증 API의 `agent.checkpoints.*`, CLI의 `agent checkpoints`, 연결 소유자에 묶인 MCP `iiMultimodalAgent.agent.checkpoints.*`가 같은 Engine을 사용한다. 저장 한도, 세션 잠금, preview·권한·작업 트리 경계와 남은 참조 기능은 [FileCheckpoints.md](FileCheckpoints.md)에 기록한다. 전체 대응 상태는 27 partial·4 pending·0 complete를 유지한다.
 
 0.47부터 `agent.sessions.fork`는 artifact와 파일 체크포인트를 독립 복사한다. thin CLI도 `agent sessions fork SESSION [PARAMS_JSON_FILE]`을 제공한다. 범위와 실패 정리는 [SessionFork.md](SessionFork.md)를 따른다.
+
+내장 GraphQL HTTP 전송은 iiNetwork와 iiSDKCore 실행 루프로 작성한다. 호스트가 지정한 URL과 인증 헤더를 사용하며 프록시·쿠키·리디렉션을 비활성화한다. 요청 기한과 취소, 응답 크기 및 GraphQL 미디어 형식을 확인한다. 이 변경은 다른 에이전트 전송이나 공개 도구 API의 Qt 의존성을 제거하지 않는다.
+
+단일 스레드 WASM에서는 동기 내장 전송이 실행 루프를 구동할 수 없으므로 호스트가 GraphQLExecutor를 제공해야 한다. macOS 이외 플랫폼과 실제 HTTP·TLS 실행은 이 변경에서 검증하지 않았다.
+
+GraphQL 전송은 400·422 응답에서도 전송 오류로 중단된 본문을 수락하지 않는다. 전송이 취소된 경우에는 취소 오류를 전달하고, 완전히 수신한 GraphQL 오류만 응답으로 처리한다.

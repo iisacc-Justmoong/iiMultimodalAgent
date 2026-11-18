@@ -1,4 +1,5 @@
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
 #include "iiMultimodalAgent/agent/Engine.h"
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QFile>
@@ -61,9 +62,9 @@ void AgentTests::catalogBudgetUsesCurrentInputAndDoesNotReplaceGenerationHistory
     options.projectContext.enabled=false;options.compaction.automatic=false;
     a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(),options);const auto session=engine.createSession("fixture",root.path());
     {a::SessionStore store(options.sessionsDirectory);auto lease=store.acquire(session.id);lease->append({{},a::MessageRole::User,"old history"});lease->append({{},a::MessageRole::Assistant,"old answer"});}
-    const auto result=engine.run({session.id,"current request"}).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QVERIFY(validProbe);QVERIFY(completeTurnProbe);
-    QCOMPARE(model->requests.size(),2);QCOMPARE(model->requests.first().messages.size(),3);QCOMPARE(model->requests.last().messages.size(),5);
-    QCOMPARE(model->requests.first().messages.first().text,"old history");QCOMPARE(model->requests.first().messages.last().text,"current request");
+    const auto result=engine.run({session.id,"current request"}).result.get();CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_CHECK(validProbe);CTEST_CHECK(completeTurnProbe);
+    CTEST_COMPARE(model->requests.size(),2);CTEST_COMPARE(model->requests.first().messages.size(),3);CTEST_COMPARE(model->requests.last().messages.size(),5);
+    CTEST_COMPARE(model->requests.first().messages.first().text,"old history");CTEST_COMPARE(model->requests.first().messages.last().text,"current request");
 }
 void AgentTests::exactObservationRepairUsesTheExistingTurnLimit() {
     for(const int limit:{2,3})for(const auto& wrong:QStringList{"auxiliary-hash","The contents are: observed\n\"한글\""}) {
@@ -74,11 +75,11 @@ void AgentTests::exactObservationRepairUsesTheExistingTurnLimit() {
         a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
         a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
         const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Read. Return only the exact file contents."};request.maxTurns=limit;
-        const auto result=engine.run(request).result.get();QCOMPARE(result.turns,limit);
-        QCOMPARE(result.status,limit==2?a::RunStatus::TurnLimit:a::RunStatus::Completed);
-        if(limit==3)QCOMPARE(result.text,"observed\n\"한글\"");
-        QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
-        bool recorded=false;for(const auto& message:engine.session(session.id).messages)recorded|=message.metadata.contains("iilocal.observation_repair");QVERIFY(recorded);
+        const auto result=engine.run(request).result.get();CTEST_COMPARE(result.turns,limit);
+        CTEST_COMPARE(result.status,limit==2?a::RunStatus::TurnLimit:a::RunStatus::Completed);
+        if(limit==3)CTEST_COMPARE(result.text,"observed\n\"한글\"");
+        CTEST_CHECK(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+        bool recorded=false;for(const auto& message:engine.session(session.id).messages)recorded|=message.metadata.contains("iilocal.observation_repair");CTEST_CHECK(recorded);
     }
 }
 void AgentTests::exactFieldRepairRequiresAnUnambiguousObservation() {
@@ -94,10 +95,10 @@ void AgentTests::exactFieldRepairRequiresAnUnambiguousObservation() {
         a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
         a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
         const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact description from its actual result."};request.maxTurns=3;
-        const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);
-        QCOMPARE(result.turns,ambiguous?2:3);QCOMPARE(result.text,ambiguous?"auxiliary-name":"actual description 한글");
+        const auto result=engine.run(request).result.get();CTEST_COMPARE(result.status,a::RunStatus::Completed);
+        CTEST_COMPARE(result.turns,ambiguous?2:3);CTEST_COMPARE(result.text,ambiguous?"auxiliary-name":"actual description 한글");
         bool repaired=false;for(const auto& message:engine.session(session.id).messages)repaired|=message.metadata.contains("iilocal.observation_repair");
-        QCOMPARE(repaired,!ambiguous);QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+        CTEST_COMPARE(repaired,!ambiguous);CTEST_CHECK(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
     }
 }
 void AgentTests::exactValueUsesDecodedTextBeforeProtocolMetadata() {
@@ -108,7 +109,7 @@ void AgentTests::exactValueUsesDecodedTextBeforeProtocolMetadata() {
     a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
     a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
     const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact value."};request.maxTurns=3;
-    const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.turns,3);QCOMPARE(result.text,"actual value");
+    const auto result=engine.run(request).result.get();CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(result.turns,3);CTEST_COMPARE(result.text,"actual value");
 }
 void AgentTests::exactJsonGeneratedByCustomModelsIsDecodedWithoutAnotherToolCall() {
     for(const bool correct:{false,true}) {
@@ -119,8 +120,8 @@ void AgentTests::exactJsonGeneratedByCustomModelsIsDecodedWithoutAnotherToolCall
         a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.projectContext.enabled=false;
         a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
         const auto session=engine.createSession("fixture",root.path());a::RunRequest request{session.id,"Use Inspect. Return only the exact secret field."};request.maxTurns=3;
-        const auto result=engine.run(request).result.get();QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.text,"actual value");
-        QCOMPARE(result.turns,correct?2:3);QCOMPARE(calls,1);
+        const auto result=engine.run(request).result.get();CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(result.text,"actual value");
+        CTEST_COMPARE(result.turns,correct?2:3);CTEST_COMPARE(calls,1);
     }
 }
 void AgentTests::singleToolLimitIsPassedToModels(){
@@ -129,8 +130,8 @@ void AgentTests::singleToolLimitIsPassedToModels(){
         model->replies={{{},{{"first","echo",{{"value",1}}}}},{"done",{}}};
         a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.maxToolCallsPerTurn=limit;
         a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(),options);const auto session=engine.createSession("fixture",root.path());
-        QCOMPARE(engine.run({session.id,"Observe and finish"}).result.get().status,a::RunStatus::Completed);
-        QCOMPARE(model->requests.size(),2);for(const auto& request:model->requests)QCOMPARE(request.parallelToolCalls,limit>1);
+        CTEST_COMPARE(engine.run({session.id,"Observe and finish"}).result.get().status,a::RunStatus::Completed);
+        CTEST_COMPARE(model->requests.size(),2);for(const auto& request:model->requests)CTEST_COMPARE(request.parallelToolCalls,limit>1);
     }
 }
 void AgentTests::completionToolStopsBeforeLaterTools() {
@@ -140,29 +141,29 @@ void AgentTests::completionToolStopsBeforeLaterTools() {
     };registry->add(regular);
     auto terminal=echoTool("StructuredOutput");terminal.completesRun=true;registry->add(terminal);
     a::ToolRunner runner(registry,std::make_shared<a::RulePolicy>());
-    QVERIFY(!runner.concurrencySafe({"done","StructuredOutput",{{"value",2}}}));
+    CTEST_CHECK(!runner.concurrencySafe({"done","StructuredOutput",{{"value",2}}}));
     model->replies={{{},{{"before","echo",{{"value",1}}},{"done","StructuredOutput",{{"value",2}}},{"after","echo",{{"value",3}}}}}};
     a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.skills.enabled=false;options.projectContext.enabled=false;
     a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(),options);auto session=engine.createSession("model://test",root.path());
     const auto result=engine.run({session.id,"Return the verified result"}).result.get();
-    QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.text,"2");QCOMPARE(model->requests.size(),1);QCOMPARE(executed,QList<int>{1});
-    QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+    CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(result.text,"2");CTEST_COMPARE(model->requests.size(),1);CTEST_COMPARE(executed,QList<int>{1});
+    CTEST_CHECK(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
     terminal.execute=[](const QJsonObject&,const auto&){return a::ToolResult{"INVALID",{},true};};registry->remove("StructuredOutput");registry->add(terminal);
     model->replies={{{},{{"invalid","StructuredOutput",{{"value",2}}},{"regular","echo",{{"value",4}}}}},{"NEXT_TURN",{}}};
     session=engine.createSession("model://test",root.path());
-    QCOMPARE(engine.run({session.id,"Retry an invalid result"}).result.get().text,"NEXT_TURN");QCOMPARE(executed,QList<int>({1,4}));
+    CTEST_COMPARE(engine.run({session.id,"Retry an invalid result"}).result.get().text,"NEXT_TURN");CTEST_COMPARE(executed,QList<int>({1,4}));
 }
 void AgentTests::verifierPermissionModeDoesNotInheritBypass() {
     auto tool=echoTool();tool.definition.readOnly=false;tool.definition.editsFiles=true;
     a::ToolContext verifier;verifier.permissionMode=a::PermissionMode::DontAsk;
     for(const auto mode:{a::PermissionMode::AcceptEdits,a::PermissionMode::Bypass}) {
-        a::RulePolicy policy(mode);QCOMPARE(policy.decide(tool.definition,{},{}).behavior,a::PermissionBehavior::Allow);
-        QCOMPARE(policy.decide(tool.definition,{},verifier).behavior,a::PermissionBehavior::Deny);
-        QCOMPARE(policy.describe(verifier)["mode"],"dontAsk");QVERIFY(policy.describe({})["mode"]!="dontAsk");
+        a::RulePolicy policy(mode);CTEST_COMPARE(policy.decide(tool.definition,{},{}).behavior,a::PermissionBehavior::Allow);
+        CTEST_COMPARE(policy.decide(tool.definition,{},verifier).behavior,a::PermissionBehavior::Deny);
+        CTEST_COMPARE(policy.describe(verifier)["mode"],"dontAsk");CTEST_CHECK(policy.describe({})["mode"]!="dontAsk");
         a::RulePolicy granted(mode,{{"echo",a::PermissionBehavior::Allow}});
-        QCOMPARE(granted.decide(tool.definition,{},verifier).behavior,a::PermissionBehavior::Allow);
+        CTEST_COMPARE(granted.decide(tool.definition,{},verifier).behavior,a::PermissionBehavior::Allow);
         a::RulePolicy denied(mode,{{"echo",a::PermissionBehavior::Allow},{"echo",a::PermissionBehavior::Deny}});
-        QCOMPARE(denied.decide(tool.definition,{},verifier).behavior,a::PermissionBehavior::Deny);
+        CTEST_COMPARE(denied.decide(tool.definition,{},verifier).behavior,a::PermissionBehavior::Deny);
     }
 }
 void AgentTests::registrySnapshotDuringExecution() {
@@ -174,7 +175,7 @@ void AgentTests::registrySnapshotDuringExecution() {
     });
     a::ToolRunner runner(registry, std::make_shared<a::RulePolicy>(), runnerOptions);
     const auto result = runner.run({"bound-call", "echo", {{"value", 7}}}, {});
-    QVERIFY(!result.isError); QCOMPARE(result.text, "7"); QVERIFY(registry->definitions().isEmpty());
+    CTEST_CHECK(!result.isError); CTEST_COMPARE(result.text, "7"); CTEST_CHECK(registry->definitions().isEmpty());
     registry->add(echoTool());
     auto model = std::make_shared<ScriptModel>();
     model->replies = {{{}, {{"frozen-call", "echo", {{"value", 9}}}}}, {"done", {}}};
@@ -189,23 +190,23 @@ void AgentTests::registrySnapshotDuringExecution() {
     a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = root.filePath("sessions");
     a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
     const auto session = engine.createSession("model://test", root.path());
-    QCOMPARE(engine.run({session.id, "call the registered tool"}).result.get().status, a::RunStatus::Completed);
-    QCOMPARE(engine.session(session.id).messages[2].text, "9");
-    QVERIFY(!model->requests.last().tools.first().readOnly); // Registry changes become visible next model turn.
+    CTEST_COMPARE(engine.run({session.id, "call the registered tool"}).result.get().status, a::RunStatus::Completed);
+    CTEST_COMPARE(engine.session(session.id).messages[2].text, "9");
+    CTEST_CHECK(!model->requests.last().tools.first().readOnly); // Registry changes become visible next model turn.
 }
 void AgentTests::schemaAndRegistry() {
         a::ToolRegistry registry;
         registry.add(echoTool());
         registry.validateInput("echo", {{"value", 2}});
-        QVERIFY_THROWS_EXCEPTION(Error, registry.validateInput("echo", {{"value", "2"}}));
-        QVERIFY_THROWS_EXCEPTION(Error, registry.validateInput("echo", {{"value", 2}, {"extra", true}}));
-        QVERIFY_THROWS_EXCEPTION(Error, registry.validateOutput("echo", {{"value", 0}}));
-        QVERIFY_THROWS_EXCEPTION(Error, registry.add(echoTool()));
+        CTEST_THROWS(Error, registry.validateInput("echo", {{"value", "2"}}));
+        CTEST_THROWS(Error, registry.validateInput("echo", {{"value", 2}, {"extra", true}}));
+        CTEST_THROWS(Error, registry.validateOutput("echo", {{"value", 0}}));
+        CTEST_THROWS(Error, registry.add(echoTool()));
         auto conditional = echoTool("conditional");
         conditional.definition.inputSchema = QJsonDocument::fromJson(R"({"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","allOf":[{"properties":{"value":{"$ref":"#/$defs/positive"}}}],"$defs":{"positive":{"type":"integer","minimum":1}},"required":["value"],"unevaluatedProperties":false})").object();
         registry.add(conditional);
         registry.validateInput("conditional", {{"value", 1}});
-        QVERIFY_THROWS_EXCEPTION(Error, registry.validateInput("conditional", {{"value", 1}, {"x", 0}}));
+        CTEST_THROWS(Error, registry.validateInput("conditional", {{"value", 1}, {"x", 0}}));
     }
 void AgentTests::permissionsAndHookRevalidation() {
         auto registry = std::make_shared<a::ToolRegistry>();
@@ -216,8 +217,8 @@ void AgentTests::permissionsAndHookRevalidation() {
         auto policy = std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass,
             QList<a::PermissionRule>{{"*", a::PermissionBehavior::Allow}, {"echo", a::PermissionBehavior::Deny}});
         a::ToolRunner denied(registry, policy);
-        QVERIFY(denied.run({"a", "echo", {{"value", 1}}}, {}).isError);
-        QCOMPARE(executions, 0);
+        CTEST_CHECK(denied.run({"a", "echo", {{"value", 1}}}, {}).isError);
+        CTEST_COMPARE(executions, 0);
         a::ToolRunnerOptions options;
         options.hooks.append([](const a::HookInput& input, const CancellationToken&) {
             a::HookResult r;
@@ -225,11 +226,11 @@ void AgentTests::permissionsAndHookRevalidation() {
             return r;
         });
         a::ToolRunner invalid(registry, std::make_shared<a::RulePolicy>(), options);
-        QVERIFY(invalid.run({"b", "echo", {{"value", 1}}}, {}).isError);
-        QCOMPARE(executions, 0);
+        CTEST_CHECK(invalid.run({"b", "echo", {{"value", 1}}}, {}).isError);
+        CTEST_COMPARE(executions, 0);
         tool.definition.readOnly = false;
         a::RulePolicy dontAsk(a::PermissionMode::DontAsk);
-        QVERIFY(dontAsk.decide(tool.definition, {}, {}).behavior == a::PermissionBehavior::Deny);
+        CTEST_CHECK(dontAsk.decide(tool.definition, {}, {}).behavior == a::PermissionBehavior::Deny);
     }
 void AgentTests::transcriptInvariantsAndRecovery() {
         QTemporaryDir dir;
@@ -239,17 +240,17 @@ void AgentTests::transcriptInvariantsAndRecovery() {
             auto lease = store.acquire(session.id);
             lease->append({{}, a::MessageRole::User, "hello"});
             lease->append({{}, a::MessageRole::Assistant, {}, {{"call-a", "echo", {{"value", 1}}}}});
-            QVERIFY_THROWS_EXCEPTION(Error, store.acquire(session.id));
-            QVERIFY_THROWS_EXCEPTION(Error, lease->append({{}, a::MessageRole::Tool, "bad", {}, "other"}));
+            CTEST_THROWS(Error, store.acquire(session.id));
+            CTEST_THROWS(Error, lease->append({{}, a::MessageRole::Tool, "bad", {}, "other"}));
         }
         QFile file(dir.filePath(session.id + "/transcript.jsonl"));
-        QVERIFY(file.open(QIODevice::Append));
+        CTEST_CHECK(file.open(QIODevice::Append));
         file.write("{\"incomplete\":");
         file.close();
         const auto loaded = store.load(session.id);
-        QCOMPARE(loaded.messages.size(), 2);
-        QCOMPARE(a::pendingToolCalls(loaded.messages).size(), 1);
-        QVERIFY_THROWS_EXCEPTION(Error, store.load("../outside"));
+        CTEST_COMPARE(loaded.messages.size(), 2);
+        CTEST_COMPARE(a::pendingToolCalls(loaded.messages).size(), 1);
+        CTEST_THROWS(Error, store.load("../outside"));
     }
 void AgentTests::toolLoopAndPersistentResume() {
         QTemporaryDir dir;
@@ -262,18 +263,18 @@ void AgentTests::toolLoopAndPersistentResume() {
         QList<a::EventKind> events;
         auto handle = engine->run({session.id, "Return seven"}, [&](const auto& e) { events.append(e.kind); });
         const auto result = handle.result.get();
-        QVERIFY2(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
-        QCOMPARE(result.text, QString("seven"));
-        QCOMPARE(result.turns, 2);
-        QCOMPARE(model->requests.size(), 2);
-        QCOMPARE(model->requests[1].messages.back().toolCallId, QString("c1"));
-        QVERIFY(events.contains(a::EventKind::ToolStarted));
-        QVERIFY(events.back() == a::EventKind::Finished);
+        CTEST_CHECK_MESSAGE(result.status == a::RunStatus::Completed, qPrintable(result.errorMessage));
+        CTEST_COMPARE(result.text, QString("seven"));
+        CTEST_COMPARE(result.turns, 2);
+        CTEST_COMPARE(model->requests.size(), 2);
+        CTEST_COMPARE(model->requests[1].messages.back().toolCallId, QString("c1"));
+        CTEST_CHECK(events.contains(a::EventKind::ToolStarted));
+        CTEST_CHECK(events.back() == a::EventKind::Finished);
         engine.reset();
         a::SessionStore store(dir.path());
         const auto restored = store.load(session.id);
-        QCOMPARE(restored.messages.size(), 4);
-        QVERIFY(a::pendingToolCalls(restored.messages).isEmpty());
+        CTEST_COMPARE(restored.messages.size(), 4);
+        CTEST_CHECK(a::pendingToolCalls(restored.messages).isEmpty());
     }
 void AgentTests::interruptedToolIsNotExecutedAgain() {
         QTemporaryDir dir;
@@ -289,11 +290,11 @@ void AgentTests::interruptedToolIsNotExecutedAgain() {
         a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = dir.path();
         a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
         const auto result = engine.run({session.id, "continue"}).result.get();
-        QVERIFY(result.status == a::RunStatus::Completed);
+        CTEST_CHECK(result.status == a::RunStatus::Completed);
         const auto history = engine.session(session.id).messages;
-        QCOMPARE(history[2].toolCallId, QString("interrupted"));
-        QVERIFY(history[2].isError);
-        QVERIFY(a::pendingToolCalls(history).isEmpty());
+        CTEST_COMPARE(history[2].toolCallId, QString("interrupted"));
+        CTEST_CHECK(history[2].isError);
+        CTEST_CHECK(a::pendingToolCalls(history).isEmpty());
     }
 void AgentTests::schemaFailureBecomesToolResult() {
         QTemporaryDir dir;
@@ -303,8 +304,8 @@ void AgentTests::schemaFailureBecomesToolResult() {
         a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = dir.path();
         a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
         auto session = engine.createSession("model://test", dir.path());
-        QVERIFY(engine.run({session.id, "test"}).result.get().status == a::RunStatus::Completed);
-        QVERIFY(model->requests[1].messages.back().isError);
+        CTEST_CHECK(engine.run({session.id, "test"}).result.get().status == a::RunStatus::Completed);
+        CTEST_CHECK(model->requests[1].messages.back().isError);
     }
 void AgentTests::cancellationAndConsumerFailure() {
         class WaitingModel : public a::Model {
@@ -323,12 +324,12 @@ void AgentTests::cancellationAndConsumerFailure() {
         a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
         auto session = engine.createSession("model://test", dir.path());
         auto handle = engine.run({session.id, "wait"});
-        QTRY_VERIFY_WITH_TIMEOUT(model->started.load(), 3000);
+        CTEST_WAIT_VERIFY(model->started.load(), 3000);
         handle.cancel();
-        QVERIFY(handle.result.wait_for(2s) == std::future_status::ready);
-        QVERIFY(handle.result.get().status == a::RunStatus::Cancelled);
+        CTEST_CHECK(handle.result.wait_for(2s) == std::future_status::ready);
+        CTEST_CHECK(handle.result.get().status == a::RunStatus::Cancelled);
         auto failing = engine.run({session.id, "fail"}, [](const auto&) { throw std::runtime_error("consumer"); });
-        QVERIFY(failing.result.get().errorCode == ErrorCode::ConsumerFailure);
+        CTEST_CHECK(failing.result.get().errorCode == ErrorCode::ConsumerFailure);
     }
 void AgentTests::workspaceReadEditAndStaleGuard() {
         QTemporaryDir dir;
@@ -337,15 +338,15 @@ void AgentTests::workspaceReadEditAndStaleGuard() {
         a::ToolContext context; context.sessionId = "test"; context.workingDirectory = dir.path();
         context.artifactsDirectory = dir.filePath("artifacts");
         auto call = [&](QString name, QJsonObject args) { return runner.run({name, name, args}, context); };
-        QVERIFY(!call("Write", {{"path", "a.txt"}, {"content", "alpha\nbeta\n"}}).isError);
-        QVERIFY(!call("Read", {{"path", "a.txt"}}).isError);
-        QFile file(dir.filePath("a.txt")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("external\n"); file.close();
-        QVERIFY(call("Edit", {{"path", "a.txt"}, {"old_string", "alpha"}, {"new_string", "changed"}}).isError);
-        QVERIFY(!call("Read", {{"path", "a.txt"}}).isError);
-        QVERIFY(!call("Edit", {{"path", "a.txt"}, {"old_string", "external"}, {"new_string", "changed"}}).isError);
-        QVERIFY(file.open(QIODevice::ReadOnly)); QCOMPARE(file.readAll(), QByteArray("changed\n")); file.close();
-        QVERIFY(call("Read", {{"path", "../outside"}}).isError);
-        QVERIFY(!call("Grep", {{"pattern", "changed"}}).isError);
+        CTEST_CHECK(!call("Write", {{"path", "a.txt"}, {"content", "alpha\nbeta\n"}}).isError);
+        CTEST_CHECK(!call("Read", {{"path", "a.txt"}}).isError);
+        QFile file(dir.filePath("a.txt")); CTEST_CHECK(file.open(QIODevice::WriteOnly)); file.write("external\n"); file.close();
+        CTEST_CHECK(call("Edit", {{"path", "a.txt"}, {"old_string", "alpha"}, {"new_string", "changed"}}).isError);
+        CTEST_CHECK(!call("Read", {{"path", "a.txt"}}).isError);
+        CTEST_CHECK(!call("Edit", {{"path", "a.txt"}, {"old_string", "external"}, {"new_string", "changed"}}).isError);
+        CTEST_CHECK(file.open(QIODevice::ReadOnly)); CTEST_COMPARE(file.readAll(), QByteArray("changed\n")); file.close();
+        CTEST_CHECK(call("Read", {{"path", "../outside"}}).isError);
+        CTEST_CHECK(!call("Grep", {{"pattern", "changed"}}).isError);
     }
 void AgentTests::parallelToolsAndExclusiveBarrier() {
     QTemporaryDir dir;
@@ -373,9 +374,9 @@ void AgentTests::parallelToolsAndExclusiveBarrier() {
     a::EngineOptions options{.decision={.enabled=false}}; options.sessionsDirectory = dir.path();
     a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
     auto session = engine.createSession("model://test", dir.path());
-    QVERIFY(engine.run({session.id, "parallel"}).result.get().status == a::RunStatus::Completed);
-    QCOMPARE(peak, 2); QVERIFY(exclusive);
-    QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+    CTEST_CHECK(engine.run({session.id, "parallel"}).result.get().status == a::RunStatus::Completed);
+    CTEST_COMPARE(peak, 2); CTEST_CHECK(exclusive);
+    CTEST_CHECK(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
 }
 void AgentTests::stopHookAndTurnLimit() {
     QTemporaryDir dir;
@@ -390,12 +391,12 @@ void AgentTests::stopHookAndTurnLimit() {
     a::Engine engine(model, registry, std::make_shared<a::RulePolicy>(), options);
     auto session = engine.createSession("model://test", dir.path());
     const auto revised = engine.run({session.id, "answer"}).result.get();
-    QVERIFY(revised.status == a::RunStatus::Completed); QCOMPARE(revised.text, QString("revised")); QCOMPARE(revised.turns, 2);
+    CTEST_CHECK(revised.status == a::RunStatus::Completed); CTEST_COMPARE(revised.text, QString("revised")); CTEST_COMPARE(revised.turns, 2);
     model->replies = {{"", {{"last-call", "echo", {{"value", 5}}}}}};
     a::RunRequest request{session.id, "one turn"}; request.maxTurns = 1;
     const auto limited = engine.run(request).result.get();
-    QVERIFY(limited.status == a::RunStatus::TurnLimit);
-    QVERIFY(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
+    CTEST_CHECK(limited.status == a::RunStatus::TurnLimit);
+    CTEST_CHECK(a::pendingToolCalls(engine.session(session.id).messages).isEmpty());
 }
 void AgentTests::shellTimeoutAndExitStatus() {
 #ifdef Q_OS_UNIX
@@ -404,11 +405,11 @@ void AgentTests::shellTimeoutAndExitStatus() {
     a::ToolRunner runner(registry, std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass));
     a::ToolContext c; c.workingDirectory = dir.path(); c.sessionId = "shell-test";
     auto success = runner.run({"ok", "Bash", {{"command", "printf 'native-shell'"}}}, c);
-    QVERIFY(!success.isError); QCOMPARE(success.text, QString("native-shell"));
+    CTEST_CHECK(!success.isError); CTEST_COMPARE(success.text, QString("native-shell"));
     auto error = runner.run({"err", "Bash", {{"command", "printf 'failed' >&2; exit 7"}}}, c);
-    QVERIFY(error.isError); QCOMPARE(error.data["exit_code"].toInt(), 7);
+    CTEST_CHECK(error.isError); CTEST_COMPARE(error.data["exit_code"].toInt(), 7);
     auto timeout = runner.run({"timeout", "Bash", {{"command", "sleep 30"}, {"timeout_ms", 30}}}, c);
-    QVERIFY(timeout.isError); QCOMPARE(timeout.data["error_code"].toString(), QString("timeout"));
+    CTEST_CHECK(timeout.isError); CTEST_COMPARE(timeout.data["error_code"].toString(), QString("timeout"));
 #endif
 }
 void AgentTests::invalidResultsAndDuplicateCalls() {
@@ -416,9 +417,36 @@ void AgentTests::invalidResultsAndDuplicateCalls() {
     auto tool = echoTool(); tool.execute = [](const auto&, const auto&) { return a::ToolResult{"invalid", {{"value", -5}}}; };
     registry->add(tool);
     a::ToolRunner runner(registry, std::make_shared<a::RulePolicy>());
-    QVERIFY(runner.run({"bad-result", "echo", {{"value", 1}}}, {}).isError);
+    CTEST_CHECK(runner.run({"bad-result", "echo", {{"value", 1}}}, {}).isError);
     const auto duplicate = a::toJson(a::ToolCall{"same", "echo", {}});
-    QVERIFY_THROWS_EXCEPTION(Error, a::replyFromJson(QJsonObject{{"tool_calls", QJsonArray{duplicate, duplicate}}}));
-    QVERIFY_THROWS_EXCEPTION(Error, a::replyFromJson({{"text", "ok"}, {"unknown", true}}));
+    CTEST_THROWS(Error, a::replyFromJson(QJsonObject{{"tool_calls", QJsonArray{duplicate, duplicate}}}));
+    CTEST_THROWS(Error, a::replyFromJson({{"text", "ok"}, {"unknown", true}}));
 }
-QTEST_GUILESS_MAIN(AgentTests)
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    AgentTests tests;
+    runner.run("exactObservationRepairUsesTheExistingTurnLimit", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.exactObservationRepairUsesTheExistingTurnLimit(); });
+    runner.run("exactFieldRepairRequiresAnUnambiguousObservation", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.exactFieldRepairRequiresAnUnambiguousObservation(); });
+    runner.run("exactValueUsesDecodedTextBeforeProtocolMetadata", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.exactValueUsesDecodedTextBeforeProtocolMetadata(); });
+    runner.run("exactJsonGeneratedByCustomModelsIsDecodedWithoutAnotherToolCall", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.exactJsonGeneratedByCustomModelsIsDecodedWithoutAnotherToolCall(); });
+    runner.run("catalogBudgetUsesCurrentInputAndDoesNotReplaceGenerationHistory", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.catalogBudgetUsesCurrentInputAndDoesNotReplaceGenerationHistory(); });
+    runner.run("singleToolLimitIsPassedToModels", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.singleToolLimitIsPassedToModels(); });
+    runner.run("completionToolStopsBeforeLaterTools", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.completionToolStopsBeforeLaterTools(); });
+    runner.run("verifierPermissionModeDoesNotInheritBypass", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.verifierPermissionModeDoesNotInheritBypass(); });
+    runner.run("schemaAndRegistry", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.schemaAndRegistry(); });
+    runner.run("permissionsAndHookRevalidation", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.permissionsAndHookRevalidation(); });
+    runner.run("transcriptInvariantsAndRecovery", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.transcriptInvariantsAndRecovery(); });
+    runner.run("toolLoopAndPersistentResume", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.toolLoopAndPersistentResume(); });
+    runner.run("interruptedToolIsNotExecutedAgain", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.interruptedToolIsNotExecutedAgain(); });
+    runner.run("schemaFailureBecomesToolResult", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.schemaFailureBecomesToolResult(); });
+    runner.run("cancellationAndConsumerFailure", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.cancellationAndConsumerFailure(); });
+    runner.run("workspaceReadEditAndStaleGuard", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.workspaceReadEditAndStaleGuard(); });
+    runner.run("parallelToolsAndExclusiveBarrier", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.parallelToolsAndExclusiveBarrier(); });
+    runner.run("stopHookAndTurnLimit", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.stopHookAndTurnLimit(); });
+    runner.run("shellTimeoutAndExitStatus", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.shellTimeoutAndExitStatus(); });
+    runner.run("invalidResultsAndDuplicateCalls", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.invalidResultsAndDuplicateCalls(); });
+    runner.run("registrySnapshotDuringExecution", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.registrySnapshotDuringExecution(); });
+    return runner.result();
+}

@@ -7,16 +7,21 @@
 #include <iiMultimodalAgent/agent/CommandHooks.h>
 #include <iiMultimodalAgent/agent/Subagents.h>
 #include <QtCore/QFile>
+#include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
 #include <thread>
 #include <future>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 namespace a=iiMultimodalAgent::agent;
 using namespace std::chrono_literals;
 namespace {
+bool tryWrite(const QString& path,const QByteArray& bytes) {
+    QFile file(path);return file.open(QIODevice::WriteOnly)&&file.write(bytes)==bytes.size();
+}
 void write(const QString& path,const QByteArray& bytes) {
-    QFile file(path);if(!file.open(QIODevice::WriteOnly)||file.write(bytes)!=bytes.size())throw std::runtime_error("Fixture write failed");
+    if(!tryWrite(path,bytes))throw std::runtime_error("Fixture write failed");
 }
 QByteArray read(const QString& path){QFile file(path);if(!file.open(QIODevice::ReadOnly))throw std::runtime_error("Fixture read failed");return file.readAll();}
 class Model final:public a::Model {
@@ -52,8 +57,7 @@ struct Fixture {
 };
 }
 class PlanModeTests final:public QObject {
-    Q_OBJECT
-private slots:
+public:
     void activePlanPublishesItsExactWritePathWithoutRestrictingProjectReads() {
         QTemporaryDir root;auto registry=std::make_shared<a::ToolRegistry>();auto model=std::make_shared<Model>();
         a::registerWorkspaceTools(*registry,root.path());const auto original=registry->get("Write").definition.inputSchema;
@@ -61,16 +65,16 @@ private slots:
         options.skills.enabled=false;options.projectContext.enabled=false;options.compaction.automatic=false;
         model->generateReply=[](const auto&)->a::ModelReply{return {"DONE"};};
         a::Engine engine(model,registry,std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass),options);
-        const auto id=engine.createSession("fixture",root.path()).id;QVERIFY(!engine.runPlanTool(id,"EnterPlanMode").isError);
+        const auto id=engine.createSession("fixture",root.path()).id;CTEST_CHECK(!engine.runPlanTool(id,"EnterPlanMode").isError);
         const auto path=engine.planStatus(id)["plan_file_path"].toString();
-        QCOMPARE(engine.run({id,"Inspect the project and draft the plan"}).result.get().status,a::RunStatus::Completed);
+        CTEST_COMPARE(engine.run({id,"Inspect the project and draft the plan"}).result.get().status,a::RunStatus::Completed);
         int checked=0;
         for(const auto& tool:model->requests.last().tools) {
             const auto property=tool.inputSchema["properties"].toObject()["path"].toObject();
-            if(tool.name=="Write"||tool.name=="Edit"){QCOMPARE(property["enum"].toArray(),QJsonArray{path});++checked;}
-            if(tool.name=="Read")QVERIFY(!property.contains("enum"));
+            if(tool.name=="Write"||tool.name=="Edit"){CTEST_COMPARE(property["enum"].toArray(),QJsonArray{path});++checked;}
+            if(tool.name=="Read")CTEST_CHECK(!property.contains("enum"));
         }
-        QCOMPARE(checked,2);QCOMPARE(registry->get("Write").definition.inputSchema,original);
+        CTEST_COMPARE(checked,2);CTEST_COMPARE(registry->get("Write").definition.inputSchema,original);
     }
     void verificationAgentCannotReadAnotherSessionsPlanInsideWorkspace() {
         QTemporaryDir root;auto registry=std::make_shared<a::ToolRegistry>();auto model=std::make_shared<Model>();
@@ -96,27 +100,22 @@ private slots:
         };
         a::Engine engine(model,registry,policy,options);const auto owner=engine.createSession("fixture",root.path()).id;
         const auto other=engine.createSession("fixture",root.path()).id;
-        QVERIFY(!engine.runPlanTool(owner,"EnterPlanMode").isError);QVERIFY(!engine.runPlanTool(other,"EnterPlanMode").isError);
+        CTEST_CHECK(!engine.runPlanTool(owner,"EnterPlanMode").isError);CTEST_CHECK(!engine.runPlanTool(other,"EnterPlanMode").isError);
         foreign=engine.planStatus(other)["plan_file_path"].toString();write(foreign,"FOREIGN_PLAN_SECRET");
         owned=engine.planStatus(owner)["plan_file_path"].toString();write(owned,"OWNER_PLAN");
-        QCOMPARE(engine.run({owner,"Finish the task"}).result.get().status,a::RunStatus::Completed);
-        QCOMPARE(checks,2);QVERIFY2(denied&&!leaked,"Verifier read another session's private plan");QVERIFY(ownedRead);QVERIFY(hiddenSearch);
+        CTEST_COMPARE(engine.run({owner,"Finish the task"}).result.get().status,a::RunStatus::Completed);
+        CTEST_COMPARE(checks,2);CTEST_CHECK_MESSAGE(denied&&!leaked,"Verifier read another session's private plan");CTEST_CHECK(ownedRead);CTEST_CHECK(hiddenSearch);
     }
-    void subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan_data() {
-        QTest::addColumn<bool>("configuredPlanning");
-        QTest::newRow("engine-options")<<true;QTest::newRow("scoped-context-only")<<false;
-    }
-    void subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan() {
-        QFETCH(bool,configuredPlanning);
+    void subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan(bool configuredPlanning) {
         QTemporaryDir root;auto registry=std::make_shared<a::ToolRegistry>();auto model=std::make_shared<Model>();
-        const auto work=root.filePath("work");QVERIFY(QDir().mkpath(work));
+        const auto work=root.filePath("work");CTEST_CHECK(QDir().mkpath(work));
         a::registerWorkspaceTools(*registry,work);auto policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);
         a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=work+"/state";options.planToolsEnabled=true;
         options.permission=[](const auto&,const auto&,const auto&){return true;};
         options.skills.enabled=false;options.projectContext.enabled=false;options.compaction.automatic=false;
         a::Engine engine(model,registry,policy,options);const auto parent=engine.createSession("fixture",work);
         const auto other=engine.createSession("fixture",work).id;
-        QVERIFY(!engine.runPlanTool(parent.id,"EnterPlanMode").isError);QVERIFY(!engine.runPlanTool(other,"EnterPlanMode").isError);
+        CTEST_CHECK(!engine.runPlanTool(parent.id,"EnterPlanMode").isError);CTEST_CHECK(!engine.runPlanTool(other,"EnterPlanMode").isError);
         const auto foreign=engine.planStatus(other)["plan_file_path"].toString();write(foreign,"FOREIGN_PLAN_SECRET");
         bool readDenied=false,writeDenied=false,hidden=true,hiddenSearch=false;int attempts=0;
         model->generateReply=[&](const a::ModelRequest& request)->a::ModelReply {
@@ -137,14 +136,14 @@ private slots:
         a::Subagents agents(model,registry,policy,childHost,child);a::ToolContext context{parent.id,{},work};
         context.sessionSnapshot=std::make_shared<a::Session>(parent);context=engine.planning()->scope(std::move(context),*policy);
         const auto result=agents.run(context,{{"prompt","Inspect and try a write"}});
-        QVERIFY2(!result.isError,qPrintable(result.text));QVERIFY(hidden&&writeDenied);QVERIFY(!QFileInfo::exists(work+"/forbidden.txt"));
-        QVERIFY2(readDenied,"Subagent read another session's private plan");QVERIFY(hiddenSearch);
-        QVERIFY(!engine.runPlanTool(parent.id,"ExitPlanMode").isError);
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_CHECK(hidden&&writeDenied);CTEST_CHECK(!QFileInfo::exists(work+"/forbidden.txt"));
+        CTEST_CHECK_MESSAGE(readDenied,"Subagent read another session's private plan");CTEST_CHECK(hiddenSearch);
+        CTEST_CHECK(!engine.runPlanTool(parent.id,"ExitPlanMode").isError);
         context={parent.id,{},work};context.sessionSnapshot=std::make_shared<a::Session>(parent);
-        context=engine.planning()->scope(std::move(context),*policy);QVERIFY(!context.planModeActive);
+        context=engine.planning()->scope(std::move(context),*policy);CTEST_CHECK(!context.planModeActive);
         readDenied=false;writeDenied=false;hiddenSearch=false;
         const auto resumed=agents.run(context,{{"prompt","Inspect again"},{"resume",result.data["agentId"]}});
-        QVERIFY2(!resumed.isError,QJsonDocument(resumed.data).toJson().constData());QVERIFY(readDenied&&writeDenied&&hiddenSearch);
+        CTEST_CHECK_MESSAGE(!resumed.isError,QJsonDocument(resumed.data).toJson().constData());CTEST_CHECK(readDenied&&writeDenied&&hiddenSearch);
     }
     void mcpEngineWrapperCanEnterPlanningAndKeepTaskControlsUsable() {
         QTemporaryDir root;auto registry=std::make_shared<a::ToolRegistry>();auto model=std::make_shared<Model>();
@@ -155,11 +154,11 @@ private slots:
         a::McpServerOptions config;config.engine=engine;config.model="fixture";config.workingDirectory=root.path();
         auto server=a::mcpServerOptions(registry,policy,config);mcp::ServerRequestContext request;request.sessionId="wire";
         auto call=[&](const QString& name,const QJsonObject& args=QJsonObject{}){return server.handlers.at("tools/call")({{"name",name},{"arguments",args}},request);};
-        const auto run=call("iiLocalLLM.agent.run",{{"prompt","Plan the change"}});QVERIFY2(!run["isError"].toBool(),qPrintable(QString::fromUtf8(QJsonDocument(run).toJson())));
-        const auto status=server.controlHandlers.at("iisacc/plan/status")({},request);QCOMPARE(status["phase"],"planning");
-        QVERIFY(!call("TaskCreate",{{"subject","Plan task"},{"description","Check a scoped task"}})["isError"].toBool());
-        const auto continued=call("iiLocalLLM.agent.run",{{"prompt","Continue planning"}});QVERIFY2(!continued["isError"].toBool(),qPrintable(QString::fromUtf8(QJsonDocument(continued).toJson())));
-        QVERIFY(!call("iiLocalLLM.agent.clear")["isError"].toBool());QCOMPARE(server.controlHandlers.at("iisacc/plan/status")({},request)["phase"],"inactive");
+        const auto run=call("iiLocalLLM.agent.run",{{"prompt","Plan the change"}});CTEST_CHECK_MESSAGE(!run["isError"].toBool(),qPrintable(QString::fromUtf8(QJsonDocument(run).toJson())));
+        const auto status=server.controlHandlers.at("iisacc/plan/status")({},request);CTEST_COMPARE(status["phase"],"planning");
+        CTEST_CHECK(!call("TaskCreate",{{"subject","Plan task"},{"description","Check a scoped task"}})["isError"].toBool());
+        const auto continued=call("iiLocalLLM.agent.run",{{"prompt","Continue planning"}});CTEST_CHECK_MESSAGE(!continued["isError"].toBool(),qPrintable(QString::fromUtf8(QJsonDocument(continued).toJson())));
+        CTEST_CHECK(!call("iiLocalLLM.agent.clear")["isError"].toBool());CTEST_COMPARE(server.controlHandlers.at("iisacc/plan/status")({},request)["phase"],"inactive");
         server.onClosed("wire");
     }
     void transitionInvalidatesAnAlreadyPreparedProjectWrite() {
@@ -169,13 +168,13 @@ private slots:
                 const auto entered=f.run("EnterPlanMode");if(entered.isError)throw std::runtime_error(entered.text.toStdString());
             }
         });
-        QVERIFY(result.isError);QVERIFY(result.text.contains("Planning state changed"));QVERIFY(!QFileInfo::exists(f.workspace+"/project.txt"));
+        CTEST_CHECK(result.isError);CTEST_CHECK(result.text.contains("Planning state changed"));CTEST_CHECK(!QFileInfo::exists(f.workspace+"/project.txt"));
     }
     void permissiveCustomPolicyCannotBypassPlanning() {
         class Allow final:public a::PermissionPolicy {public:a::PermissionDecision decide(const a::ToolDefinition&,const QJsonObject&,const a::ToolContext&)const override{return {a::PermissionBehavior::Allow,{}};}};
-        Fixture f;f.policy=std::make_shared<Allow>();f.draft();QVERIFY(f.run("Write",{{"path","bad.txt"},{"content","blocked"}}).isError);
+        Fixture f;f.policy=std::make_shared<Allow>();f.draft();CTEST_CHECK(f.run("Write",{{"path","bad.txt"},{"content","blocked"}}).isError);
         int reviews=0;f.options.permission=[&](const auto&,const auto&,const auto&){++reviews;return true;};
-        QVERIFY(!f.run("ExitPlanMode").isError);QCOMPARE(reviews,1);
+        CTEST_CHECK(!f.run("ExitPlanMode").isError);CTEST_COMPARE(reviews,1);
     }
     void deferredPlanningToolsCanBeDiscovered() {
         QTemporaryDir root;auto model=std::make_shared<Model>();model->generateReply=[raw=model.get()](const a::ModelRequest&) -> a::ModelReply {
@@ -185,8 +184,8 @@ private slots:
         a::EngineOptions options{.decision={.enabled=false}};options.sessionsDirectory=root.filePath("sessions");options.planToolsEnabled=true;options.compaction.automatic=false;options.projectContext.enabled=false;
         a::Engine engine(model,std::make_shared<a::ToolRegistry>(),std::make_shared<a::RulePolicy>(),options);
         const auto id=engine.createSession("fixture",root.path()).id;const auto result=engine.run({id,"Plan"}).result.get();
-        QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(engine.planStatus(id)["phase"],"planning");
-        QVERIFY(std::any_of(model->requests[1].tools.begin(),model->requests[1].tools.end(),[](const auto& t){return t.name=="EnterPlanMode";}));
+        CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(engine.planStatus(id)["phase"],"planning");
+        CTEST_CHECK(std::any_of(model->requests[1].tools.begin(),model->requests[1].tools.end(),[](const auto& t){return t.name=="EnterPlanMode";}));
         model->generateReply={};
     }
     void modelCanEnterPlanningAndReceivesCurrentState() {
@@ -194,31 +193,31 @@ private slots:
         options.compaction.automatic=false;options.projectContext.enabled=false;options.planToolsEnabled=true;options.planToolsDeferred=false;
         auto model=std::make_shared<Model>();a::Engine engine(model,std::make_shared<a::ToolRegistry>(),std::make_shared<a::RulePolicy>(),options);
         const auto id=engine.createSession("fixture",root.path()).id;
-        QCOMPARE(engine.run({id,"Prepare an implementation plan"}).result.get().status,a::RunStatus::Completed);
+        CTEST_COMPARE(engine.run({id,"Prepare an implementation plan"}).result.get().status,a::RunStatus::Completed);
         const auto session=engine.session(id);
         const auto result=std::find_if(session.messages.begin(),session.messages.end(),[](const auto& m){return m.toolCallId=="enter";});
-        QVERIFY(result!=session.messages.end());QVERIFY2(!result->isError,qPrintable(result->text));
-        QCOMPARE(engine.planStatus(id)["phase"],"planning");QCOMPARE(engine.permissions(id)["mode"],"plan");
-        QVERIFY(std::any_of(model->requests.last().messages.begin(),model->requests.last().messages.end(),[](const auto& m){return m.metadata["iilocal.plan_state"].toBool();}));
+        CTEST_CHECK(result!=session.messages.end());CTEST_CHECK_MESSAGE(!result->isError,qPrintable(result->text));
+        CTEST_COMPARE(engine.planStatus(id)["phase"],"planning");CTEST_COMPARE(engine.permissions(id)["mode"],"plan");
+        CTEST_CHECK(std::any_of(model->requests.last().messages.begin(),model->requests.last().messages.end(),[](const auto& m){return m.metadata["iilocal.plan_state"].toBool();}));
     }
     void ownedPlanIsTheOnlyWritableFileAndApprovalRestoresPolicy() {
         Fixture f;f.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);f.draft();
-        QVERIFY(f.run("Write",{{"path","project.txt"},{"content","bad"}}).isError);
-        QVERIFY(f.run("Bash",{{"command","printf forbidden > project.txt"}}).isError);QVERIFY(!QFileInfo::exists(f.workspace+"/project.txt"));
-        QVERIFY(!f.run("Read",{{"path",f.plan()}}).isError);
-        QVERIFY(!f.run("Edit",{{"path",f.plan()},{"old_string","parser"},{"new_string","tokenizer"}}).isError);
+        CTEST_CHECK(f.run("Write",{{"path","project.txt"},{"content","bad"}}).isError);
+        CTEST_CHECK(f.run("Bash",{{"command","printf forbidden > project.txt"}}).isError);CTEST_CHECK(!QFileInfo::exists(f.workspace+"/project.txt"));
+        CTEST_CHECK(!f.run("Read",{{"path",f.plan()}}).isError);
+        CTEST_CHECK(!f.run("Edit",{{"path",f.plan()},{"old_string","parser"},{"new_string","tokenizer"}}).isError);
         int reviews=0;f.options.permission=[&](const auto&,const auto&,const auto&){++reviews;return true;};
-        const auto exit=f.run("ExitPlanMode");QVERIFY2(!exit.isError,qPrintable(exit.text));QCOMPARE(reviews,1);
-        QCOMPARE(f.plans->status("owner")["phase"],"approved");QVERIFY(f.plans->status("owner")["approval_current"].toBool());
-        QVERIFY(!f.run("Write",{{"path","project.txt"},{"content","implemented"}}).isError);
-        QVERIFY(f.run("Write",{{"path",f.plan()},{"content","unreviewed"}}).isError);
+        const auto exit=f.run("ExitPlanMode");CTEST_CHECK_MESSAGE(!exit.isError,qPrintable(exit.text));CTEST_COMPARE(reviews,1);
+        CTEST_COMPARE(f.plans->status("owner")["phase"],"approved");CTEST_CHECK(f.plans->status("owner")["approval_current"].toBool());
+        CTEST_CHECK(!f.run("Write",{{"path","project.txt"},{"content","implemented"}}).isError);
+        CTEST_CHECK(f.run("Write",{{"path",f.plan()},{"content","unreviewed"}}).isError);
     }
     void deniedOrForgedExitLeavesPlanningActive() {
         Fixture f;f.draft();f.options.permission=[](const auto&,const auto&,const auto&){return false;};
-        QVERIFY(f.run("ExitPlanMode").isError);QCOMPARE(f.plans->status("owner")["phase"],"planning");
-        QVERIFY(f.run("ExitPlanMode",{{"plan","model-forged approval"}}).isError);
-        QVERIFY(f.run("ExitPlanMode",{{"session_id","foreign"}}).isError);
-        QVERIFY(f.run("ExitPlanMode",{},"foreign").isError);
+        CTEST_CHECK(f.run("ExitPlanMode").isError);CTEST_COMPARE(f.plans->status("owner")["phase"],"planning");
+        CTEST_CHECK(f.run("ExitPlanMode",{{"plan","model-forged approval"}}).isError);
+        CTEST_CHECK(f.run("ExitPlanMode",{{"session_id","foreign"}}).isError);
+        CTEST_CHECK(f.run("ExitPlanMode",{},"foreign").isError);
     }
     void hostMayEditExactlyTheReviewedPlan() {
         Fixture f;f.draft();QJsonObject preview;
@@ -228,111 +227,140 @@ private slots:
         const auto result=f.run("ExitPlanMode",{},"owner",[&](const a::Event& e) {
             if(e.kind==a::EventKind::PermissionRequested)preview=e.data["permission_preview"].toObject()["_meta"].toObject()["plan"].toObject();
         });
-        QVERIFY2(!result.isError,qPrintable(result.text));QCOMPARE(read(f.plan()),QByteArray("Host edited implementation plan."));
-        QVERIFY(result.data["plan_was_edited"].toBool());QVERIFY(!preview["plan_sha256"].toString().isEmpty());
-        QVERIFY(preview["plan"].toString().contains("parser"));QCOMPARE(result.data["plan"],"Host edited implementation plan.");
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_COMPARE(read(f.plan()),QByteArray("Host edited implementation plan."));
+        CTEST_CHECK(result.data["plan_was_edited"].toBool());CTEST_CHECK(!preview["plan_sha256"].toString().isEmpty());
+        CTEST_CHECK(preview["plan"].toString().contains("parser"));CTEST_COMPARE(result.data["plan"],"Host edited implementation plan.");
     }
-    void changedPlanCannotReceiveAnOlderApproval_data() {
-        QTest::addColumn<bool>("edit");QTest::newRow("allow")<<false;QTest::newRow("host-edit")<<true;
-    }
-    void changedPlanCannotReceiveAnOlderApproval() {
-        QFETCH(bool,edit);Fixture f;f.draft();
+    void changedPlanCannotReceiveAnOlderApproval(bool edit) {
+        Fixture f;f.draft();bool changedDuringReview=false;
         f.options.permissionResponse=[&](const auto&,const auto&,const auto&) {
-            write(f.plan(),"Changed during the host review");a::PermissionResponse result{a::PermissionBehavior::Allow};
+            changedDuringReview=tryWrite(f.plan(),"Changed during the host review");a::PermissionResponse result{a::PermissionBehavior::Allow};
             if(edit)result.updatedArguments=QJsonObject{{"plan","Host edited an older version"}};return result;
         };
-        const auto result=f.run("ExitPlanMode");QVERIFY(result.isError);QVERIFY(result.text.contains("changed during review"));
-        QCOMPARE(f.plans->status("owner")["phase"],"planning");QCOMPARE(read(f.plan()),QByteArray("Changed during the host review"));
+        const auto result=f.run("ExitPlanMode");CTEST_CHECK(changedDuringReview);CTEST_CHECK(result.isError);CTEST_CHECK(result.text.contains("changed during review"));
+        CTEST_COMPARE(f.plans->status("owner")["phase"],"planning");CTEST_COMPARE(read(f.plan()),QByteArray("Changed during the host review"));
     }
     void changesAfterPermissionBeforeExecutionAreDetected() {
-        Fixture f;f.draft();const auto result=f.run("ExitPlanMode",{},"owner",[&](const a::Event& e) {
-            if(e.kind==a::EventKind::ToolStarted)write(f.plan(),"changed at the execution boundary");
+        Fixture f;f.draft();bool changedAtExecution=false;
+        const auto result=f.run("ExitPlanMode",{},"owner",[&](const a::Event& e) {
+            if(e.kind==a::EventKind::ToolStarted)changedAtExecution=tryWrite(f.plan(),"changed at the execution boundary");
         });
-        QVERIFY(result.isError);QCOMPARE(f.plans->status("owner")["phase"],"planning");
+        CTEST_CHECK(changedAtExecution);CTEST_CHECK(result.isError);CTEST_COMPARE(f.plans->status("owner")["phase"],"planning");
     }
     void explicitDenyAndAskStillApplyToPlanWrites() {
-        Fixture f;QVERIFY(!f.run("EnterPlanMode").isError);
+        Fixture f;CTEST_CHECK(!f.run("EnterPlanMode").isError);
         for(auto behavior:{a::PermissionBehavior::Deny,a::PermissionBehavior::Ask}) {
             f.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass,QList<a::PermissionRule>{{"Write",behavior}});
-            QVERIFY(f.run("Write",{{"path",f.plan()},{"content","blocked"}}).isError);QVERIFY(!QFileInfo::exists(f.plan()));
+            CTEST_CHECK(f.run("Write",{{"path",f.plan()},{"content","blocked"}}).isError);CTEST_CHECK(!QFileInfo::exists(f.plan()));
         }
     }
     void actionDescriptionsNeverGrantShellPermission() {
         Fixture f;f.draft();const auto result=f.run("ExitPlanMode",{{"allowedPrompts",QJsonArray{QJsonObject{{"tool","Bash"},{"prompt","run any command"}}}}});
-        QVERIFY(!result.isError);QVERIFY(f.run("Bash",{{"command","printf unauthorized > marker"}}).isError);
-        QVERIFY(!QFileInfo::exists(f.workspace+"/marker"));
+        CTEST_CHECK(!result.isError);CTEST_CHECK(f.run("Bash",{{"command","printf unauthorized > marker"}}).isError);
+        CTEST_CHECK(!QFileInfo::exists(f.workspace+"/marker"));
     }
     void corruptStateAndSymlinkTargetsFailClosed() {
         Fixture f;f.draft();const auto state=QFileInfo(f.plan()).dir().filePath("state.json");write(state,"{broken");
-        QVERIFY_THROWS_EXCEPTION(Error,f.plans->status("owner"));
-        QVERIFY(f.run("Write",{{"path","project.txt"},{"content","blocked"}}).isError);
-        Fixture other;other.draft();const auto target=other.workspace+"/private.txt";write(target,"SECRET");const auto planPath=other.plan();QVERIFY(QFile::remove(planPath));
-        QVERIFY(createNativeTestLink(target,planPath));QVERIFY_THROWS_EXCEPTION(Error,other.plans->status("owner"));
-        QVERIFY(other.run("Read",{{"path",planPath}}).isError);QCOMPARE(read(target),QByteArray("SECRET"));
+        CTEST_THROWS(Error,f.plans->status("owner"));
+        CTEST_CHECK(f.run("Write",{{"path","project.txt"},{"content","blocked"}}).isError);
+        Fixture other;other.draft();const auto target=other.workspace+"/private.txt";write(target,"SECRET");const auto planPath=other.plan();CTEST_CHECK(QFile::remove(planPath));
+        CTEST_CHECK(createNativeTestLink(target,planPath));CTEST_THROWS(Error,other.plans->status("owner"));
+        CTEST_CHECK(other.run("Read",{{"path",planPath}}).isError);CTEST_COMPARE(read(target),QByteArray("SECRET"));
     }
     void planStateAndForeignFilesAreNotSearchable() {
-        Fixture f(true);f.draft("PLAN_PRIVATE_SENTINEL");QVERIFY(!f.run("EnterPlanMode",{},"foreign").isError);
-        QVERIFY(f.run("Read",{{"path",f.plan("owner")}},"foreign").isError);
-        QVERIFY(f.run("Read",{{"path",QFileInfo(f.plan()).dir().filePath("state.json")}}).isError);
-        const auto glob=f.run("Glob",{{"pattern","**/*"}});QVERIFY(!glob.isError);QVERIFY(!glob.text.contains("plan.md"));
-        const auto grep=f.run("Grep",{{"pattern","PLAN_PRIVATE_SENTINEL"}});QVERIFY2(!grep.isError,qPrintable(grep.text));QVERIFY(!grep.text.contains("PLAN_PRIVATE_SENTINEL"));
-        QVERIFY(!f.run("Read",{{"path",f.plan()}}).isError);
+        Fixture f(true);f.draft("PLAN_PRIVATE_SENTINEL");CTEST_CHECK(!f.run("EnterPlanMode",{},"foreign").isError);
+        CTEST_CHECK(f.run("Read",{{"path",f.plan("owner")}},"foreign").isError);
+        CTEST_CHECK(f.run("Read",{{"path",QFileInfo(f.plan()).dir().filePath("state.json")}}).isError);
+        const auto glob=f.run("Glob",{{"pattern","**/*"}});CTEST_CHECK(!glob.isError);CTEST_CHECK(!glob.text.contains("plan.md"));
+        const auto grep=f.run("Grep",{{"pattern","PLAN_PRIVATE_SENTINEL"}});CTEST_CHECK_MESSAGE(!grep.isError,qPrintable(grep.text));CTEST_CHECK(!grep.text.contains("PLAN_PRIVATE_SENTINEL"));
+        CTEST_CHECK(!f.run("Read",{{"path",f.plan()}}).isError);
     }
     void restartAndForkPreserveContentWithoutTransferringApproval() {
-        Fixture f;f.draft();QVERIFY(!f.run("ExitPlanMode").isError);
-        a::PlanMode restarted(QFileInfo(f.plan()).dir().absolutePath()+"/..");QCOMPARE(restarted.status("owner")["phase"],"approved");
+        Fixture f;f.draft();CTEST_CHECK(!f.run("ExitPlanMode").isError);
+        a::PlanMode restarted(QFileInfo(f.plan()).dir().absolutePath()+"/..");CTEST_COMPARE(restarted.status("owner")["phase"],"approved");
         restarted.fork("owner","fork");const auto fork=restarted.status("fork");
-        QCOMPARE(fork["phase"],"planning");QCOMPARE(fork["plan"],f.plans->status("owner")["plan"]);QVERIFY(fork["plan_file_path"]!=f.plan());
-        write(fork["plan_file_path"].toString(),"fork revision");QVERIFY(read(f.plan())!="fork revision");
+        CTEST_COMPARE(fork["phase"],"planning");CTEST_COMPARE(fork["plan"],f.plans->status("owner")["plan"]);CTEST_CHECK(fork["plan_file_path"]!=f.plan());
+        write(fork["plan_file_path"].toString(),"fork revision");CTEST_CHECK(read(f.plan())!="fork revision");
     }
     void unreviewedExternalChangeReentersRestrictedState() {
-        Fixture f;f.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);f.draft();QVERIFY(!f.run("ExitPlanMode").isError);
-        write(f.plan(),"unreviewed external revision");QVERIFY(f.run("Write",{{"path","project.txt"},{"content","blocked"}}).isError);
-        QVERIFY(!f.run("EnterPlanMode").isError);QVERIFY(!f.run("ExitPlanMode").isError);
-        QCOMPARE(f.plans->status("owner")["revision"].toInt(),2);
-        QVERIFY(!f.run("Write",{{"path","project.txt"},{"content","reviewed"}}).isError);
+        Fixture f;f.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Bypass);f.draft();CTEST_CHECK(!f.run("ExitPlanMode").isError);
+        write(f.plan(),"unreviewed external revision");CTEST_CHECK(f.run("Write",{{"path","project.txt"},{"content","blocked"}}).isError);
+        CTEST_CHECK(!f.run("EnterPlanMode").isError);CTEST_CHECK(!f.run("ExitPlanMode").isError);
+        CTEST_COMPARE(f.plans->status("owner")["revision"].toInt(),2);
+        CTEST_CHECK(!f.run("Write",{{"path","project.txt"},{"content","reviewed"}}).isError);
     }
     void planByteAndTextLimitsAreEnforced() {
-        Fixture f;QVERIFY(!f.run("EnterPlanMode").isError);
-        QVERIFY(f.run("Write",{{"path",f.plan()},{"content",QString(40000,QChar(0xAC00))}}).isError);
-        QVERIFY(f.run("Write",{{"path",f.plan()},{"content",QString("a")+QChar::Null+"b"}}).isError);
-        QVERIFY(!QFileInfo::exists(f.plan()));
-        write(f.plan(),QByteArray(65537,'x'));QVERIFY_THROWS_EXCEPTION(Error,f.plans->status("owner"));
+        Fixture f;CTEST_CHECK(!f.run("EnterPlanMode").isError);
+        CTEST_CHECK(f.run("Write",{{"path",f.plan()},{"content",QString(40000,QChar(0xAC00))}}).isError);
+        CTEST_CHECK(f.run("Write",{{"path",f.plan()},{"content",QString("a")+QChar::Null+"b"}}).isError);
+        CTEST_CHECK(!QFileInfo::exists(f.plan()));
+        write(f.plan(),QByteArray(65537,'x'));CTEST_THROWS(Error,f.plans->status("owner"));
     }
     void emptyPlanCanBeReviewedButCannotExitAnInactiveSession() {
-        Fixture f;QVERIFY(f.run("ExitPlanMode").isError);QVERIFY(!f.run("EnterPlanMode").isError);
-        const auto result=f.run("ExitPlanMode");QVERIFY(!result.isError);QVERIFY(result.data["plan"].isNull());
-        QVERIFY(!result.data["file_exists"].toBool());QVERIFY(result.data["approval_current"].toBool());
+        Fixture f;CTEST_CHECK(f.run("ExitPlanMode").isError);CTEST_CHECK(!f.run("EnterPlanMode").isError);
+        const auto result=f.run("ExitPlanMode");CTEST_CHECK(!result.isError);CTEST_CHECK(result.data["plan"].isNull());
+        CTEST_CHECK(!result.data["file_exists"].toBool());CTEST_CHECK(result.data["approval_current"].toBool());
     }
     void configuredPlanModeReturnsToDefaultAfterReview() {
         Fixture f;f.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::Plan);
         f.registry->remove("EnterPlanMode");f.registry->remove("ExitPlanMode");for(auto tool:f.plans->tools(f.policy,false))f.registry->add(std::move(tool));
-        f.draft();QVERIFY(!f.run("ExitPlanMode").isError);
-        const auto scoped=f.plans->scope(f.context(),*f.policy);QVERIFY(!scoped.planModeActive);QCOMPARE(scoped.permissionMode,a::PermissionMode::Default);
+        f.draft();CTEST_CHECK(!f.run("ExitPlanMode").isError);
+        const auto scoped=f.plans->scope(f.context(),*f.policy);CTEST_CHECK(!scoped.planModeActive);CTEST_COMPARE(scoped.permissionMode,a::PermissionMode::Default);
     }
     void brokerCancellationKeepsPlanAndOneConcurrentApprovalWins() {
         Fixture f;f.draft();f.options.permission={};auto broker=std::make_shared<a::PermissionRequests>();f.options.permissionRequests=broker;
         auto context=f.context();auto future=std::async(std::launch::async,[&]{return a::ToolRunner(f.registry,f.policy,f.options).run({"exit","ExitPlanMode",{}},context);});
-        QTRY_VERIFY_WITH_TIMEOUT(!broker->pending()["requests"].toArray().isEmpty(),3000);context.cancellation.cancel();
-        QVERIFY_THROWS_EXCEPTION(Error,(void)future.get());QCOMPARE(f.plans->status("owner")["phase"],"planning");
+        CTEST_WAIT_VERIFY(!broker->pending()["requests"].toArray().isEmpty(),3000);context.cancellation.cancel();
+        CTEST_THROWS(Error,(void)future.get());CTEST_COMPARE(f.plans->status("owner")["phase"],"planning");
         broker->close();
         f.options.permissionRequests={};std::atomic<int> waiting=0;std::atomic_bool release=false;
         f.options.permission=[&](const auto&,const auto&,const auto& c){++waiting;while(!release){c.cancellation.throwIfCancelled();std::this_thread::sleep_for(1ms);}return true;};
         auto first=std::async(std::launch::async,[&]{return f.run("ExitPlanMode");});
         auto second=std::async(std::launch::async,[&]{return f.run("ExitPlanMode");});
-        QTRY_COMPARE_WITH_TIMEOUT(waiting.load(),2,3000);release=true;const auto a=first.get(),b=second.get();
-        QVERIFY(a.isError!=b.isError);QCOMPARE(f.plans->status("owner")["phase"],"approved");
+        CTEST_WAIT_COMPARE_TIMEOUT(waiting.load(),2,3000);release=true;const auto a=first.get(),b=second.get();
+        CTEST_CHECK(a.isError!=b.isError);CTEST_COMPARE(f.plans->status("owner")["phase"],"approved");
     }
     void engineEndRetainsPlanClearStartsFreshAndDisabledHostsReject() {
         QTemporaryDir root;auto model=std::make_shared<Model>();auto registry=std::make_shared<a::ToolRegistry>();auto policy=std::make_shared<a::RulePolicy>();
         a::EngineOptions config{.decision={.enabled=false}};config.sessionsDirectory=root.filePath("sessions");config.planToolsEnabled=true;
         a::Engine engine(model,registry,policy,config);const auto id=engine.createSession("fixture",root.path()).id;
-        QVERIFY(!engine.runPlanTool(id,"EnterPlanMode").isError);(void)engine.endSession(id);QCOMPARE(engine.planStatus(id)["phase"],"planning");
-        const auto fork=engine.forkSession(id).id;QCOMPARE(engine.planStatus(fork)["phase"],"planning");
-        const auto clear=engine.clearSession(id);QVERIFY(clear["complete"].toBool());QCOMPARE(engine.planStatus(clear["session_id"].toString())["phase"],"inactive");
+        CTEST_CHECK(!engine.runPlanTool(id,"EnterPlanMode").isError);(void)engine.endSession(id);CTEST_COMPARE(engine.planStatus(id)["phase"],"planning");
+        const auto fork=engine.forkSession(id).id;CTEST_COMPARE(engine.planStatus(fork)["phase"],"planning");
+        const auto clear=engine.clearSession(id);CTEST_CHECK(clear["complete"].toBool());CTEST_COMPARE(engine.planStatus(clear["session_id"].toString())["phase"],"inactive");
         config.planToolsEnabled=false;config.sessionsDirectory=root.filePath("disabled");a::Engine disabled(model,registry,policy,config);
-        const auto off=disabled.createSession("fixture",root.path()).id;QVERIFY_THROWS_EXCEPTION(Error,disabled.runPlanTool(off,"EnterPlanMode"));
+        const auto off=disabled.createSession("fixture",root.path()).id;CTEST_THROWS(Error,disabled.runPlanTool(off,"EnterPlanMode"));
     }
 };
-QTEST_GUILESS_MAIN(PlanModeTests)
-#include "plan_mode_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    PlanModeTests tests;
+    runner.run("activePlanPublishesItsExactWritePathWithoutRestrictingProjectReads", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.activePlanPublishesItsExactWritePathWithoutRestrictingProjectReads(); });
+    runner.run("verificationAgentCannotReadAnotherSessionsPlanInsideWorkspace", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.verificationAgentCannotReadAnotherSessionsPlanInsideWorkspace(); });
+    runner.run("subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan:engine-options", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan(true); });
+    runner.run("subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan:scoped-context-only", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.subagentKeepsPlanningRestrictionsAndCannotReadForeignPlan(false); });
+    runner.run("mcpEngineWrapperCanEnterPlanningAndKeepTaskControlsUsable", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.mcpEngineWrapperCanEnterPlanningAndKeepTaskControlsUsable(); });
+    runner.run("transitionInvalidatesAnAlreadyPreparedProjectWrite", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.transitionInvalidatesAnAlreadyPreparedProjectWrite(); });
+    runner.run("permissiveCustomPolicyCannotBypassPlanning", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.permissiveCustomPolicyCannotBypassPlanning(); });
+    runner.run("deferredPlanningToolsCanBeDiscovered", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.deferredPlanningToolsCanBeDiscovered(); });
+    runner.run("modelCanEnterPlanningAndReceivesCurrentState", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.modelCanEnterPlanningAndReceivesCurrentState(); });
+    runner.run("ownedPlanIsTheOnlyWritableFileAndApprovalRestoresPolicy", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.ownedPlanIsTheOnlyWritableFileAndApprovalRestoresPolicy(); });
+    runner.run("deniedOrForgedExitLeavesPlanningActive", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.deniedOrForgedExitLeavesPlanningActive(); });
+    runner.run("hostMayEditExactlyTheReviewedPlan", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.hostMayEditExactlyTheReviewedPlan(); });
+    runner.run("changedPlanCannotReceiveAnOlderApproval:allow", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.changedPlanCannotReceiveAnOlderApproval(false); });
+    runner.run("changedPlanCannotReceiveAnOlderApproval:host-edit", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.changedPlanCannotReceiveAnOlderApproval(true); });
+    runner.run("changesAfterPermissionBeforeExecutionAreDetected", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.changesAfterPermissionBeforeExecutionAreDetected(); });
+    runner.run("explicitDenyAndAskStillApplyToPlanWrites", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.explicitDenyAndAskStillApplyToPlanWrites(); });
+    runner.run("actionDescriptionsNeverGrantShellPermission", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.actionDescriptionsNeverGrantShellPermission(); });
+    runner.run("corruptStateAndSymlinkTargetsFailClosed", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.corruptStateAndSymlinkTargetsFailClosed(); });
+    runner.run("planStateAndForeignFilesAreNotSearchable", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.planStateAndForeignFilesAreNotSearchable(); });
+    runner.run("restartAndForkPreserveContentWithoutTransferringApproval", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.restartAndForkPreserveContentWithoutTransferringApproval(); });
+    runner.run("unreviewedExternalChangeReentersRestrictedState", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.unreviewedExternalChangeReentersRestrictedState(); });
+    runner.run("planByteAndTextLimitsAreEnforced", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.planByteAndTextLimitsAreEnforced(); });
+    runner.run("emptyPlanCanBeReviewedButCannotExitAnInactiveSession", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.emptyPlanCanBeReviewedButCannotExitAnInactiveSession(); });
+    runner.run("configuredPlanModeReturnsToDefaultAfterReview", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.configuredPlanModeReturnsToDefaultAfterReview(); });
+    runner.run("brokerCancellationKeepsPlanAndOneConcurrentApprovalWins", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.brokerCancellationKeepsPlanAndOneConcurrentApprovalWins(); });
+    runner.run("engineEndRetainsPlanClearStartsFreshAndDisabledHostsReject", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.engineEndRetainsPlanClearStartsFreshAndDisabledHostsReject(); });
+    return runner.result();
+}

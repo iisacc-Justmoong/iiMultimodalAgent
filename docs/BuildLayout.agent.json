@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/BuildLayout.md",
-    "sha256": "6a48e731779f76903448472b9dafa33a2d40d8fd1bc65dac0d8afd4114e5f543",
-    "bytes": 1135,
-    "line_count": 9,
+    "sha256": "3a1182fed0b9f7146acc1c666f4db66ebd23039cd7da3d0dbb4da611999e83ca",
+    "bytes": 16148,
+    "line_count": 211,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -86,6 +86,888 @@
       "start_line": 9,
       "end_line": 9,
       "raw": "공식 MCP 검증을 위한 외부 Python 환경의 바이트코드 준비는 기본 빌드에 포함되지 않는다. 필요한 경우 `iiMultimodalAgentMcpDependencyArtifacts` 타깃을 명시적으로 선택한다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 15,
+      "raw": "의사결정 게이트의 확률·기대값·오류 검사는 CTest용 C++ 실행 파일로\n실행하며 Qt Test를 링크하지 않는다. 설치 소비자의 같은 검사도 별도로\nQt Test를 링크하지 않는다. 가짜 모델을 사용하는 의사결정 엔진 검사와\n설치 소비자도 CTest에서 Qt Core 이벤트 처리만 사용한다. 다른 에이전트\n검사의 Qt Test 의존성은 남아 있다.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 19,
+      "raw": "메모리 통합 엔진의 가짜 모델·API·인프로세스 MCP 검사는 Qt Test 없이\nCTest로 실행한다. 임시 프로젝트는 CTest fixture가 지정한 `resources/`의\n임시 경로에 만들고 정리한다. 실제 모델 추론이나 외부 MCP 서버는 사용하지 않는다.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 22,
+      "raw": "멀티모달 호스트 설정의 경로·별칭·오류 검사는 가짜 파일을 사용하는\nCTest 실행 파일로 유지하며 Qt Test를 링크하지 않는다.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 25,
+      "raw": "메모리 검색의 후보 필터·크기 제한·취소 검사는 격리된 가짜 프로젝트와\n모델을 사용하며 CTest 실행 파일에서 Qt Test를 링크하지 않는다.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 28,
+      "raw": "권한 요청과 세션 기록 엔진도 가짜 모델 및 격리된 상태로 CTest에서\n검사한다. 세션 기록 시험의 임시 파일은 fixture의 `resources/` 경로에 둔다.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 30,
+      "end_line": 31,
+      "raw": "프로젝트 메모리의 읽기·쓰기·권한·경로 격리 검사는 임시 작업 공간에서\nCTest로 실행하며 Qt Test를 링크하지 않는다.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 34,
+      "raw": "멀티모달 콘텐츠의 검증·모델 라우팅·세션 복구 테스트와 설치 소비자는\n가짜 모델을 사용하고 Qt Test 없이 CTest로 실행한다.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 37,
+      "raw": "설치 소비자 CTest는 고유한 `resources/.state/consumer-*` 작업 공간을\n준비·정리한다. 임시 입력과 출력은 소비자 빌드 디렉터리에 만들지 않는다.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 39,
+      "end_line": 40,
+      "raw": "메모리 검색 엔진의 자동·취소·API·인프로세스 MCP 검사는 가짜 모델과\n격리된 테스트 자료를 사용하며 CTest로 실행한다.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 42,
+      "end_line": 43,
+      "raw": "의미 검색 테스트는 가짜 임베딩과 런타임을 사용해 출처·인덱스 갱신·\n취소를 확인하며 Qt Test 없이 CTest로 실행한다.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 45,
+      "end_line": 46,
+      "raw": "스킬 권한의 승인 범위·복구·자식 실행 검사는 테스트용 스킬과 가짜\n모델을 사용하며 Qt Test 없이 CTest로 실행한다.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 49,
+      "raw": "메모리 추출 엔진의 백그라운드 작업·취소·API·인프로세스 MCP 검사는\n가짜 모델과 fixture의 임시 경로를 사용해 CTest로 실행한다.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 51,
+      "end_line": 52,
+      "raw": "스킬 분기의 격리·실패·취소 검사는 테스트용 스킬과 가짜 모델을 사용하고\nCTest 실행 파일에서 Qt Test를 링크하지 않는다.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 54,
+      "end_line": 55,
+      "raw": "세션 분기 검사의 복사·권한·실패 원자성·취소 케이스는 CTest로 실행한다.\n파일 자료는 fixture가 관리하는 `resources/`의 임시 경로에 둔다.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 57,
+      "end_line": 58,
+      "raw": "프로젝트 메모리 엔진 검사의 결과는 Qt Test 전용 출력 파일 대신 CTest가\n표준 출력과 종료 코드로 수집한다. 테스트는 가짜 모델과 격리된 자료를 사용한다.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 60,
+      "end_line": 61,
+      "raw": "세션 기록 검색과 설치 소비자는 CTest로 실행하며, 만료 검사의 대기 시간과\nfixture가 지정한 `resources/` 임시 작업 공간을 유지한다.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 63,
+      "end_line": 64,
+      "raw": "메모리 통합의 잠금·복구·검증 테스트와 설치 소비자는 CTest에서 실행한다.\n잠금 시험은 격리된 임시 경로에서 테스트 실행 파일의 자식 프로세스를 사용한다.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 66,
+      "end_line": 67,
+      "raw": "에이전트 프로필의 경계·모델 인가·가짜 백그라운드 작업 검사는 CTest가\n표준 출력과 종료 코드로 수집하며 Qt Test 전용 출력 파일을 만들지 않는다.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 69,
+      "end_line": 71,
+      "raw": "멀티모달 서비스 검사는 CTest에서 기존 개별 음성 경계 케이스 선택을\n유지한다. 이미지·오디오 fixture는 CTest의 임시 경로를 사용하며, 이 모듈의\n설치 소비자 테스트 구성은 Qt Test 패키지를 찾거나 링크하지 않는다.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 73,
+      "end_line": 74,
+      "raw": "에이전트 컨텍스트·스킬·검색과 모델 훅의 기존 사례는 CTest 실행 파일에서\n격리된 자료 및 가짜 모델로 확인하며 Qt Test를 링크하지 않는다.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 78,
+      "raw": "파일 체크포인트의 복원·권한·손상 검사는 fixture의 임시 경로에서\nCTest로 실행한다. 권한 설정 검사는 기존 패턴 자료를 소스 디렉터리에서\n읽으며 실행 디렉터리나 Qt Test의 자료 탐색에 의존하지 않는다.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 80,
+      "end_line": 81,
+      "raw": "프로시저와 권한 요청 검사는 기존 타임아웃과 인프로세스 API·MCP 자료를\n유지하며 Qt Core 이벤트 대기와 CTest로 실행한다.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 83,
+      "end_line": 84,
+      "raw": "입력 수명주기의 취소·큐·가짜 모델 검사는 Qt Test 없이 CTest로\n실행하며 준비 대기 동안 Qt Core 이벤트를 계속 처리한다.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 86,
+      "end_line": 88,
+      "raw": "세션 초기화 검사는 셸을 사용하는 기존 사례와 플랫폼별 건너뜀을\n보존한다. `session_clear_offline`은 셸 사례를 제외한 세 사례를 실행한다.\n전체 사례가 건너뛰어지면 실행기는 CTest 건너뜀 코드 77을 반환한다.\n"
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000058",
+      "start_line": 89,
+      "end_line": 89
+    },
+    {
+      "kind": "paragraph",
+      "raw": "권한 규칙 검사는 기존 10개 사례를 CTest로 실행한다. 셸 문자열은 실제\n명령으로 실행하지 않고 구문 분석하며, 경로 교체 검사는 격리된 fixture 안의\n파일과 링크를 사용한다. 플랫폼 조건이 맞지 않는 개별 사례는 건너뛴다.\n",
+      "id": "b000059",
+      "start_line": 90,
+      "end_line": 92
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000060",
+      "start_line": 93,
+      "end_line": 93
+    },
+    {
+      "kind": "paragraph",
+      "raw": "노트북 검사도 Qt Test 없이 기존 12개 사례를 유지한다. 오프라인 선택은 Git\n프로세스와 작업 트리를 사용하는 사례를 제외하며, 전체 검사와 오프라인\n검사의 현재 작업 디렉터리를 fixture의 리소스 임시 경로로 지정한다.\n",
+      "id": "b000061",
+      "start_line": 94,
+      "end_line": 96
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000062",
+      "start_line": 97,
+      "end_line": 97
+    },
+    {
+      "kind": "paragraph",
+      "raw": "권한 설정 갱신의 잠금·취소·동시 쓰기와 세션 권한 검사는 CTest에서 기존\n사례와 플랫폼별 건너뛰기를 유지한다. 결과는 별도 Qt Test 출력 파일이 아닌\nCTest의 표준 출력과 종료 코드로 보고한다.\n",
+      "id": "b000063",
+      "start_line": 98,
+      "end_line": 100
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000064",
+      "start_line": 101,
+      "end_line": 101
+    },
+    {
+      "kind": "paragraph",
+      "raw": "작업 디렉터리의 권한·심볼릭 링크 경계 검사는 CTest로 실행한다. 오프라인\n선택은 셸과 검색 도구를 실행하는 사례를 제외하고 격리된 파일 경계 사례를\n검사한다. 플랫폼에 없는 링크 사례는 건너뛴다.\n",
+      "id": "b000065",
+      "start_line": 102,
+      "end_line": 104
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000066",
+      "start_line": 105,
+      "end_line": 105
+    },
+    {
+      "kind": "paragraph",
+      "raw": "질문 수신함과 네이티브 뷰모델 검사는 CTest에서 요청별 신호 인자와 취소,\n동시 요청 및 직접 MCP 호출 사례를 유지한다. 현재 작업 경로는 fixture가\n관리하는 리소스 임시 공간이다. 각 사례가 끝나거나 실패할 때 보류된 Qt\n지연 삭제 이벤트를 처리해 객체 수명주기를 유지한다.\n",
+      "id": "b000067",
+      "start_line": 106,
+      "end_line": 109
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000068",
+      "start_line": 110,
+      "end_line": 110
+    },
+    {
+      "kind": "paragraph",
+      "raw": "메모리 추출 검사는 11개 사례와 플랫폼 건너뛰기를 유지하고 Qt Test 없이\nCTest로 실행한다. 오프라인 선택은 실제 셸을 실행하는 사례를 제외하며,\n가짜 모델을 사용하는 단일 사례도 별도로 선택할 수 있다. 임시 파일은\n리소스 fixture에 두고 사례별 Qt 지연 삭제를 처리한다.\n",
+      "id": "b000069",
+      "start_line": 111,
+      "end_line": 114
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000070",
+      "start_line": 115,
+      "end_line": 115
+    },
+    {
+      "kind": "paragraph",
+      "raw": "세션 종료 검사는 기존 11개 사례와 사례별 지연 삭제 처리를 유지한다.\n오프라인 선택은 실제 명령을 실행하는 두 사례를 제외하고 가짜 모델과\n인프로세스 API·취소 동작을 검사한다.\n",
+      "id": "b000071",
+      "start_line": 116,
+      "end_line": 118
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000072",
+      "start_line": 119,
+      "end_line": 119
+    },
+    {
+      "kind": "paragraph",
+      "raw": "사용자 질문 검사는 12개 기능 사례와 입력 검증 데이터 20행을 유지한다.\n콜백에서 관찰한 채널 소유권과 승인 결과는 콜백을 빠져나온 뒤 검증하며,\n사례별 지연 삭제와 인프로세스 가짜 모델을 사용한다.\n",
+      "id": "b000073",
+      "start_line": 120,
+      "end_line": 122
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000074",
+      "start_line": 123,
+      "end_line": 123
+    },
+    {
+      "kind": "paragraph",
+      "raw": "플러그인 스냅샷·의존성·모델·인프로세스 API 검사는 CTest로 실행한다.\n오프라인 선택은 서버 설정·LSP/MCP 프로세스·명령 훅·CLI 사례를 제외하고,\n시험 패키지와 상태를 fixture의 리소스 임시 공간에 둔다.\n",
+      "id": "b000075",
+      "start_line": 124,
+      "end_line": 126
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000076",
+      "start_line": 127,
+      "end_line": 127
+    },
+    {
+      "kind": "paragraph",
+      "raw": "LSP 검사의 기존 12개 사례는 CTest 실행기로 이전하고 임시 Git 작업 공간을\n리소스 fixture에 둔다. 검사는 Git과 LSP fixture 프로세스를 실행하므로 별도\n요청 시 실행한다.\n",
+      "id": "b000077",
+      "start_line": 128,
+      "end_line": 130
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000078",
+      "start_line": 131,
+      "end_line": 131
+    },
+    {
+      "kind": "paragraph",
+      "raw": "GraphQL의 기존 네 통합 사례는 CTest 실행기로 유지한다. 로컬 HTTP 서버, 셸,\nMCP 및 데몬·CLI 실행을 포함하므로 별도 요청 시 실행하며 임시 상태는 리소스\nfixture에 둔다. Unix 소켓은 별도의 짧은 개별 리소스 디렉터리를 사용한다.\n",
+      "id": "b000079",
+      "start_line": 132,
+      "end_line": 134
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000080",
+      "start_line": 135,
+      "end_line": 135
+    },
+    {
+      "kind": "paragraph",
+      "raw": "작업 트리의 기존 14개 검사는 CTest 실행기로 유지하며 fixture는 리소스\n작업 공간에서 격리한다. Git과 셸 프로세스를 사용하는 통합 검사는 별도\n요청 시 실행한다.\n",
+      "id": "b000081",
+      "start_line": 136,
+      "end_line": 138
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000082",
+      "start_line": 139,
+      "end_line": 139
+    },
+    {
+      "kind": "paragraph",
+      "raw": "웹 요청의 기존 10개 통합 사례는 CTest 실행기로 유지하고 아티팩트는\n리소스 fixture에 둔다. 로컬 HTTP 서버를 사용하는 검사는 별도 요청 시\n실행한다.\n",
+      "id": "b000083",
+      "start_line": 140,
+      "end_line": 142
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000084",
+      "start_line": 143,
+      "end_line": 143
+    },
+    {
+      "kind": "paragraph",
+      "raw": "MCP HTTP 서버의 다섯 동시성·인증·취소 사례는 CTest 실행기로 유지한다.\n로컬 HTTP 서버를 여는 통합 검사는 별도 요청 시 실행한다.\n",
+      "id": "b000085",
+      "start_line": 144,
+      "end_line": 145
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000086",
+      "start_line": 146,
+      "end_line": 146
+    },
+    {
+      "kind": "paragraph",
+      "raw": "MCP HTTP 클라이언트의 12개 사례는 초기 Python fixture 확인과 TLS 도구가\n없을 때의 건너뛰기를 보존한다. HTTP peer와 인증서 생성 프로세스를 사용하는\n통합 검사는 별도 요청 시 실행한다.\n",
+      "id": "b000087",
+      "start_line": 147,
+      "end_line": 149
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000088",
+      "start_line": 150,
+      "end_line": 150
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 HTTP·IPC 전송의 기존 여섯 사례는 CTest 실행기로 유지하고\nfixture는 리소스 작업 공간에 둔다. 로컬 서버와 소켓을 사용하는 통합\n검사는 별도 요청 시 실행한다.\n",
+      "id": "b000089",
+      "start_line": 151,
+      "end_line": 153
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000090",
+      "start_line": 154,
+      "end_line": 154
+    },
+    {
+      "kind": "paragraph",
+      "raw": "MCP 도구 출력 훅의 기존 12개 사례는 플랫폼별 컴파일 조건과 외부 효과\n취소 검사를 보존한다. 로컬 MCP/HTTP 서버와 명령 훅을 사용하는 사례는\n별도 요청 시 실행한다.\n",
+      "id": "b000091",
+      "start_line": 155,
+      "end_line": 157
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000092",
+      "start_line": 158,
+      "end_line": 158
+    },
+    {
+      "kind": "paragraph",
+      "raw": "HTTP 훅의 기존 11개 사례는 CTest 실행기로 유지한다. 로컬 HTTP 서버와\n일부 명령을 사용하는 통합 검사는 별도 요청 시 실행하며 임시 상태는\n리소스 fixture에 둔다.\n",
+      "id": "b000093",
+      "start_line": 159,
+      "end_line": 161
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000094",
+      "start_line": 162,
+      "end_line": 162
+    },
+    {
+      "kind": "paragraph",
+      "raw": "셸 작업의 기존 10개 사례는 데스크톱 및 Windows 건너뛰기 조건과\n종료·복구 검사를 유지한다. 실제 셸 프로세스를 실행하는 통합 검사는 별도\n요청 시 실행하며 임시 작업 공간은 리소스 fixture에 둔다.\n",
+      "id": "b000095",
+      "start_line": 163,
+      "end_line": 165
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000096",
+      "start_line": 166,
+      "end_line": 166
+    },
+    {
+      "kind": "paragraph",
+      "raw": "세션 압축의 기존 12개 사례는 CTest 실행기로 유지한다. 이전 버전 전사와\n잘린 체크포인트의 복구 사례는 외부 서비스 없이 독립 실행할 수 있으며\n임시 전사는 리소스 fixture에 둔다.\n",
+      "id": "b000097",
+      "start_line": 167,
+      "end_line": 169
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000098",
+      "start_line": 170,
+      "end_line": 170
+    },
+    {
+      "kind": "paragraph",
+      "raw": "로컬 애플리케이션의 기존 아홉 사례는 데스크톱 POSIX 조건과 CTest\n건너뛰기를 유지한다. 객체 스레드·수명 사례는 서버 없이 별도 선택할 수\n있으며 등록·서버 통합 검사는 별도 요청 시 실행한다.\n",
+      "id": "b000099",
+      "start_line": 171,
+      "end_line": 173
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000100",
+      "start_line": 174,
+      "end_line": 174
+    },
+    {
+      "kind": "paragraph",
+      "raw": "도구 탐색의 기존 12개 사례는 CTest 실행기로 유지한다. 키워드·직접\n선택 검사는 외부 서버 없이 별도 실행할 수 있으며 MCP 서버와 외부 peer를\n사용하는 통합 검사는 별도 요청 시 실행한다.\n",
+      "id": "b000101",
+      "start_line": 175,
+      "end_line": 177
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000102",
+      "start_line": 178,
+      "end_line": 178
+    },
+    {
+      "kind": "paragraph",
+      "raw": "명령 훅의 기존 14개 사례와 비동기 훅의 기존 19개 사례는 CTest 실행기로 유지한다. 기존 Unix 플랫폼 제한과 대기 시간을 보존하며 임시 파일은 테스트 리소스에 둔다. 이 훅 사례는 실제 명령 실행이 필요하므로 오프라인 구조 검사와 빌드를 별도로 수행한다.\n",
+      "id": "b000103",
+      "start_line": 179,
+      "end_line": 179
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000104",
+      "start_line": 180,
+      "end_line": 180
+    },
+    {
+      "kind": "paragraph",
+      "raw": "서비스 모델의 기존 14개 사례는 각 사례의 초기화와 정리를 보존한 CTest 실행기로 유지한다. 가짜 런타임을 사용하며 QtTest 링크 없이 검증한다.\n",
+      "id": "b000105",
+      "start_line": 181,
+      "end_line": 181
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000106",
+      "start_line": 182,
+      "end_line": 182
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 엔진의 기존 21개 사례는 기존 선언 순서와 큐 정리를 보존한 CTest 실행기로 유지한다. 스키마와 등록기 검사는 외부 프로세스 없이 별도로 실행할 수 있다.\n",
+      "id": "b000107",
+      "start_line": 183,
+      "end_line": 183
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000108",
+      "start_line": 184,
+      "end_line": 184
+    },
+    {
+      "kind": "paragraph",
+      "raw": "GraphQL 내장 HTTP 경로는 iiNetwork를 사용한다. 응답 파싱과 전송 정책의 헤드리스 검사는 가짜 응답을 사용하며 서버를 열지 않는다. 실제 HTTP 통합은 별도 실행 검증이 필요하다.\n",
+      "id": "b000109",
+      "start_line": 185,
+      "end_line": 185
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000110",
+      "start_line": 186,
+      "end_line": 186
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 API의 기존 19개 사례와 하위 에이전트의 기존 23개 사례는 운영체제별 건너뛰기와 각 사례 사이의 지연 삭제 처리를 유지한 CTest 실행기로 옮긴다. 명령 실행이 포함된 사례는 별도로 실행한다.\n",
+      "id": "b000111",
+      "start_line": 187,
+      "end_line": 187
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000112",
+      "start_line": 188,
+      "end_line": 188
+    },
+    {
+      "kind": "paragraph",
+      "raw": "GraphQL 전송 테스트는 iiNetwork 전송 인터페이스에 가짜 구현을 주입해 정상 완료, 접수 실패, 취소와 조기 종료 시 콜백 정리를 확인한다.\n",
+      "id": "b000113",
+      "start_line": 189,
+      "end_line": 189
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000114",
+      "start_line": 190,
+      "end_line": 190
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 권한 조회와 잘못된 자식 분기 요청은 네트워크와 하위 프로세스 없이 개별 CTest로 확인할 수 있다.\n",
+      "id": "b000115",
+      "start_line": 191,
+      "end_line": 191
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000116",
+      "start_line": 192,
+      "end_line": 192
+    },
+    {
+      "kind": "paragraph",
+      "raw": "MCP 세션의 기존 27개 사례는 CTest 실행기로 유지하고 운영체제별 건너뛰기와 임시 리소스 격리를 보존한다. 서버 세션과 셸 작업을 포함한 전체 사례는 별도의 실행 요청이 필요하다.\n",
+      "id": "b000117",
+      "start_line": 193,
+      "end_line": 193
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000118",
+      "start_line": 194,
+      "end_line": 194
+    },
+    {
+      "kind": "paragraph",
+      "raw": "작업 보드의 기존 15개 사례는 Windows 전용 5개와 자식 프로세스 작업 모드를 보존한 CTest 실행기로 옮겼다. 검증 콜백의 상태 확인은 호출 후 검사하며, 외부 프로세스 없이 유니코드 소유자 저장 사례를 따로 실행할 수 있다.\n",
+      "id": "b000119",
+      "start_line": 195,
+      "end_line": 195
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000120",
+      "start_line": 196,
+      "end_line": 196
+    },
+    {
+      "kind": "paragraph",
+      "raw": "MCP 표준 입출력 검사의 기존 14개 단일 사례와 잘못된 프레임 5개 데이터 행을 CTest 실행기로 유지한다. 공통 실행기는 사례 이름으로 모든 데이터 행을 선택하거나 전체 행 이름으로 하나만 선택할 수 있다. 진행 콜백의 메시지는 콜백 밖에서 확인한다.\n",
+      "id": "b000121",
+      "start_line": 197,
+      "end_line": 197
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000122",
+      "start_line": 198,
+      "end_line": 198
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 훅의 기존 13개 단일 사례와 실행 횟수·권한 모드·바이트 한도의 데이터 행 7개를 CTest 실행기로 유지한다. 외부 명령 없이 가짜 실행기로 훅 설정 중복 처리를 확인하는 사례를 따로 제공한다.\n",
+      "id": "b000123",
+      "start_line": 199,
+      "end_line": 199
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000124",
+      "start_line": 200,
+      "end_line": 200
+    },
+    {
+      "kind": "paragraph",
+      "raw": "계획 모드의 기존 22개 단일 사례와 네 데이터 행을 CTest 실행기로 유지한다. 검토·실행 경계 콜백에서 수정한 파일의 기록 성공은 콜백이 끝난 뒤 검사하며, 명령 실행 없이 권한 제한을 확인하는 사례를 제공한다.\n",
+      "id": "b000125",
+      "start_line": 201,
+      "end_line": 201
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000126",
+      "start_line": 202,
+      "end_line": 202
+    },
+    {
+      "kind": "paragraph",
+      "raw": "팀 테스트의 기존 23개 단일 사례와 메시지 스키마·자동 할당 데이터 행 14개를 CTest 실행기로 유지한다. 메시지 스키마의 12개 행은 외부 서버나 명령 없이 그룹으로 선택해 확인할 수 있다.\n",
+      "id": "b000127",
+      "start_line": 203,
+      "end_line": 203
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000128",
+      "start_line": 204,
+      "end_line": 204
+    },
+    {
+      "kind": "paragraph",
+      "raw": "입력 큐의 기존 23개 단일 사례와 배치 한도 데이터 행 2개는 CTest 실행기로 유지한다. Windows 전용 4개 사례와 별도 큐 게시 작업자 모드도 보존하며, 큐 순서·한도·복원은 외부 프로세스 없이 확인할 수 있다.\n",
+      "id": "b000129",
+      "start_line": 205,
+      "end_line": 205
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000130",
+      "start_line": 206,
+      "end_line": 206
+    },
+    {
+      "kind": "paragraph",
+      "raw": "선택형 레거시 질문 화면의 여섯 사례는 CTest 실행기와 QtGui의 창 입력 이벤트로 유지한다. 클릭 좌표·입력·Escape·대기 시간 및 테스트별 임시 리소스를 보존하며, QtTest를 링크하지 않는다. 이 화면 검사는 GUI 실행이 별도로 허용된 환경에서 검증해야 한다.\n",
+      "id": "b000131",
+      "start_line": 207,
+      "end_line": 207
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000132",
+      "start_line": 208,
+      "end_line": 208
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 전송 검사의 각 사례는 상태 작업 공간과 별도로 `resources/` 바로 아래 고유한 IPC 작업 공간을 사용한다. 짧은 소켓 경로로 플랫폼의 로컬 소켓 경로 길이 제한을 지키며, 서버 종료 후 해당 사례의 임시 디렉터리만 정리한다.\n",
+      "id": "b000133",
+      "start_line": 209,
+      "end_line": 209
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000134",
+      "start_line": 210,
+      "end_line": 210
+    },
+    {
+      "kind": "paragraph",
+      "raw": "에이전트 전송 여섯 사례는 전체 실행 외에도 각각 CTest에서 선택할 수 있다. 소켓 작업 공간과 리슨 성공 경로를 출력해 강제 종료 시 소유 작업 공간과 진행 위치를 구분한다.\n",
+      "id": "b000135",
+      "start_line": 211,
+      "end_line": 211
     }
   ],
   "outline": [

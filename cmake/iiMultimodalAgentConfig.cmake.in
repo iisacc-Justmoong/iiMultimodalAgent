@@ -9,6 +9,8 @@ set(_iimultimodalagent_package_prefix "${PACKAGE_PREFIX_DIR}")
 include(CMakeFindDependencyMacro)
 find_dependency(iiSDKCore 0.20 CONFIG COMPONENTS Runtime
     HINTS "${PACKAGE_PREFIX_DIR}/../iiSDKCore" "$ENV{HOME}/.local/SDK/iiSDKCore")
+find_dependency(iiNetwork 0.6 CONFIG
+    HINTS "${_iimultimodalagent_package_prefix}/../iiNetwork" "$ENV{HOME}/.local/SDK/iiNetwork")
 find_dependency(iiLocalLLM 0.56.1 CONFIG)
 find_dependency(iiDecision 0.0.5 CONFIG)
 find_dependency(iiLocalDiffusion 0.6 CONFIG)

@@ -3,7 +3,8 @@
 #include "iiMultimodalAgent/agent/Api.h"
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include <QCoreApplication>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
 namespace a=iiMultimodalAgent::agent;
 namespace {
@@ -40,9 +41,8 @@ public:
     }
 };
 }
-class PermissionRequestTests final:public QObject {
-    Q_OBJECT
-private slots:
+class PermissionRequestTests final {
+public:
     void askRunsHooksBeforeHostAndRepreparesUpdatedInput() {
         Fixture f;int asked=0,fallback=0;QJsonObject payload;a::ToolRunnerOptions options;
         options.hooks.append([&](const a::HookInput& input,const CancellationToken&){
@@ -54,26 +54,26 @@ private slots:
         options.permission=[&](const auto&,const auto&,const auto&){++fallback;return false;};
         a::ToolContext context{"session","run","/work"};context.transcriptPath="/private/transcript.jsonl";
         const auto result=a::ToolRunner(f.registry,f.policy,options).run({"call","change",{{"value",1}}},context);
-        QVERIFY2(!result.isError,qPrintable(result.text));QCOMPARE(asked,1);QCOMPARE(fallback,0);QCOMPARE(f.executed,QList<int>{7});QCOMPARE(f.preparations,2);
-        QCOMPARE(payload["permission_reason"],"HOST_REASON\nPrepared fixture\n{\"value\":1}");
-        QCOMPARE(payload["permission_suggestions"].toArray().size(),1);QCOMPARE(payload["permission_preview"].toObject()["_meta"].toObject()["value"],1);
-        QCOMPARE(payload["transcript_path"],context.transcriptPath);
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_COMPARE(asked,1);CTEST_COMPARE(fallback,0);CTEST_COMPARE(f.executed,QList<int>{7});CTEST_COMPARE(f.preparations,2);
+        CTEST_COMPARE(payload["permission_reason"],"HOST_REASON\nPrepared fixture\n{\"value\":1}");
+        CTEST_COMPARE(payload["permission_suggestions"].toArray().size(),1);CTEST_COMPARE(payload["permission_preview"].toObject()["_meta"].toObject()["value"],1);
+        CTEST_COMPARE(payload["transcript_path"],context.transcriptPath);
     }
     void allowAndDenyDoNotAskAndChangedInputCannotBypassDenyOrSchema() {
         for(int value:{0,99}) {
             Fixture f;a::ToolRunnerOptions options;options.hooks.append([value](const auto& input,const auto&){
                 a::HookResult result;if(input.kind==a::HookKind::PermissionRequest){a::PermissionResponse response;response.behavior=a::PermissionBehavior::Allow;
                     response.updatedArguments=QJsonObject{{"value",value}};result.permissionResponse=response;}return result;});
-            QVERIFY(a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);QCOMPARE(f.executions,0);
+            CTEST_CHECK(a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);CTEST_COMPARE(f.executions,0);
         }
         Fixture f;int count=0;a::ToolRunnerOptions options;options.hooks.append([&](const auto& input,const auto&){
             if(input.kind==a::HookKind::PermissionRequest)++count;return a::HookResult{};});
         auto run=[&](int value){return a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",value}}},{});};
-        QVERIFY(run(99).isError);f.policy->granted=true;QVERIFY(!run(1).isError);QCOMPARE(count,0);
+        CTEST_CHECK(run(99).isError);f.policy->granted=true;CTEST_CHECK(!run(1).isError);CTEST_COMPARE(count,0);
         for(auto mode:{a::PermissionMode::DontAsk,a::PermissionMode::Plan}) {
-            QVERIFY(a::ToolRunner(f.registry,std::make_shared<a::RulePolicy>(mode),options).run({"id","change",{{"value",1}}},{}).isError);
+            CTEST_CHECK(a::ToolRunner(f.registry,std::make_shared<a::RulePolicy>(mode),options).run({"id","change",{{"value",1}}},{}).isError);
         }
-        QCOMPARE(count,0);
+        CTEST_COMPARE(count,0);
     }
     void structuredHostFallbackAndLegacyCallbackRemainAvailable() {
         Fixture f;a::ToolRunnerOptions options;int legacy=0,structured=0;
@@ -81,34 +81,34 @@ private slots:
         options.permissionResponse=[&](const auto&,const auto& decision,const auto&){++structured;
             if(decision.suggestions.size()!=1)throw std::runtime_error("Missing suggestions");
             a::PermissionResponse result;result.behavior=a::PermissionBehavior::Allow;result.updatedArguments=QJsonObject{{"value",8}};return result;};
-        QVERIFY(!a::ToolRunner(f.registry,f.policy,options).concurrencySafe({"id","change",{{"value",1}}}));
-        QVERIFY(!a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);QCOMPARE(f.executed,QList<int>{8});
-        QCOMPARE(structured,1);QCOMPARE(legacy,0);options.permissionResponse={};
-        QVERIFY(a::ToolRunner(f.registry,f.policy,options).concurrencySafe({"id","change",{{"value",1}}}));
-        QVERIFY(!a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);QCOMPARE(legacy,1);
-        options.permission={};QVERIFY(a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);
+        CTEST_CHECK(!a::ToolRunner(f.registry,f.policy,options).concurrencySafe({"id","change",{{"value",1}}}));
+        CTEST_CHECK(!a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);CTEST_COMPARE(f.executed,QList<int>{8});
+        CTEST_COMPARE(structured,1);CTEST_COMPARE(legacy,0);options.permissionResponse={};
+        CTEST_CHECK(a::ToolRunner(f.registry,f.policy,options).concurrencySafe({"id","change",{{"value",1}}}));
+        CTEST_CHECK(!a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);CTEST_COMPARE(legacy,1);
+        options.permission={};CTEST_CHECK(a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);
     }
     void updatesUseOnlyTrustedHostHandlerAndAffectLaterDecisions() {
         Fixture f;int requests=0,updates=0;a::ToolRunnerOptions options;
         options.permissionResponse=[&](const auto&,const auto& decision,const auto&){++requests;a::PermissionResponse r;
             r.behavior=a::PermissionBehavior::Allow;r.updatedPermissions=decision.suggestions;return r;};
         auto run=[&]{return a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{"session"});};
-        const auto unsupported=run();QVERIFY(unsupported.isError);QCOMPARE(unsupported.data["error_code"],"runtime_unavailable");QCOMPARE(f.executions,0);
+        const auto unsupported=run();CTEST_CHECK(unsupported.isError);CTEST_COMPARE(unsupported.data["error_code"],"runtime_unavailable");CTEST_COMPARE(f.executions,0);
         options.permissionUpdates=[&](const QJsonArray& values,const a::ToolContext& context){
             if(context.sessionId!="session"||values.size()!=1)throw std::runtime_error("Wrong update identity");++updates;f.policy->granted=true;};
-        QVERIFY(!run().isError);QVERIFY(!run().isError);QCOMPARE(requests,2);QCOMPARE(updates,1);QCOMPARE(f.executions,2);
+        CTEST_CHECK(!run().isError);CTEST_CHECK(!run().isError);CTEST_COMPARE(requests,2);CTEST_COMPARE(updates,1);CTEST_COMPARE(f.executions,2);
         f.policy->granted=false;options.permissionUpdates=[](const auto&,const auto&){throw Error(ErrorCode::StorageFailure,"HOST_UPDATE_FAILED");};
-        const auto failed=run();QVERIFY(failed.isError);QVERIFY(failed.text.contains("HOST_UPDATE_FAILED"));QCOMPARE(f.executions,2);
+        const auto failed=run();CTEST_CHECK(failed.isError);CTEST_CHECK(failed.text.contains("HOST_UPDATE_FAILED"));CTEST_COMPARE(f.executions,2);
     }
     void denialIsDistinctFromInterruptAndInvalidResponseNeverExecutes() {
         Fixture f;a::ToolRunnerOptions options;options.permissionResponse=[](const auto&,const auto&,const auto&){a::PermissionResponse r;r.message="HOST_DENIED";return r;};
         const auto denied=a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{});
-        QVERIFY(denied.isError);QVERIFY(denied.text.contains("HOST_DENIED"));
+        CTEST_CHECK(denied.isError);CTEST_CHECK(denied.text.contains("HOST_DENIED"));
         options.permissionResponse=[](const auto&,const auto&,const auto&){a::PermissionResponse r;r.interrupt=true;r.message="HOST_INTERRUPT";return r;};
-        a::ToolContext context;QVERIFY_THROWS_EXCEPTION(Error,a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},context));
-        QVERIFY(context.cancellation.isCancelled());
+        a::ToolContext context;CTEST_THROWS(Error,a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},context));
+        CTEST_CHECK(context.cancellation.isCancelled());
         options.permissionResponse=[](const auto&,const auto&,const auto&){a::PermissionResponse r;r.behavior=a::PermissionBehavior::Ask;return r;};
-        QVERIFY(a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);QCOMPARE(f.executions,0);
+        CTEST_CHECK(a::ToolRunner(f.registry,f.policy,options).run({"id","change",{{"value",1}}},{}).isError);CTEST_COMPARE(f.executions,0);
     }
     void authenticatedApiUsesSameStructuredApprovalAndDoesNotAcceptWireGrants() {
         Fixture f;QTemporaryDir root;const auto work=root.filePath("work");QDir().mkpath(work);int requests=0;
@@ -119,10 +119,21 @@ private slots:
         a::Api api(std::make_shared<Model>(),f.registry,f.policy,options);
         auto call=[&](const QString& name,const QJsonObject& args){return api.dispatch(name,args,key).result.get().toObject();};
         const auto id=call("agent.sessions.create",{{"model","fixture"}})["session_id"].toString();
-        QVERIFY_THROWS_EXCEPTION(Error,call("agent.run",{{"session_id",id},{"prompt","run"},{"permissionResponse",QJsonObject{{"behavior","allow"}}}}));QCOMPARE(requests,0);
+        CTEST_THROWS(Error,call("agent.run",{{"session_id",id},{"prompt","run"},{"permissionResponse",QJsonObject{{"behavior","allow"}}}}));CTEST_COMPARE(requests,0);
         const auto completed=call("agent.run",{{"session_id",id},{"prompt","run"}});
-        QCOMPARE(completed["status"],"completed");QCOMPARE(requests,1);QCOMPARE(f.executed,QList<int>{6});api.close();
+        CTEST_COMPARE(completed["status"],"completed");CTEST_COMPARE(requests,1);CTEST_COMPARE(f.executed,QList<int>{6});api.close();
     }
 };
-QTEST_GUILESS_MAIN(PermissionRequestTests)
-#include "permission_request_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    PermissionRequestTests tests;
+    runner.run("askRunsHooksBeforeHostAndRepreparesUpdatedInput", [&] { tests.askRunsHooksBeforeHostAndRepreparesUpdatedInput(); });
+    runner.run("allowAndDenyDoNotAskAndChangedInputCannotBypassDenyOrSchema", [&] { tests.allowAndDenyDoNotAskAndChangedInputCannotBypassDenyOrSchema(); });
+    runner.run("structuredHostFallbackAndLegacyCallbackRemainAvailable", [&] { tests.structuredHostFallbackAndLegacyCallbackRemainAvailable(); });
+    runner.run("updatesUseOnlyTrustedHostHandlerAndAffectLaterDecisions", [&] { tests.updatesUseOnlyTrustedHostHandlerAndAffectLaterDecisions(); });
+    runner.run("denialIsDistinctFromInterruptAndInvalidResponseNeverExecutes", [&] { tests.denialIsDistinctFromInterruptAndInvalidResponseNeverExecutes(); });
+    runner.run("authenticatedApiUsesSameStructuredApprovalAndDoesNotAcceptWireGrants", [&] { tests.authenticatedApiUsesSameStructuredApprovalAndDoesNotAcceptWireGrants(); });
+    return runner.result();
+}

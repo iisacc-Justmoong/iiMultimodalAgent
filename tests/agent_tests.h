@@ -1,8 +1,7 @@
 #pragma once
 #include <QtCore/QObject>
 class AgentTests : public QObject {
-    Q_OBJECT
-private slots:
+public:
     void exactObservationRepairUsesTheExistingTurnLimit();
     void exactFieldRepairRequiresAnUnambiguousObservation();
     void exactValueUsesDecodedTextBeforeProtocolMetadata();

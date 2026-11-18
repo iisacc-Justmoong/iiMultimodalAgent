@@ -59,7 +59,8 @@ public:
         if(!options.directory.isEmpty())require(iiFileProvider::Directory::isAbsolutePath(options.directory),"Worktree storage must be absolute");
         for(const auto& path:options.sparsePaths)require(!path.isEmpty()&&!iiFileProvider::Directory::isAbsolutePath(path)&&!path.split('/').contains("..")&&!path.contains(QChar::Null)&&!path.startsWith('-'),"Invalid sparse checkout path");
         stateDirectory=QFileInfo(state).absoluteFilePath();directory(stateDirectory,true);
-        require(iiFileProvider::FileDevice::setPermissions(stateDirectory,QFileDevice::ReadOwner|QFileDevice::WriteOwner|QFileDevice::ExeOwner),"Cannot protect worktree state",ErrorCode::StorageFailure);
+        require(iiFileProvider::FileDevice::setPermissions(stateDirectory,
+                iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner),"Cannot protect worktree state",ErrorCode::StorageFailure);
     }
     QString statePath(const QString& owner)const{
         static const QRegularExpression id("\\A[A-Za-z0-9_-]{1,128}\\z");require(id.match(owner).hasMatch(),"Invalid worktree owner");

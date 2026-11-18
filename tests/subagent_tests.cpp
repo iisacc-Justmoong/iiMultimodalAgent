@@ -6,7 +6,8 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QDir>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include "QtEventWait.h"
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -40,8 +41,7 @@ struct Host {
 };
 }
 class SubagentTests final : public QObject {
-    Q_OBJECT
-private slots:
+public:
     void runtimePermissionsAreInheritedAtAdmissionAndRefreshedOnResume() {
         Host h;a::PermissionSettingsOptions options;options.workingDirectory=h.workspace;
         auto policy=std::make_shared<a::SettingsPermissionPolicy>(options);h.policy=policy;a::registerWorkspaceTools(*h.registry,h.workspace);
@@ -55,59 +55,59 @@ private slots:
             return a::ModelReply{{},{{"write-"+path,"Write",{{"path",path},{"content","INHERITED"}}}}};
         };
         auto agents=h.start();const auto first=agents->run(context,{{"prompt","write"},{"subagent_type","writer"}});
-        QVERIFY2(!first.isError,qPrintable(first.text));QVERIFY(!denied);QVERIFY(QFileInfo::exists(h.workspace+"/child1.txt"));
+        CTEST_CHECK_MESSAGE(!first.isError,qPrintable(first.text));CTEST_CHECK(!denied);CTEST_CHECK(QFileInfo::exists(h.workspace+"/child1.txt"));
         const auto child=first.data["session_id"].toString();
-        QVERIFY(!child.isEmpty());
-        QCOMPARE(policy->decide({"Write"},{{"path","child2.txt"}},{child,{},h.workspace}).behavior,a::PermissionBehavior::Ask);
+        CTEST_CHECK(!child.isEmpty());
+        CTEST_COMPARE(policy->decide({"Write"},{{"path","child2.txt"}},{child,{},h.workspace}).behavior,a::PermissionBehavior::Ask);
         path="child2.txt";const auto resumed=agents->run(context,{{"prompt","write again"},{"resume",first.data["agentId"]}});
-        QVERIFY2(!resumed.isError,QJsonDocument(resumed.data).toJson().constData());QVERIFY(denied);QVERIFY(!QFileInfo::exists(h.workspace+"/child2.txt"));
+        CTEST_CHECK_MESSAGE(!resumed.isError,QJsonDocument(resumed.data).toJson().constData());CTEST_CHECK(denied);CTEST_CHECK(!QFileInfo::exists(h.workspace+"/child2.txt"));
     }
     void allPendingCompletionsOfAResumedBackgroundChildAreTransferred() {
         Host h;h.model->next=[](const auto&,const auto&){return a::ModelReply{"DONE"};};auto agents=h.start();
         const auto old=h.parent(),next=h.parent();
         const auto id=agents->run(h.context(old),{{"prompt","first"},{"run_in_background",true}}).data["agentId"].toString();
-        QVERIFY(agents->output(old.id,id,true)["finished"].toBool());
+        CTEST_CHECK(agents->output(old.id,id,true)["finished"].toBool());
         agents->run(h.context(old),{{"prompt","second"},{"resume",id},{"run_in_background",true}});
-        QVERIFY(agents->output(old.id,id,true)["finished"].toBool());
-        a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs");QCOMPARE(queue.snapshot(old.id)["count"],2);
-        QCOMPARE(agents->transferSession(old.id,next.id),QJsonArray{id});
-        QCOMPARE(queue.snapshot(old.id)["count"],0);QCOMPARE(queue.snapshot(next.id)["count"],2);
+        CTEST_CHECK(agents->output(old.id,id,true)["finished"].toBool());
+        a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs");CTEST_COMPARE(queue.snapshot(old.id)["count"],2);
+        CTEST_COMPARE(agents->transferSession(old.id,next.id),QJsonArray{id});
+        CTEST_COMPARE(queue.snapshot(old.id)["count"],0);CTEST_COMPARE(queue.snapshot(next.id)["count"],2);
         queue.deliver(next.id,true,256,[](const QJsonObject&){});
         agents->run(h.context(next),{{"prompt","third"},{"resume",id},{"run_in_background",true}});
-        const auto result=agents->output(next.id,id,true);QCOMPARE(result["notification_refs"].toArray().size(),1);
-        QCOMPARE(queue.snapshot(next.id)["count"],1);
+        const auto result=agents->output(next.id,id,true);CTEST_COMPARE(result["notification_refs"].toArray().size(),1);
+        CTEST_COMPARE(queue.snapshot(next.id)["count"],1);
     }
     void interruptedNotificationTransferCanBeRetriedAndRecoveredAfterReopen() {
         Host h;h.engineOptions.inputQueue.maxPending=1;h.model->next=[](const auto&,const auto&){return a::ModelReply{"DONE"};};
         auto agents=h.start();const auto old=h.parent(),next=h.parent(),last=h.parent();
         const auto id=agents->run(h.context(old),{{"prompt","complete"},{"run_in_background",true}}).data["agentId"].toString();
-        QVERIFY(agents->output(old.id,id,true)["finished"].toBool());a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs",h.engineOptions.inputQueue);
+        CTEST_CHECK(agents->output(old.id,id,true)["finished"].toBool());a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs",h.engineOptions.inputQueue);
         auto full=queue.enqueue(next.id,{{"text","full"}})["input"].toObject();
-        QVERIFY_THROWS_EXCEPTION(Error,agents->transferSession(old.id,next.id));
-        QCOMPARE(agents->list(next.id).size(),1);QVERIFY(agents->list(old.id).isEmpty());QCOMPARE(queue.snapshot(old.id)["count"],1);
-        queue.remove(next.id,full["id"].toString());QCOMPARE(agents->transferSession(old.id,next.id),QJsonArray{id});
-        QCOMPARE(queue.snapshot(old.id)["count"],0);QCOMPARE(queue.snapshot(next.id)["count"],1);
+        CTEST_THROWS(Error,agents->transferSession(old.id,next.id));
+        CTEST_COMPARE(agents->list(next.id).size(),1);CTEST_CHECK(agents->list(old.id).isEmpty());CTEST_COMPARE(queue.snapshot(old.id)["count"],1);
+        queue.remove(next.id,full["id"].toString());CTEST_COMPARE(agents->transferSession(old.id,next.id),QJsonArray{id});
+        CTEST_COMPARE(queue.snapshot(old.id)["count"],0);CTEST_COMPARE(queue.snapshot(next.id)["count"],1);
         full=queue.enqueue(last.id,{{"text","full"}})["input"].toObject();
-        QVERIFY_THROWS_EXCEPTION(Error,agents->transferSession(next.id,last.id));agents->close();agents.reset();
-        queue.remove(last.id,full["id"].toString());agents=h.start();QCOMPARE(agents->list(last.id).size(),1);
-        QCOMPARE(queue.snapshot(next.id)["count"],0);QCOMPARE(queue.snapshot(last.id)["count"],1);
-        QVERIFY(!agents->output(last.id,id).contains("notification_transfer_error"));
+        CTEST_THROWS(Error,agents->transferSession(next.id,last.id));agents->close();agents.reset();
+        queue.remove(last.id,full["id"].toString());agents=h.start();CTEST_COMPARE(agents->list(last.id).size(),1);
+        CTEST_COMPARE(queue.snapshot(next.id)["count"],0);CTEST_COMPARE(queue.snapshot(last.id)["count"],1);
+        CTEST_CHECK(!agents->output(last.id,id).contains("notification_transfer_error"));
     }
     void deliveryPreparationCanInspectChildrenWhileTransferWaits() {
         Host h;h.model->next=[](const auto&,const auto&){return a::ModelReply{"DONE"};};
         auto agents=h.start();const auto old=h.parent(),next=h.parent();
         const auto id=agents->run(h.context(old),{{"prompt","complete"},{"run_in_background",true}}).data["agentId"].toString();
-        QVERIFY(agents->output(old.id,id,true)["finished"].toBool());a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs");
+        CTEST_CHECK(agents->output(old.id,id,true)["finished"].toBool());a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs");
         std::atomic_bool entered=false,inspect=false;
         auto delivery=std::async(std::launch::async,[&]{return queue.deliver(old.id,true,1,[&](const QJsonObject&) {
             entered=true;const auto deadline=std::chrono::steady_clock::now()+2s;
             while(!inspect&&std::chrono::steady_clock::now()<deadline)std::this_thread::sleep_for(1ms);
             if(agents->list(next.id).size()!=1)throw std::runtime_error("Transfer did not publish the new owner");return QJsonObject{};
         },[](const auto&,const auto&){return true;});});
-        QTRY_VERIFY(entered.load());auto transfer=std::async(std::launch::async,[&]{return agents->transferSession(old.id,next.id);});
-        QTRY_COMPARE(agents->list(next.id).size(),1);inspect=true;
-        QCOMPARE(delivery.wait_for(1s),std::future_status::ready);QCOMPARE(delivery.get(),1);
-        QCOMPARE(transfer.wait_for(1s),std::future_status::ready);QCOMPARE(transfer.get(),QJsonArray{id});
+        CTEST_WAIT_DEFAULT(entered.load());auto transfer=std::async(std::launch::async,[&]{return agents->transferSession(old.id,next.id);});
+        CTEST_WAIT_COMPARE(agents->list(next.id).size(),1);inspect=true;
+        CTEST_COMPARE(delivery.wait_for(1s),std::future_status::ready);CTEST_COMPARE(delivery.get(),1);
+        CTEST_COMPARE(transfer.wait_for(1s),std::future_status::ready);CTEST_COMPARE(transfer.get(),QJsonArray{id});
     }
     void backgroundChildrenAndPendingNotificationsFollowTheirNewOwner() {
         Host h;std::atomic_bool entered=false,release=false;int executions=0;
@@ -118,27 +118,27 @@ private slots:
         };
         auto agents=h.start();const auto old=h.parent(),next=h.parent(),third=h.parent();
         const auto complete=agents->run(h.context(old),{{"prompt","complete"},{"run_in_background",true}}).data["agentId"].toString();
-        QVERIFY(agents->output(old.id,complete,true)["finished"].toBool());
+        CTEST_CHECK(agents->output(old.id,complete,true)["finished"].toBool());
         const auto foreground=agents->run(h.context(old),{{"prompt","foreground"}}).data["agentId"].toString();
         const auto running=agents->run(h.context(old),{{"prompt","wait"},{"run_in_background",true}}).data["agentId"].toString();
-        QTRY_VERIFY_WITH_TIMEOUT(entered.load(),3000);
-        const auto ids=agents->transferSession(old.id,next.id);QCOMPARE(ids.size(),2);QVERIFY(ids.contains(complete));QVERIFY(ids.contains(running));
-        QCOMPARE(agents->list(old.id).size(),1);QCOMPARE(agents->list(old.id).first().toObject()["agentId"],foreground);
-        QVERIFY_THROWS_EXCEPTION(Error,agents->output(old.id,running));
+        CTEST_WAIT_VERIFY(entered.load(),3000);
+        const auto ids=agents->transferSession(old.id,next.id);CTEST_COMPARE(ids.size(),2);CTEST_CHECK(ids.contains(complete));CTEST_CHECK(ids.contains(running));
+        CTEST_COMPARE(agents->list(old.id).size(),1);CTEST_COMPARE(agents->list(old.id).first().toObject()["agentId"],foreground);
+        CTEST_THROWS(Error,agents->output(old.id,running));
         a::InputQueue queue(h.engineOptions.sessionsDirectory+"/inputs");
-        QCOMPARE(queue.snapshot(old.id)["count"].toInt(),0);QCOMPARE(queue.snapshot(next.id)["count"].toInt(),1);
+        CTEST_COMPARE(queue.snapshot(old.id)["count"].toInt(),0);CTEST_COMPARE(queue.snapshot(next.id)["count"].toInt(),1);
         const auto notice=queue.snapshot(next.id)["inputs"].toArray().first().toObject();
-        QCOMPARE(agents->transferSession(next.id,third.id).size(),2);
-        QCOMPARE(queue.snapshot(next.id)["count"].toInt(),0);QCOMPARE(queue.snapshot(third.id)["inputs"].toArray().first().toObject()["id"],notice["id"]);
-        release=true;const auto result=agents->output(third.id,running,true);QCOMPARE(result["status"],"completed");
-        QCOMPARE(executions,3);QCOMPARE(queue.snapshot(third.id)["count"].toInt(),2);
-        agents->close();agents.reset();agents=h.start();QCOMPARE(agents->list(third.id).size(),2);QCOMPARE(agents->list(old.id).size(),1);
-        QCOMPARE(agents->output(third.id,running)["result"].toObject()["text"],"CHILD_FINISHED");
+        CTEST_COMPARE(agents->transferSession(next.id,third.id).size(),2);
+        CTEST_COMPARE(queue.snapshot(next.id)["count"].toInt(),0);CTEST_COMPARE(queue.snapshot(third.id)["inputs"].toArray().first().toObject()["id"],notice["id"]);
+        release=true;const auto result=agents->output(third.id,running,true);CTEST_COMPARE(result["status"],"completed");
+        CTEST_COMPARE(executions,3);CTEST_COMPARE(queue.snapshot(third.id)["count"].toInt(),2);
+        agents->close();agents.reset();agents=h.start();CTEST_COMPARE(agents->list(third.id).size(),2);CTEST_COMPARE(agents->list(old.id).size(),1);
+        CTEST_COMPARE(agents->output(third.id,running)["result"].toObject()["text"],"CHILD_FINISHED");
     }
     void childrenUseLiveAdditionalDirectoriesWithoutWideningToolScope() {
-        Host h;const auto extra=h.root.filePath("shared");QVERIFY(QDir().mkpath(extra));QVERIFY(QDir().mkpath(h.workspace+"/.claude"));
+        Host h;const auto extra=h.root.filePath("shared");CTEST_CHECK(QDir().mkpath(extra));CTEST_CHECK(QDir().mkpath(h.workspace+"/.claude"));
         auto configure=[&](bool enabled) {
-            QFile file(h.workspace+"/.claude/settings.json");QVERIFY(file.open(QIODevice::WriteOnly));
+            QFile file(h.workspace+"/.claude/settings.json");CTEST_CHECK(file.open(QIODevice::WriteOnly));
             file.write(QJsonDocument(QJsonObject{{"permissions",QJsonObject{{"additionalDirectories",enabled?QJsonArray{"../shared"}:QJsonArray{}},
                 {"allow",QJsonArray{"Write"}},{"defaultMode","dontAsk"}}}}).toJson());
         };
@@ -159,12 +159,12 @@ private slots:
         };
         auto agents=h.start();const auto parent=h.parent();
         auto result=agents->run(h.context(parent),{{"prompt","write"},{"subagent_type","writer"}});
-        QVERIFY2(!result.isError,qPrintable(result.text));QVERIFY(!denied);QVERIFY(QFileInfo::exists(extra+"/first.txt"));
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_CHECK(!denied);CTEST_CHECK(QFileInfo::exists(extra+"/first.txt"));
         target="../shared/reader.txt";result=agents->run(h.context(parent),{{"prompt","write"},{"subagent_type","reader"}});
-        QVERIFY(!result.isError);QVERIFY(denied);QVERIFY(!QFileInfo::exists(extra+"/reader.txt"));
+        CTEST_CHECK(!result.isError);CTEST_CHECK(denied);CTEST_CHECK(!QFileInfo::exists(extra+"/reader.txt"));
         configure(false);expectDirectories=false;target="../shared/revoked.txt";
         result=agents->run(h.context(parent),{{"prompt","write"},{"subagent_type","writer"}});
-        QVERIFY(!result.isError);QVERIFY(denied);QVERIFY(!QFileInfo::exists(extra+"/revoked.txt"));
+        CTEST_CHECK(!result.isError);CTEST_CHECK(denied);CTEST_CHECK(!QFileInfo::exists(extra+"/revoked.txt"));
     }
     void subagentHooksAreScopedAndCanRequireAnotherTurn() {
         Host h;int starts=0,stops=0,parentStops=0;QString childId;std::shared_ptr<a::Subagents> agents;
@@ -189,17 +189,17 @@ private slots:
             return a::ModelReply{r.messages.last().text=="CONTINUE_FROM_HOOK"?"continued":"first",{}};
         };
         agents=h.start();auto result=agents->run(h.context(h.parent()),{{"prompt","perform"}});
-        QVERIFY2(!result.isError,qPrintable(result.text));QCOMPARE(result.data["result"].toObject()["text"],"continued");
-        QCOMPARE(starts,1);QCOMPARE(stops,2);QCOMPARE(parentStops,0);
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_COMPARE(result.data["result"].toObject()["text"],"continued");
+        CTEST_COMPARE(starts,1);CTEST_COMPARE(stops,2);CTEST_COMPARE(parentStops,0);
         const auto transcript=a::SessionStore(h.options.stateDirectory+"/sessions").load(childId);
-        bool saved=false;for(const auto& m:transcript.messages)saved|=m.text=="START_CONTEXT";QVERIFY(saved);
+        bool saved=false;for(const auto& m:transcript.messages)saved|=m.text=="START_CONTEXT";CTEST_CHECK(saved);
     }
     void startHookVetoHasARecordedFailureAndNoModelExecution() {
         Host h;int modelCalls=0;h.model->next=[&](const auto&,const auto&){++modelCalls;return a::ModelReply{"unexpected",{}};};
         h.engineOptions.hooks.append([](const a::HookInput& input,const CancellationToken&){return a::HookResult{input.kind==a::HookKind::SubagentStart,"START_REJECTED"};});
         auto agents=h.start();const auto p=h.parent();const auto result=agents->run(h.context(p),{{"prompt","perform"}});
-        QVERIFY(result.isError);QCOMPARE(modelCalls,0);QCOMPARE(result.data["status"],"failed");
-        QVERIFY(result.data["result"].toObject()["error_message"].toString().contains("START_REJECTED"));QCOMPARE(agents->list(p.id).size(),1);
+        CTEST_CHECK(result.isError);CTEST_COMPARE(modelCalls,0);CTEST_COMPARE(result.data["status"],"failed");
+        CTEST_CHECK(result.data["result"].toObject()["error_message"].toString().contains("START_REJECTED"));CTEST_COMPARE(agents->list(p.id).size(),1);
     }
     void profilePermissionModeCannotGrantParentDeniedActions() {
         for(const auto& mode:{QStringLiteral("bypassPermissions"),QStringLiteral("acceptEdits"),QStringLiteral("dontAsk"),QStringLiteral("plan")}) {
@@ -209,7 +209,7 @@ private slots:
             h.engineOptions.permission=[&](const auto&,const auto&,const auto&){++asks;return true;};
             a::SubagentDefinition profile;profile.permissionMode=mode;h.options.definitions={profile};
             h.model->next=[](const auto& r,const auto&){if(r.messages.last().role==a::MessageRole::Tool)return a::ModelReply{"observed denial",{}};return a::ModelReply{{},{{"write","Write",{}}}};};
-            auto agents=h.start();const auto result=agents->run(h.context(h.parent()),{{"prompt","attempt write"}});QVERIFY(!result.isError);QCOMPARE(writes,0);QCOMPARE(asks,0);
+            auto agents=h.start();const auto result=agents->run(h.context(h.parent()),{{"prompt","attempt write"}});CTEST_CHECK(!result.isError);CTEST_COMPARE(writes,0);CTEST_COMPARE(asks,0);
         }
     }
     void childSearchCatalogCannotExposeOrActivateDeniedTools() {
@@ -228,7 +228,7 @@ private slots:
             return a::ModelReply{observation.text,{}};
         };
         auto agents=h.start();auto result=agents->run(h.context(h.parent()),{{"prompt","find delegated tool"},{"subagent_type","reader"}});
-        QVERIFY(!result.isError);QCOMPARE(invoked,1);QCOMPARE(result.data["result"].toObject()["text"],"SCOPED_MCP");
+        CTEST_CHECK(!result.isError);CTEST_COMPARE(invoked,1);CTEST_COMPARE(result.data["result"].toObject()["text"],"SCOPED_MCP");
     }
     void deadlineAndAbruptHostRecordRecovery() {
         Host h;h.options.maxRuntimeMs=40;
@@ -236,16 +236,16 @@ private slots:
         const auto p=h.parent();QString id;
         {
             auto agents=h.start();const auto result=agents->run(h.context(p),{{"prompt","wait"}});
-            QVERIFY(result.isError);QCOMPARE(result.data["status"],"failed");QCOMPARE(result.data["result"].toObject()["error_code"],"timeout");
+            CTEST_CHECK(result.isError);CTEST_COMPARE(result.data["status"],"failed");CTEST_COMPARE(result.data["result"].toObject()["error_code"],"timeout");
             id=result.data["agentId"].toString();
         }
         // The ownership lock is released. Simulate the durable record left by
         // a killed host; reopening must mark uncertainty and never rerun it.
-        QFile file(QDir(h.options.stateDirectory).filePath(id+".json"));QVERIFY(file.open(QIODevice::ReadOnly));
+        QFile file(QDir(h.options.stateDirectory).filePath(id+".json"));CTEST_CHECK(file.open(QIODevice::ReadOnly));
         auto state=QJsonDocument::fromJson(file.readAll()).object();file.close();state["status"]="running";state.remove("result");
-        QVERIFY(file.open(QIODevice::WriteOnly|QIODevice::Truncate));file.write(QJsonDocument(state).toJson());file.close();
+        CTEST_CHECK(file.open(QIODevice::WriteOnly|QIODevice::Truncate));file.write(QJsonDocument(state).toJson());file.close();
         std::atomic_int calls=0;h.model->next=[&](const auto&,const auto&){++calls;return a::ModelReply{"unexpected",{}};};
-        auto recovered=h.start();QCOMPARE(recovered->output(p.id,id)["status"],"interrupted");QCOMPARE(calls.load(),0);
+        auto recovered=h.start();CTEST_COMPARE(recovered->output(p.id,id)["status"],"interrupted");CTEST_COMPARE(calls.load(),0);
     }
     void resumedProfileCannotWidenItsOriginalTools() {
         Host h;int writes=0;
@@ -260,11 +260,11 @@ private slots:
             return a::ModelReply{{},{{"write","Write",{}}}};
         };
         auto agents=h.start();auto result=agents->run(h.context(p),{{"resume",id},{"prompt","attempt write"}});
-        QVERIFY(!result.isError);QCOMPARE(writes,0);
+        CTEST_CHECK(!result.isError);CTEST_COMPARE(writes,0);
     }
     void childBackgroundShellsReachTerminalState() {
 #if (!defined(Q_OS_UNIX) && !defined(Q_OS_WIN)) || defined(Q_OS_IOS) || defined(Q_OS_ANDROID)
-        QSKIP("Background shell execution requires a desktop host");
+        agent_ctest::skip("Background shell execution requires a desktop host");
 #endif
         Host h;auto shells=std::make_shared<a::ShellTasks>(h.workspace,h.root.filePath("shells"));
         a::registerWorkspaceTools(*h.registry,h.workspace,shells);
@@ -273,41 +273,41 @@ private slots:
             return a::ModelReply{{},{{"shell","Bash",{{"command","sleep 30"},{"run_in_background",true}}}}};
         };
         const auto p=h.parent();auto agents=h.start();auto result=agents->run(h.context(p),{{"prompt","start background work"}});
-        QVERIFY(!result.isError);const auto tasks=shells->list(result.data["session_id"].toString());QCOMPARE(tasks.size(),1);
-        const auto task=tasks.at(0).toObject();QVERIFY(task["status"]!="pending" && task["status"]!="running");
-        QVERIFY(shells->list(p.id).isEmpty());
+        CTEST_CHECK(!result.isError);const auto tasks=shells->list(result.data["session_id"].toString());CTEST_COMPARE(tasks.size(),1);
+        const auto task=tasks.at(0).toObject();CTEST_CHECK(task["status"]!="pending" && task["status"]!="running");
+        CTEST_CHECK(shells->list(p.id).isEmpty());
     }
     void childStorageRejectsSymlinksAndInvalidRequestsLeaveNoRecord() {
         Host h;QDir().mkpath(h.options.stateDirectory);
-        QVERIFY(createNativeTestLink(h.workspace,QDir(h.options.stateDirectory).filePath("sessions")));
-        QVERIFY_THROWS_EXCEPTION(Error,h.start());
-        QVERIFY(removeNativeTestLink(QDir(h.options.stateDirectory).filePath("sessions")));
+        CTEST_CHECK(createNativeTestLink(h.workspace,QDir(h.options.stateDirectory).filePath("sessions")));
+        CTEST_THROWS(Error,h.start());
+        CTEST_CHECK(removeNativeTestLink(QDir(h.options.stateDirectory).filePath("sessions")));
         auto agents=h.start();const auto p=h.parent();auto c=h.context(p);
-        QVERIFY_THROWS_EXCEPTION(Error,agents->run(c,{{"prompt","do work"},{"unknown",true}}));
-        QVERIFY_THROWS_EXCEPTION(Error,agents->run(c,{{"prompt","do work"},{"model","forbidden"}}));
-        QVERIFY_THROWS_EXCEPTION(Error,agents->run(c,{{"prompt","do work"},{"max_turns",0}}));
-        QVERIFY_THROWS_EXCEPTION(Error,agents->run(c,{{"prompt","do work"},{"max_turns",h.options.maxTurns+1}}));
-        QVERIFY(agents->list(p.id).isEmpty());
-        QVERIFY(a::SessionStore(QDir(h.options.stateDirectory).filePath("sessions")).list().isEmpty());
+        CTEST_THROWS(Error,agents->run(c,{{"prompt","do work"},{"unknown",true}}));
+        CTEST_THROWS(Error,agents->run(c,{{"prompt","do work"},{"model","forbidden"}}));
+        CTEST_THROWS(Error,agents->run(c,{{"prompt","do work"},{"max_turns",0}}));
+        CTEST_THROWS(Error,agents->run(c,{{"prompt","do work"},{"max_turns",h.options.maxTurns+1}}));
+        CTEST_CHECK(agents->list(p.id).isEmpty());
+        CTEST_CHECK(a::SessionStore(QDir(h.options.stateDirectory).filePath("sessions")).list().isEmpty());
     }
     void expandedForkRequestIsValidatedBeforeSavingChild() {
         Host h;h.engineOptions.maxInputCharacters=64;
         auto agents=h.start();const auto p=h.parent();
-        QVERIFY_THROWS_EXCEPTION(Error,agents->run(h.context(p),{{"prompt","short"},{"fork_context",true}}));
-        QVERIFY(agents->list(p.id).isEmpty());
-        QVERIFY(a::SessionStore(QDir(h.options.stateDirectory).filePath("sessions")).list().isEmpty());
+        CTEST_THROWS(Error,agents->run(h.context(p),{{"prompt","short"},{"fork_context",true}}));
+        CTEST_CHECK(agents->list(p.id).isEmpty());
+        CTEST_CHECK(a::SessionStore(QDir(h.options.stateDirectory).filePath("sessions")).list().isEmpty());
     }
     void failedResumeCommitPreservesPreviousOutcome() {
         Host h;h.model->next=[](const auto&,const auto&){return a::ModelReply{"first outcome",{}};};
         auto agents=h.start();const auto p=h.parent();const auto c=h.context(p);
-        const auto first=agents->run(c,{{"prompt","first"}});QVERIFY(!first.isError);
+        const auto first=agents->run(c,{{"prompt","first"}});CTEST_CHECK(!first.isError);
         const auto id=first.data["agentId"].toString();const auto before=agents->output(p.id,id);
         const auto path=QDir(h.options.stateDirectory).filePath(id+".json"),backup=path+".saved";
-        QVERIFY(QFile::rename(path,backup));QVERIFY(createNativeTestLink(backup,path));
-        QVERIFY_THROWS_EXCEPTION(Error,agents->run(c,{{"prompt","resume"},{"resume",id}}));
-        QCOMPARE(agents->output(p.id,id),before);
-        QVERIFY(QFile::remove(path));QVERIFY(QFile::rename(backup,path));
-        QCOMPARE(a::SessionStore(QDir(h.options.stateDirectory).filePath("sessions")).list().size(),1);
+        CTEST_CHECK(QFile::rename(path,backup));CTEST_CHECK(createNativeTestLink(backup,path));
+        CTEST_THROWS(Error,agents->run(c,{{"prompt","resume"},{"resume",id}}));
+        CTEST_COMPARE(agents->output(p.id,id),before);
+        CTEST_CHECK(QFile::remove(path));CTEST_CHECK(QFile::rename(backup,path));
+        CTEST_COMPARE(a::SessionStore(QDir(h.options.stateDirectory).filePath("sessions")).list().size(),1);
     }
     void shellCompletingBetweenListAndStopDoesNotFailChild() {
         Host h;int lists=0;bool modelFinished=false;
@@ -321,7 +321,7 @@ private slots:
         h.registry->add(list);h.registry->add(stop);
         h.model->next=[&](const auto&,const auto&){modelFinished=true;return a::ModelReply{"done",{}};};
         auto agents=h.start();const auto result=agents->run(h.context(h.parent()),{{"prompt","finish"}});
-        QVERIFY(!result.isError);QCOMPARE(result.data["status"],"completed");QCOMPARE(lists,2);
+        CTEST_CHECK(!result.isError);CTEST_COMPARE(result.data["status"],"completed");CTEST_COMPARE(lists,2);
     }
     void modelDelegationTraversesParentAndChildEngines() {
         Host h;h.registry->add({{"Read","read",{{"type","object"}}, {}, true},[](const auto&,const auto&){return a::ToolResult{"CHILD_OBSERVATION"};}});
@@ -337,9 +337,9 @@ private slots:
             return a::ModelReply{{},{{"read","Read",{}}}};
         };
         const auto result=engine.run({parent.id,"delegate"}).result.get();
-        QCOMPARE(result.status,a::RunStatus::Completed);QCOMPARE(result.text,"CHILD_OBSERVATION");
-        const auto saved=engine.session(parent.id);QCOMPARE(saved.messages.size(),4);QVERIFY(a::pendingToolCalls(saved.messages).isEmpty());
-        QCOMPARE(agents->list(parent.id).size(),1);
+        CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_COMPARE(result.text,"CHILD_OBSERVATION");
+        const auto saved=engine.session(parent.id);CTEST_COMPARE(saved.messages.size(),4);CTEST_CHECK(a::pendingToolCalls(saved.messages).isEmpty());
+        CTEST_COMPARE(agents->list(parent.id).size(),1);
     }
     void foregroundScopeAndResume() {
         Host h; int writes=0;
@@ -356,17 +356,17 @@ private slots:
         QString id;
         {
             auto agents=h.start(); auto result=agents->run(c,{{"prompt","read"},{"description","inspect"},{"subagent_type","reader"}});
-            QVERIFY(!result.isError); QCOMPARE(result.data["status"],"completed"); QCOMPARE(result.data["result"].toObject()["text"],"observed");
-            id=result.data["agentId"].toString(); QVERIFY(!id.isEmpty()); QCOMPARE(writes,0);
-            QVERIFY(a::SessionStore(h.engineOptions.sessionsDirectory).load(parent.id).messages.isEmpty());
+            CTEST_CHECK(!result.isError); CTEST_COMPARE(result.data["status"],"completed"); CTEST_COMPARE(result.data["result"].toObject()["text"],"observed");
+            id=result.data["agentId"].toString(); CTEST_CHECK(!id.isEmpty()); CTEST_COMPARE(writes,0);
+            CTEST_CHECK(a::SessionStore(h.engineOptions.sessionsDirectory).load(parent.id).messages.isEmpty());
         }
         auto resumed=h.start(); h.model->next=[](const auto& r,const auto&){
             if(r.messages.size()<4) throw std::runtime_error("child history lost");
             return a::ModelReply{"resumed",{}};
         };
         auto result=resumed->run(c,{{"prompt","continue"},{"resume",id}});
-        QVERIFY(!result.isError); QCOMPARE(result.data["agentId"],id); QCOMPARE(result.data["result"].toObject()["text"],"resumed");
-        QVERIFY_THROWS_EXCEPTION(Error,resumed->output(h.parent().id,id));
+        CTEST_CHECK(!result.isError); CTEST_COMPARE(result.data["agentId"],id); CTEST_COMPARE(result.data["result"].toObject()["text"],"resumed");
+        CTEST_THROWS(Error,resumed->output(h.parent().id,id));
     }
     void deniedToolAndCancelledForeground() {
         Host h; std::atomic_int writes=0;
@@ -374,11 +374,11 @@ private slots:
         a::SubagentDefinition profile; profile.name="reader"; profile.description="reader"; profile.tools={"Read"}; h.options.definitions={profile};
         h.model->next=[](const auto& r,const auto&){ if(r.messages.last().role==a::MessageRole::Tool) return a::ModelReply{"denial observed",{}};return a::ModelReply{{},{{"write-id","Write",{}}}};};
         auto agents=h.start(); auto c=h.context(h.parent());
-        auto result=agents->run(c,{{"prompt","attempt"},{"subagent_type","reader"}}); QVERIFY(!result.isError); QCOMPARE(writes.load(),0);
+        auto result=agents->run(c,{{"prompt","attempt"},{"subagent_type","reader"}}); CTEST_CHECK(!result.isError); CTEST_COMPARE(writes.load(),0);
         h.model->next=[](const auto&,const auto& token)->a::ModelReply{while(true){token.throwIfCancelled();std::this_thread::sleep_for(2ms);}};
         auto pending=std::async(std::launch::async,[&]{return agents->run(c,{{"prompt","wait"},{"subagent_type","reader"}});});
-        QTest::qWait(20); c.cancellation.cancel(); QVERIFY(pending.wait_for(2s)==std::future_status::ready);
-        QCOMPARE(pending.get().data["status"],"cancelled");
+        agent_ctest::processFor(20); c.cancellation.cancel(); CTEST_CHECK(pending.wait_for(2s)==std::future_status::ready);
+        CTEST_COMPARE(pending.get().data["status"],"cancelled");
     }
     void backgroundCapacityStopNotificationAndRestart() {
         Host h; h.options.maxConcurrent=1;
@@ -386,14 +386,14 @@ private slots:
         auto p=h.parent(); auto c=h.context(p); QString id;
         {
             auto agents=h.start(); auto result=agents->run(c,{{"prompt","wait"},{"run_in_background",true}});
-            QVERIFY(!result.isError); QCOMPARE(result.data["status"],"async_launched"); id=result.data["agentId"].toString();
-            c.cancellation.cancel(); auto state=agents->output(p.id,id,false); QVERIFY(state["status"]=="running" || state["status"]=="queued");
-            auto fresh=h.context(p); QVERIFY_THROWS_EXCEPTION(Error,agents->run(fresh,{{"prompt","overflow"},{"run_in_background",true}}));
-            agents->stop(p.id,id); QCOMPARE(agents->output(p.id,id,true,2000)["status"],"cancelled");
+            CTEST_CHECK(!result.isError); CTEST_COMPARE(result.data["status"],"async_launched"); id=result.data["agentId"].toString();
+            c.cancellation.cancel(); auto state=agents->output(p.id,id,false); CTEST_CHECK(state["status"]=="running" || state["status"]=="queued");
+            auto fresh=h.context(p); CTEST_THROWS(Error,agents->run(fresh,{{"prompt","overflow"},{"run_in_background",true}}));
+            agents->stop(p.id,id); CTEST_COMPARE(agents->output(p.id,id,true,2000)["status"],"cancelled");
             const auto queued=a::InputQueue(QDir(h.engineOptions.sessionsDirectory).filePath("inputs")).snapshot(p.id);
-            QCOMPARE(queued["inputs"].toArray().size(),1); QVERIFY(queued["inputs"].toArray()[0].toObject()["text"].toString().contains(id));
+            CTEST_COMPARE(queued["inputs"].toArray().size(),1); CTEST_CHECK(queued["inputs"].toArray()[0].toObject()["text"].toString().contains(id));
         }
-        auto again=h.start(); QCOMPARE(again->output(p.id,id)["status"],"cancelled");
+        auto again=h.start(); CTEST_COMPARE(again->output(p.id,id)["status"],"cancelled");
     }
     void forkContextUsesIndependentPairedSnapshot() {
         Host h; auto p=h.parent();
@@ -404,18 +404,46 @@ private slots:
             return a::ModelReply{"forked",{}};
         };
         auto agents=h.start(); auto result=agents->run(h.context(p),{{"prompt","use parent"},{"fork_context",true}});
-        QVERIFY(!result.isError); QCOMPARE(p.messages.size(),2); QCOMPARE(a::pendingToolCalls(p.messages).size(),1);
+        CTEST_CHECK(!result.isError); CTEST_COMPARE(p.messages.size(),2); CTEST_COMPARE(a::pendingToolCalls(p.messages).size(),1);
     }
     void forkContextCopiesReferencedArtifactsIntoChildOwnership() {
-        Host h;auto p=h.parent();const auto artifacts=QDir(h.engineOptions.sessionsDirectory).filePath(p.id+"/artifacts");QVERIFY(QDir().mkpath(artifacts));
-        QFile file(artifacts+"/result");QVERIFY(file.open(QIODevice::WriteOnly));file.write("parent evidence bytes");file.close();
+        Host h;auto p=h.parent();const auto artifacts=QDir(h.engineOptions.sessionsDirectory).filePath(p.id+"/artifacts");CTEST_CHECK(QDir().mkpath(artifacts));
+        QFile file(artifacts+"/result");CTEST_CHECK(file.open(QIODevice::WriteOnly));file.write("parent evidence bytes");file.close();
         p.messages={{"u",a::MessageRole::User,artifacts+"/result"}};auto context=h.context(p);context.artifactsDirectory=artifacts;
         QString copied;h.model->next=[&](const auto& request,const auto&){copied=request.messages.first().text;QFile backup(copied);
             if(copied==artifacts+"/result"||!backup.open(QIODevice::ReadOnly)||backup.readAll()!="parent evidence bytes")throw std::runtime_error("missing child artifact");
             return a::ModelReply{"copied",{}};};
-        auto agents=h.start();const auto result=agents->run(context,{{"prompt","inspect evidence"},{"fork_context",true}});QVERIFY2(!result.isError,qPrintable(result.text));
-        QVERIFY(copied.contains('/'+result.data["session_id"].toString()+"/artifacts/"));QVERIFY(QFile::remove(artifacts+"/result"));QVERIFY(QFileInfo::exists(copied));
+        auto agents=h.start();const auto result=agents->run(context,{{"prompt","inspect evidence"},{"fork_context",true}});CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));
+        CTEST_CHECK(copied.contains('/'+result.data["session_id"].toString()+"/artifacts/"));CTEST_CHECK(QFile::remove(artifacts+"/result"));CTEST_CHECK(QFileInfo::exists(copied));
     }
 };
-QTEST_GUILESS_MAIN(SubagentTests)
-#include "subagent_tests.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    SubagentTests tests;
+    runner.run("runtimePermissionsAreInheritedAtAdmissionAndRefreshedOnResume", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.runtimePermissionsAreInheritedAtAdmissionAndRefreshedOnResume(); });
+    runner.run("allPendingCompletionsOfAResumedBackgroundChildAreTransferred", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.allPendingCompletionsOfAResumedBackgroundChildAreTransferred(); });
+    runner.run("interruptedNotificationTransferCanBeRetriedAndRecoveredAfterReopen", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.interruptedNotificationTransferCanBeRetriedAndRecoveredAfterReopen(); });
+    runner.run("deliveryPreparationCanInspectChildrenWhileTransferWaits", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.deliveryPreparationCanInspectChildrenWhileTransferWaits(); });
+    runner.run("backgroundChildrenAndPendingNotificationsFollowTheirNewOwner", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.backgroundChildrenAndPendingNotificationsFollowTheirNewOwner(); });
+    runner.run("childrenUseLiveAdditionalDirectoriesWithoutWideningToolScope", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.childrenUseLiveAdditionalDirectoriesWithoutWideningToolScope(); });
+    runner.run("subagentHooksAreScopedAndCanRequireAnotherTurn", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.subagentHooksAreScopedAndCanRequireAnotherTurn(); });
+    runner.run("startHookVetoHasARecordedFailureAndNoModelExecution", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.startHookVetoHasARecordedFailureAndNoModelExecution(); });
+    runner.run("profilePermissionModeCannotGrantParentDeniedActions", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.profilePermissionModeCannotGrantParentDeniedActions(); });
+    runner.run("childSearchCatalogCannotExposeOrActivateDeniedTools", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.childSearchCatalogCannotExposeOrActivateDeniedTools(); });
+    runner.run("deadlineAndAbruptHostRecordRecovery", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.deadlineAndAbruptHostRecordRecovery(); });
+    runner.run("resumedProfileCannotWidenItsOriginalTools", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.resumedProfileCannotWidenItsOriginalTools(); });
+    runner.run("childBackgroundShellsReachTerminalState", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.childBackgroundShellsReachTerminalState(); });
+    runner.run("childStorageRejectsSymlinksAndInvalidRequestsLeaveNoRecord", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.childStorageRejectsSymlinksAndInvalidRequestsLeaveNoRecord(); });
+    runner.run("expandedForkRequestIsValidatedBeforeSavingChild", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.expandedForkRequestIsValidatedBeforeSavingChild(); });
+    runner.run("failedResumeCommitPreservesPreviousOutcome", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.failedResumeCommitPreservesPreviousOutcome(); });
+    runner.run("shellCompletingBetweenListAndStopDoesNotFailChild", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.shellCompletingBetweenListAndStopDoesNotFailChild(); });
+    runner.run("modelDelegationTraversesParentAndChildEngines", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.modelDelegationTraversesParentAndChildEngines(); });
+    runner.run("foregroundScopeAndResume", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.foregroundScopeAndResume(); });
+    runner.run("deniedToolAndCancelledForeground", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.deniedToolAndCancelledForeground(); });
+    runner.run("backgroundCapacityStopNotificationAndRestart", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.backgroundCapacityStopNotificationAndRestart(); });
+    runner.run("forkContextUsesIndependentPairedSnapshot", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.forkContextUsesIndependentPairedSnapshot(); });
+    runner.run("forkContextCopiesReferencedArtifactsIntoChildOwnership", [&] { agent_ctest::ScopedDeferredDeletes cleanup; tests.forkContextCopiesReferencedArtifactsIntoChildOwnership(); });
+    return runner.result();
+}

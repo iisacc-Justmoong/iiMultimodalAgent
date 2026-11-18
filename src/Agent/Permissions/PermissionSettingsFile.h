@@ -36,13 +36,13 @@ class PermissionSettingsFile {
         if(fd<0){if(errno==ENOENT)return std::nullopt;throw Error(ErrorCode::StorageFailure,"Cannot safely read permission settings");}
         struct stat status{};
         if(::fstat(fd,&status)||!S_ISREG(status.st_mode)){::close(fd);throw Error(ErrorCode::StorageFailure,"Permission settings must be a regular file");}
-        iiFileProvider::FileDevice file;if(!file.open(fd,QIODevice::ReadOnly,QFileDevice::AutoCloseHandle)){::close(fd);throw Error(ErrorCode::StorageFailure,"Cannot read permission settings");}
+        iiFileProvider::FileDevice file;if(!file.open(fd,QIODevice::ReadOnly,iiFileProvider::FileDevice::AutoCloseHandle)){::close(fd);throw Error(ErrorCode::StorageFailure,"Cannot read permission settings");}
 #else
         QFileInfo info(path_);if(!info.exists()&&!info.isSymLink())return std::nullopt;
         require(!info.isSymLink()&&info.isFile(),"Permission settings must be a regular file");
         iiFileProvider::FileDevice file(path_);require(file.open(QIODevice::ReadOnly),"Cannot read permission settings");
 #endif
-        const auto data=file.read(qint64(maximum_)+1);require(file.error()==QFileDevice::NoError,"Cannot read permission settings");
+        const auto data=file.read(qint64(maximum_)+1);require(file.error()==iiFileProvider::FileDevice::NoError,"Cannot read permission settings");
         if(data.size()>maximum_||!file.atEnd())throw Error(ErrorCode::ResourceLimit,"Permission settings exceed file limit");return data;
     }
 public:

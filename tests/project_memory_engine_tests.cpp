@@ -7,7 +7,8 @@
 #include <QtCore/QFile>
 #include <QtCore/QDir>
 #include <QtCore/QJsonDocument>
-#include <QtTest/QtTest>
+#include "CTestSupport.h"
+#include <QCoreApplication>
 #include <mutex>
 #include <iostream>
 using namespace iiLocalLLM; using namespace iiMultimodalAgent;
@@ -65,9 +66,8 @@ QJsonObject mcpCall(m::ServerSession& session,int id,const QString& tool,QJsonOb
     return response["result"].toObject();
 }
 }
-class ProjectMemoryEngineTests final:public QObject {
-    Q_OBJECT
-private slots:
+class ProjectMemoryEngineTests final {
+public:
     void nativeToolsSaveAndRefreshMemoryAcrossSessionsAndRestart() {
         Fixture f;QString first,indexPath;
         {
@@ -79,47 +79,47 @@ private slots:
                 return {"missing",{}};
             };
             auto result=engine.run({first,"Remember the validation code for future sessions."}).result.get();
-            QCOMPARE(result.status,a::RunStatus::Completed);QVERIFY(result.text.contains("MEMORY_742"));
+            CTEST_COMPARE(result.status,a::RunStatus::Completed);CTEST_CHECK(result.text.contains("MEMORY_742"));
             const auto stored=engine.session(first);
-            QVERIFY(std::none_of(stored.messages.begin(),stored.messages.end(),[](const auto& message){return message.metadata.contains("iilocal.project_memory");}));
+            CTEST_CHECK(std::none_of(stored.messages.begin(),stored.messages.end(),[](const auto& message){return message.metadata.contains("iilocal.project_memory");}));
             f.model->reply={};
-            const auto fork=engine.forkSession(first);QCOMPARE(engine.memory(fork.id)["index_path"].toString(),indexPath);
-            const auto cleared=engine.clearSession(first);QVERIFY(cleared["complete"].toBool());
-            const auto newId=cleared["session_id"].toString();QVERIFY(engine.run({newId,"Recall the code."}).result.get().text.contains("MEMORY_742"));
+            const auto fork=engine.forkSession(first);CTEST_COMPARE(engine.memory(fork.id)["index_path"].toString(),indexPath);
+            const auto cleared=engine.clearSession(first);CTEST_CHECK(cleared["complete"].toBool());
+            const auto newId=cleared["session_id"].toString();CTEST_CHECK(engine.run({newId,"Recall the code."}).result.get().text.contains("MEMORY_742"));
         }
         a::Engine reopened(f.model,f.registry,f.policy,f.options);auto second=reopened.createSession("fixture",f.workspace).id;
-        QCOMPARE(reopened.memory(second)["index_path"].toString(),indexPath);
-        QVERIFY(reopened.run({second,"What code was saved?"}).result.get().text.contains("MEMORY_742"));
-        QCOMPARE(reopened.memory(first)["index_path"].toString(),indexPath);
-        auto read=reopened.runMemoryTool(second,"Read",{{"path",indexPath}});QVERIFY(!read.isError);QCOMPARE(read.data["sha256"].toString().size(),64);
+        CTEST_COMPARE(reopened.memory(second)["index_path"].toString(),indexPath);
+        CTEST_CHECK(reopened.run({second,"What code was saved?"}).result.get().text.contains("MEMORY_742"));
+        CTEST_COMPARE(reopened.memory(first)["index_path"].toString(),indexPath);
+        auto read=reopened.runMemoryTool(second,"Read",{{"path",indexPath}});CTEST_CHECK(!read.isError);CTEST_COMPARE(read.data["sha256"].toString().size(),64);
     }
     void disablingMemoryDoesNotInjectOrGrantAccess() {
         Fixture f;QString index;
         {a::Engine enabled(f.model,f.registry,f.policy,f.options);auto id=enabled.createSession("fixture",f.workspace).id;
-            index=enabled.memory(id)["index_path"].toString();QVERIFY(!enabled.runMemoryTool(id,"Write",{{"path",index},{"content","private note"}}).isError);}
+            index=enabled.memory(id)["index_path"].toString();CTEST_CHECK(!enabled.runMemoryTool(id,"Write",{{"path",index},{"content","private note"}}).isError);}
         f.options.projectMemoryEnabled=false;a::Engine disabled(f.model,f.registry,f.policy,f.options);auto id=disabled.createSession("fixture",f.workspace).id;
-        QVERIFY(!disabled.memory(id)["enabled"].toBool());QCOMPARE(disabled.run({id,"hello"}).result.get().text,"NO_MEMORY");
-        QVERIFY_EXCEPTION_THROWN(disabled.runMemoryTool(id,"Read",{{"path",index}}),Error);
+        CTEST_CHECK(!disabled.memory(id)["enabled"].toBool());CTEST_COMPARE(disabled.run({id,"hello"}).result.get().text,"NO_MEMORY");
+        CTEST_THROWS(Error,disabled.runMemoryTool(id,"Read",{{"path",index}}));
         f.model->reply=[&](const auto& request)->a::ModelReply {
             if(request.messages.last().role==a::MessageRole::Tool)return {request.messages.last().isError?"DENIED":"LEAKED",{}};
             return {{},{{"read","Read",{{"path",index}}}}};
         };
-        QCOMPARE(disabled.run({id,"Read the note."}).result.get().text,"DENIED");
+        CTEST_COMPARE(disabled.run({id,"Read the note."}).result.get().text,"DENIED");
     }
     void compactionMeasuresMemoryAndReloadsItWithoutTranscriptDuplication() {
         Fixture f;f.model->budgets=true;a::Engine engine(f.model,f.registry,f.policy,f.options);
         const auto id=engine.createSession("fixture",f.workspace).id;const auto index=engine.memory(id)["index_path"].toString();
-        QVERIFY(!engine.runMemoryTool(id,"Write",{{"path",index},{"content","CURRENT_MEMORY_103"}}).isError);
+        CTEST_CHECK(!engine.runMemoryTool(id,"Write",{{"path",index},{"content","CURRENT_MEMORY_103"}}).isError);
         {a::SessionStore store(f.options.sessionsDirectory);auto lease=store.acquire(id);
             for(int i=0;i<8;++i) {lease->append({{},a::MessageRole::User,"Requirement "+QString::number(i)+QString(512,'x')});lease->append({{},a::MessageRole::Assistant,"Observed requirement "+QString::number(i)});}}
         a::CompactRequest compact;compact.sessionId=id;auto result=engine.compact(compact).result.get();
-        QVERIFY2(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));QVERIFY(f.model->measuredWithMemory.load());
-        QVERIFY(!engine.runMemoryTool(id,"Read",{{"path",index}}).isError);
-        QVERIFY(!engine.runMemoryTool(id,"Write",{{"path",index},{"content","UPDATED_MEMORY_207"}}).isError);
-        result=engine.run({id,"Continue with current memory."}).result.get();QVERIFY(result.text.contains("UPDATED_MEMORY_207"));
-        QVERIFY(!result.text.contains("CURRENT_MEMORY_103"));
-        const auto stored=engine.session(id);QVERIFY(!stored.compactions.isEmpty());
-        QVERIFY(std::none_of(stored.messages.begin(),stored.messages.end(),[](const auto& message){return message.metadata.contains("iilocal.project_memory");}));
+        CTEST_CHECK_MESSAGE(result.status==a::RunStatus::Completed,qPrintable(result.errorMessage));CTEST_CHECK(f.model->measuredWithMemory.load());
+        CTEST_CHECK(!engine.runMemoryTool(id,"Read",{{"path",index}}).isError);
+        CTEST_CHECK(!engine.runMemoryTool(id,"Write",{{"path",index},{"content","UPDATED_MEMORY_207"}}).isError);
+        result=engine.run({id,"Continue with current memory."}).result.get();CTEST_CHECK(result.text.contains("UPDATED_MEMORY_207"));
+        CTEST_CHECK(!result.text.contains("CURRENT_MEMORY_103"));
+        const auto stored=engine.session(id);CTEST_CHECK(!stored.compactions.isEmpty());
+        CTEST_CHECK(std::none_of(stored.messages.begin(),stored.messages.end(),[](const auto& message){return message.metadata.contains("iilocal.project_memory");}));
     }
     void readOnlyChildSharesMemoryButDoesNotGainWriteTools() {
         Fixture f;f.policy=std::make_shared<a::RulePolicy>(a::PermissionMode::AcceptEdits,QList<a::PermissionRule>{{"Agent",a::PermissionBehavior::Allow}});
@@ -127,10 +127,10 @@ private slots:
         a::SubagentDefinition role;role.name="recaller";role.tools={"Read","Glob","Grep"};role.readOnly=true;options.definitions={role};
         auto children=std::make_shared<a::Subagents>(f.model,f.registry,f.policy,f.options,options);a::Subagents::attach(f.options,children);
         a::Engine engine(f.model,f.registry,f.policy,f.options);const auto id=engine.createSession("fixture",f.workspace).id;
-        QVERIFY(!engine.runMemoryTool(id,"Write",{{"path",engine.memory(id)["index_path"]},{"content","PARENT_MEMORY_498"}}).isError);
+        CTEST_CHECK(!engine.runMemoryTool(id,"Write",{{"path",engine.memory(id)["index_path"]},{"content","PARENT_MEMORY_498"}}).isError);
         const auto result=engine.runSubagentTool(id,"Agent",{{"prompt","Recall project context."},{"subagent_type","recaller"}});
-        QVERIFY2(!result.isError,qPrintable(result.text));QVERIFY(result.data["result"].toObject()["text"].toString().contains("PARENT_MEMORY_498"));
-        QVERIFY(std::none_of(f.model->requests.last().tools.begin(),f.model->requests.last().tools.end(),[](const auto& tool){return tool.name=="Write"||tool.name=="MemoryForget";}));
+        CTEST_CHECK_MESSAGE(!result.isError,qPrintable(result.text));CTEST_CHECK(result.data["result"].toObject()["text"].toString().contains("PARENT_MEMORY_498"));
+        CTEST_CHECK(std::none_of(f.model->requests.last().tools.begin(),f.model->requests.last().tools.end(),[](const auto& tool){return tool.name=="Write"||tool.name=="MemoryForget";}));
     }
     void authenticatedApiKeepsTwoAppMemoriesSeparateAndBoundsToolPaths() {
         Fixture f;a::ApiOptions options{.engine={.decision={.enabled=false}}};options.workingDirectory=f.workspace;options.stateDirectory=f.root.filePath("api-state");
@@ -138,19 +138,19 @@ private slots:
         a::Api api(f.model,f.registry,f.policy,options);
         const auto first=call(api,"agent.sessions.create",{{"model","fixture"}})["session_id"].toString();
         const auto second=call(api,"agent.sessions.create",{{"model","fixture"}},QString(48,'b'))["session_id"].toString();
-        QVERIFY(call(api,"agent.info")["project_memory_enabled"].toBool());
+        CTEST_CHECK(call(api,"agent.info")["project_memory_enabled"].toBool());
         const auto one=call(api,"agent.memory.get",{{"session_id",first}}),two=call(api,"agent.memory.get",{{"session_id",second}},QString(48,'b'));
-        QVERIFY(one["directory"]!=two["directory"]);const auto index=one["index_path"].toString();
-        QVERIFY(!call(api,"agent.memory.write",{{"session_id",first},{"path",index},{"content","Society tenant note"}})["is_error"].toBool());
-        const auto read=call(api,"agent.memory.read",{{"session_id",first},{"path",index}});QCOMPARE(read["text"].toString(),"Society tenant note");
-        QVERIFY_EXCEPTION_THROWN(call(api,"agent.memory.get",{{"session_id",first}},QString(48,'b')),Error);
-        QVERIFY_EXCEPTION_THROWN(call(api,"agent.memory.get",{{"session_id",first}},"invalid"),Error);
-        QVERIFY_EXCEPTION_THROWN(call(api,"agent.memory.read",{{"session_id",second},{"path",index}},QString(48,'b')),Error);
-        QVERIFY_EXCEPTION_THROWN(call(api,"agent.memory.write",{{"session_id",first},{"path",QDir(f.workspace).filePath("escape.md")},{"content","escape"}}),Error);
-        QVERIFY(!QFileInfo::exists(QDir(f.workspace).filePath("escape.md")));
+        CTEST_CHECK(one["directory"]!=two["directory"]);const auto index=one["index_path"].toString();
+        CTEST_CHECK(!call(api,"agent.memory.write",{{"session_id",first},{"path",index},{"content","Society tenant note"}})["is_error"].toBool());
+        const auto read=call(api,"agent.memory.read",{{"session_id",first},{"path",index}});CTEST_COMPARE(read["text"].toString(),"Society tenant note");
+        CTEST_THROWS(Error,call(api,"agent.memory.get",{{"session_id",first}},QString(48,'b')));
+        CTEST_THROWS(Error,call(api,"agent.memory.get",{{"session_id",first}},"invalid"));
+        CTEST_THROWS(Error,call(api,"agent.memory.read",{{"session_id",second},{"path",index}},QString(48,'b')));
+        CTEST_THROWS(Error,call(api,"agent.memory.write",{{"session_id",first},{"path",QDir(f.workspace).filePath("escape.md")},{"content","escape"}}));
+        CTEST_CHECK(!QFileInfo::exists(QDir(f.workspace).filePath("escape.md")));
         const auto forgotten=call(api,"agent.memory.forget",{{"session_id",first},{"path",index},{"sha256",read["result"].toObject()["sha256"]}});
-        QVERIFY(!forgotten["is_error"].toBool());QVERIFY(!QFileInfo::exists(index));
-        QCOMPARE(call(api,"agent.memory.get",{{"session_id",second}},QString(48,'b'))["index"].toString(),QString());
+        CTEST_CHECK(!forgotten["is_error"].toBool());CTEST_CHECK(!QFileInfo::exists(index));
+        CTEST_COMPARE(call(api,"agent.memory.get",{{"session_id",second}},QString(48,'b'))["index"].toString(),QString());
     }
     void inputChangingHookCannotEscapeMemoryApi() {
         Fixture f;const auto escaped=QDir(f.workspace).filePath("escape.md");
@@ -161,26 +161,34 @@ private slots:
         });
         a::Engine engine(f.model,f.registry,f.policy,f.options);auto id=engine.createSession("fixture",f.workspace).id;
         auto result=engine.runMemoryTool(id,"Write",{{"path",engine.memory(id)["index_path"]},{"content","escape"}});
-        QVERIFY(result.isError);QVERIFY(!QFileInfo::exists(escaped));
+        CTEST_CHECK(result.isError);CTEST_CHECK(!QFileInfo::exists(escaped));
     }
     void mcpPublishesMemoryAndRoutesNativeFilesToTheOwnedProject() {
         Fixture f;auto engine=std::make_shared<a::Engine>(f.model,f.registry,f.policy,f.options);
         a::McpServerOptions options;options.workingDirectory=f.workspace;options.engine=engine;options.model="fixture";
         m::ServerSession session(a::mcpServerOptions(f.registry,f.policy,options));initialize(session);
         const auto state=mcpCall(session,2,"iiLocalLLM.agent.memory.get")["structuredContent"].toObject();
-        const auto index=state["index_path"].toString();QVERIFY(!index.isEmpty());
-        auto written=mcpCall(session,3,"Write",{{"path",index},{"content","MCP_MEMORY_319"}});QVERIFY(!written["isError"].toBool());
-        const auto read=mcpCall(session,4,"Read",{{"path",index}});QVERIFY(!read["isError"].toBool());
-        QVERIFY(QJsonDocument(read).toJson().contains("MCP_MEMORY_319"));
+        const auto index=state["index_path"].toString();CTEST_CHECK(!index.isEmpty());
+        auto written=mcpCall(session,3,"Write",{{"path",index},{"content","MCP_MEMORY_319"}});CTEST_CHECK(!written["isError"].toBool());
+        const auto read=mcpCall(session,4,"Read",{{"path",index}});CTEST_CHECK(!read["isError"].toBool());
+        CTEST_CHECK(QJsonDocument(read).toJson().contains("MCP_MEMORY_319"));
         auto deleted=mcpCall(session,5,"MemoryForget",{{"path",index},{"sha256",read["structuredContent"].toObject()["sha256"]}});
-        QVERIFY(!deleted["isError"].toBool());QVERIFY(!QFileInfo::exists(index));
+        CTEST_CHECK(!deleted["isError"].toBool());CTEST_CHECK(!QFileInfo::exists(index));
         auto forged=exchange(session,6,"tools/call",{{"name","iiLocalLLM.agent.memory.get"},{"arguments",QJsonObject{{"session_id","foreign"}}}});
-        QVERIFY(forged.contains("error")||forged["result"].toObject()["isError"].toBool());
+        CTEST_CHECK(forged.contains("error")||forged["result"].toObject()["isError"].toBool());
     }
 };
-int main(int argc,char** argv) {
-    QCoreApplication app(argc,argv);ProjectMemoryEngineTests test;
-    try { return QTest::qExec(&test,argc,argv); }
-    catch(const std::exception& error) {std::cerr<<"Project memory test exception: "<<error.what()<<std::endl;return 1;}
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    agent_ctest::CTestRunner runner;
+    ProjectMemoryEngineTests tests;
+    runner.run("nativeToolsSaveAndRefreshMemoryAcrossSessionsAndRestart", [&] { tests.nativeToolsSaveAndRefreshMemoryAcrossSessionsAndRestart(); });
+    runner.run("disablingMemoryDoesNotInjectOrGrantAccess", [&] { tests.disablingMemoryDoesNotInjectOrGrantAccess(); });
+    runner.run("compactionMeasuresMemoryAndReloadsItWithoutTranscriptDuplication", [&] { tests.compactionMeasuresMemoryAndReloadsItWithoutTranscriptDuplication(); });
+    runner.run("readOnlyChildSharesMemoryButDoesNotGainWriteTools", [&] { tests.readOnlyChildSharesMemoryButDoesNotGainWriteTools(); });
+    runner.run("authenticatedApiKeepsTwoAppMemoriesSeparateAndBoundsToolPaths", [&] { tests.authenticatedApiKeepsTwoAppMemoriesSeparateAndBoundsToolPaths(); });
+    runner.run("inputChangingHookCannotEscapeMemoryApi", [&] { tests.inputChangingHookCannotEscapeMemoryApi(); });
+    runner.run("mcpPublishesMemoryAndRoutesNativeFilesToTheOwnedProject", [&] { tests.mcpPublishesMemoryAndRoutesNativeFilesToTheOwnedProject(); });
+    return runner.result();
 }
-#include "project_memory_engine_tests.moc"
